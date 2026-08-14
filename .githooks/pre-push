@@ -1,0 +1,45 @@
+#!/bin/sh
+#
+# يمنع الدفع المباشر إلى الفرع الرئيسي.
+#
+# هذه حماية على الجهاز لا على الخادم: من يستنسخ المستودع ولا يفعّل
+# المسار لن يمرّ به شيء، ومن يعرف المتغيّر أدناه يتجاوزه. حماية GitHub
+# الحقيقية تحتاج خطة مدفوعة أو مستودعًا عامًا.
+#
+# لكن الخطر الفعلي اليوم ليس مهاجمًا، بل `git push` في الفرع الخطأ بعد
+# ساعة عمل متأخرة — وهذا ما يوقفه الخطّاف.
+#
+# التفعيل بعد الاستنساخ:  git config core.hooksPath .githooks
+# التجاوز عند الضرورة:    ALLOW_MAIN_PUSH=1 git push
+
+PROTECTED="main"
+
+while read -r _local_ref _local_sha remote_ref _remote_sha; do
+  case "$remote_ref" in
+    "refs/heads/$PROTECTED")
+      if [ "$ALLOW_MAIN_PUSH" = "1" ]; then
+        echo "⚠️  تجاوز الحماية: دفع مباشر إلى $PROTECTED." >&2
+        continue
+      fi
+
+      cat >&2 <<EOF
+
+  ⛔ الدفع المباشر إلى «$PROTECTED» ممنوع.
+
+     اعمل على فرع وافتح طلب دمج:
+
+       git switch -c feat/اسم-التغيير
+       git push -u origin feat/اسم-التغيير
+       gh pr create --fill
+
+     وإن كنت مضطرًا فعلًا:
+
+       ALLOW_MAIN_PUSH=1 git push
+
+EOF
+      exit 1
+      ;;
+  esac
+done
+
+exit 0
