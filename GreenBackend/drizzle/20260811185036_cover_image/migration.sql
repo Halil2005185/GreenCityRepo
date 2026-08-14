@@ -1,0 +1,1 @@
+ALTER TABLE "initiatives" ADD COLUMN "cover_image_url" varchar(500);

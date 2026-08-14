@@ -1,0 +1,2 @@
+ALTER TABLE "partner_partnerships" DROP CONSTRAINT "partner_partnerships_approval_consistency", ADD CONSTRAINT "partner_partnerships_approval_consistency" CHECK ("status" not in ('APPROVED', 'PAUSED')
+          or ("approved_at" is not null and "approved_by_id" is not null));

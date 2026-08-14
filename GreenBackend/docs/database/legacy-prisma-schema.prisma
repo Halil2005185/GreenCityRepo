@@ -1,0 +1,2327 @@
+// ═══════════════════════════════════════════════════════════════════════════════
+//  مرجع قديم غير تشغيلي — مخطط Prisma السابق محفوظ مؤقتاً أثناء نقل الجداول إلى Drizzle.
+//  فريق إيفا التطوعي (EVA) · PostgreSQL (Neon) · Prisma 7 + @prisma/adapter-neon
+//
+//  قواعد عامة:
+//   • العربية هي لغة المحتوى الأساسية (nameAr إلزامي)، والإنجليزية اختيارية للـSEO.
+//   • النصوص التي يكتبها الزائر (رسائل، طلبات، سِيَر) تُخزَّن في أعمدة محايدة اللغة
+//     (body, message, fullName) مع عمود locale — ولا تُلصق بها لاحقة Ar كذباً.
+//   • كل المعرّفات ASCII، وقيم الـenum بصيغة SCREAMING_SNAKE، والجداول snake_case.
+//   • الروابط (slug) بأحرف ASCII، ثابتة بعد النشر ولا تُغيَّر (لا جدول إعادة توجيه في v1).
+//   • قيود CHECK والفهارس الجزئية غير قابلة للتعبير في Prisma — تُشحن في
+//     sql/constraints.sql ضمن أول migration (القائمة في نهاية هذا البيان).
+//
+//  خريطة الأدوار المطلوبة → التطبيق:
+//   • «المشرف العام»    = UserRole.SUPER_ADMIN
+//   • «الشريك التنفيذي» = UserRole.PARTNER_USER + PartnershipType.EXECUTIVE
+//        + PartnerContact.capabilities [LOG_FIELD_ACTIVITY, SUBMIT_IMPACT, VIEW_SCOPED_REPORTS]
+//   • «الشريك الإعلامي» = UserRole.PARTNER_USER + PartnershipType.MEDIA
+//        + PartnerContact.capabilities [UPLOAD_MEDIA, PUBLISH_UPDATES, VIEW_SCOPED_REPORTS]
+//   صفة الشراكة صفة على مستوى الجهة (قد يحمل الشريك أكثر من صفة)، والصلاحية على مستوى الممثل.
+//
+//  الترجمة: قيم الـenum مجمّدة، ونصوصها العربية/الإنجليزية تُقرأ من قاموس i18n في
+//  الواجهة الأمامية لا من قاعدة البيانات (أي قيمة جديدة = migration + تحديث القاموس).
+//
+//  ملاحظات تشغيل (Neon + Prisma 7) — شرط لصحّة المخطط عملياً:
+//   • في Prisma 7 لا يوجد url ولا directUrl داخل datasource إطلاقاً:
+//     - رابط التطبيق (DATABASE_URL المجمّع، الذي يحوي -pooler) يُمرَّر إلى
+//       PrismaNeon في src/lib/prisma.ts.
+//     - رابط الترحيلات (DIRECT_URL المباشر، بلا -pooler) في prisma.config.ts.
+//   • لا تضف pgbouncer=true ولا connection_limit=1 إلى الرابط: كانا لازمين في
+//     Prisma 5/6 فقط، ومع adapter-neon يدير الـ Pool نفسه. اكتفِ بـ sslmode=require.
+//   • prisma.config.ts يجب أن يبدأ بـ import 'dotenv/config' وإلا فشل بـ
+//     PrismaConfigEnvError — Prisma 7 لا يحمّل .env تلقائياً هناك.
+//   • مولّد prisma-client يُخرج شيفرة TypeScript إلى src/generated/prisma
+//     (لا داخل node_modules): أضف هذا المسار إلى .gitignore.
+//   • lat/lng من نوع Float عمداً — تتحول إلى أرقام JSON عادية يبتلعها Leaflet.
+//     أما حقول Decimal الأربعة (المساحات/الساعات) فتعود ككائنات Decimal.js
+//     وتُحوَّل في طبقة DTO قبل أي JSON أو تمرير إلى Client Component.
+//   • Neon بلا pg_cron: كل مهمة دورية عبر Vercel Cron على مسار محمي —
+//     purge-pii (يومي) · publish-scheduled · expire-sessions · reports-worker
+//     (SELECT ... WHERE status='QUEUED' ... FOR UPDATE SKIP LOCKED).
+//   • كل استعلام قائمة يستخدم select صريحاً (لا include عارياً) لتفادي سحب
+//     body / dataSnapshot / blurDataUrl، وكل صفحات الجمهور عليها revalidate.
+//   • الحذف الناعم للمبادرة أو الوسيطة عملية خدمية داخل معاملة واحدة:
+//     قيود عكسية في ImpactEntry · تفريغ مراجع الوسائط · إعادة حساب العدّادات.
+//
+//  sql/constraints.sql (ملخص): تطابق scope_type مع مفاتيحه في impact_entries و reports ·
+//  فهارس فريدة جزئية (شراكات حيّة NULLS NOT DISTINCT، إقرار ميثاق حيّ، جهة اتصال رئيسية
+//  واحدة، بريد فريد بحروف صغيرة، دعوة معلّقة واحدة لكل بريد، طلبات تطوع مفتوحة، حضور
+//  لكل فعالية/يوم) · فهرس الخريطة الجزئي وفهرس جدار الشركاء الجزئي · مدى إحداثيات سوريا ·
+//  مفتاح أجنبي مركّب (city_id, governorate_id) · منع مفاتيح المؤشرات المحجوزة ·
+//  فهارس pg_trgm للبحث العربي · triggers منع UPDATE/DELETE على السجلات الإثباتية.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  1) ENUMS — القوائم الثابتة (مجمّدة؛ الترجمة في قاموس الواجهة)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ────────────────────────────── الصلاحيات والحسابات ──────────────────────────
+
+/// أدوار المنصة — دور واحد لكل حساب.
+/// «شريك تنفيذي» و«شريك إعلامي» ليسا دورين بل صفتَي شراكة (PartnershipType)
+/// على مستوى الجهة + قدرات (PartnerCapability) على مستوى الممثل.
+enum UserRole {
+  /// المشرف العام — فريق إيفا الأساسي، صلاحية كاملة.
+  SUPER_ADMIN
+  /// مدير — الشركاء والطلبات والمبادرات والمتطوعون.
+  ADMIN
+  /// محرر — المحتوى فقط (مبادرات، تحديثات، وسائط).
+  EDITOR
+  /// ممثل جهة شريكة — كل وصوله عبر PartnerContact.
+  PARTNER_USER
+  /// متطوع — ملفه الشخصي وطلباته فقط.
+  VOLUNTEER
+}
+
+/// دور الممثل داخل جهته الشريكة.
+enum PartnerRole {
+  PARTNER_ADMIN
+  PARTNER_CONTRIBUTOR
+  PARTNER_VIEWER
+}
+
+/// قدرات دقيقة داخل الجهة — هي ما يُفحص فعلياً في التفويض.
+enum PartnerCapability {
+  MANAGE_ORG_PROFILE
+  MANAGE_DISPLAY_CONSENT
+  /// شريك إعلامي
+  UPLOAD_MEDIA
+  /// شريك إعلامي
+  PUBLISH_UPDATES
+  /// شريك تنفيذي
+  LOG_FIELD_ACTIVITY
+  /// شريك تنفيذي
+  SUBMIT_IMPACT
+  VIEW_SCOPED_REPORTS
+}
+
+enum UserStatus {
+  PENDING_INVITE
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+/// حالة ارتباط الشخص بالجهة الشريكة.
+enum MembershipStatus {
+  ACTIVE
+  SUSPENDED
+  ENDED
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+  REVOKED
+}
+
+enum TokenPurpose {
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
+  EMAIL_CHANGE
+}
+
+enum SessionClient {
+  ADMIN_DASHBOARD
+  PUBLIC_SITE
+}
+
+enum SessionRevokeReason {
+  USER_LOGOUT
+  LOGOUT_ALL_DEVICES
+  PASSWORD_CHANGED
+  ROLE_CHANGED
+  ADMIN_REVOKED
+  EXPIRED
+}
+
+enum ActorType {
+  USER
+  SYSTEM
+  ANONYMOUS
+}
+
+enum AuditSeverity {
+  INFO
+  NOTICE
+  WARNING
+  CRITICAL
+}
+
+// ────────────────────────────── الشركاء والميثاق ─────────────────────────────
+
+enum OrganizationKind {
+  INDIVIDUAL
+  INSTITUTION
+  VOLUNTEER_TEAM
+  COMMUNITY_INITIATIVE
+  ACADEMIC_BODY
+  MUNICIPALITY
+  COMPANY
+  OTHER
+}
+
+/// أنواع الشراكات الخمسة كما وردت في الميثاق.
+/// EVENT مرتبط دائماً بمبادرة محددة بلا التزام طويل الأمد.
+enum PartnershipType {
+  /// شريك استراتيجي
+  STRATEGIC
+  /// شريك تنفيذي
+  EXECUTIVE
+  /// شريك تقني
+  TECHNICAL
+  /// شريك إعلامي
+  MEDIA
+  /// شريك فعالية/نشاط
+  EVENT
+}
+
+/// دورة حياة الشريك ككيان — محور واحد فقط.
+/// الإيقاف والتعليق أعمدة زمنية مستقلة (pausedAt / suspendedAt)،
+/// وإقرار الميثاق يُشتق من CharterAcknowledgement ولا يُخزَّن كحالة.
+enum PartnerStatus {
+  /// جهة قيد التنسيق قبل اعتماد أي صفة شراكة
+  PROSPECT
+  ACTIVE
+  /// انتهت الشراكة — سجل تاريخي، لا يُحذف
+  ENDED
+}
+
+enum PartnershipStatus {
+  PROPOSED
+  ACTIVE
+  PAUSED
+  ENDED
+}
+
+/// مستوى الظهور على جدار الشركاء — مستقل تماماً عن نوع الشراكة.
+enum PartnerWallTier {
+  SPOTLIGHT
+  FEATURED
+  STANDARD
+}
+
+/// أشكال المشاركة والدعم الواردة في الميثاق.
+enum SupportForm {
+  MORAL_SUPPORT
+  MEDIA_SUPPORT
+  COMMUNITY_VOLUNTEERING
+  SPONSORSHIP
+  LOGISTICS
+  TECHNICAL_EXPERTISE
+  ACADEMIC_EXPERTISE
+  AWARENESS_ACTIVITIES
+  INSTITUTIONAL_SUSTAINABILITY
+  VENUE_OR_RESOURCES
+}
+
+/// مبادئ الميثاق الستة.
+enum CharterPrinciple {
+  ENVIRONMENT_AND_PUBLIC_SPACE_PROTECTION
+  COMMUNITY_PARTICIPATION
+  YOUTH_EMPOWERMENT
+  ENVIRONMENTAL_SUSTAINABILITY
+  COOPERATION_AND_PARTNERSHIP
+  BELONGING_TO_PLACE
+}
+
+/// التزامات الشركاء (إقرار أخلاقي غير ملزم قانونياً أو مالياً).
+enum PartnerCommitmentArea {
+  SUPPORT_INITIATIVES_WITHIN_MEANS
+  SPREAD_ENVIRONMENTAL_AWARENESS
+  PROMOTE_PARTICIPATION_AND_VOLUNTEERING
+  PROTECT_AND_DEVELOP_GREEN_SPACES
+  ENCOURAGE_YOUTH_INITIATIVES
+}
+
+/// كيف وُثّقت الموافقة أو الإقرار.
+enum EvidenceMethod {
+  WEB_FORM
+  EMAIL
+  SIGNED_DOCUMENT
+  IN_PERSON
+  PHONE_OR_MESSAGING
+  PAPER_FORM
+  ADMIN_ENTRY
+  IMPORT
+}
+
+// ──────────────────────────── المبادرات والوسائط ─────────────────────────────
+
+/// محور النشر — هل يراها الجمهور؟
+enum PublishStatus {
+  DRAFT
+  IN_REVIEW
+  SCHEDULED
+  PUBLISHED
+  ARCHIVED
+}
+
+/// محور التنفيذ — ماذا يجري على الأرض؟
+enum InitiativeStatus {
+  PLANNED
+  ANNOUNCED
+  IN_PROGRESS
+  COMPLETED
+  /// رعاية ومتابعة — قياس نسبة بقاء الأشجار
+  MAINTENANCE
+  ON_HOLD
+  CANCELLED
+}
+
+enum EventStatus {
+  SCHEDULED
+  RESCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum LocationPrecision {
+  EXACT
+  APPROXIMATE
+  /// يُعرض مركز المدينة فقط (مواقع حساسة)
+  CITY_ONLY
+}
+
+enum StorageProvider {
+  CLOUDINARY
+  S3
+  R2
+  UPLOADTHING
+  /// ملف مستضاف خارجياً لا نملك حذفه
+  EXTERNAL_URL
+}
+
+enum MediaKind {
+  IMAGE
+  LOGO
+  VIDEO
+  DOCUMENT
+  AUDIO
+}
+
+enum InitiativeMediaRole {
+  GALLERY
+  PROCESS
+  TEAM
+  RESULT
+  DOCUMENT
+}
+
+// ─────────────────────────────────── الأثر ───────────────────────────────────
+
+/// نطاق القياس المشترك للأثر والتقارير.
+enum ScopeType {
+  PROJECT
+  CITY
+  INITIATIVE
+  PARTNER
+}
+
+/// وحدات المؤشرات — لا وحدات نقدية: الميثاق لا ينشئ أي التزام مالي.
+enum MetricUnit {
+  COUNT
+  SQUARE_METER
+  LINEAR_METER
+  HOUR
+  KILOGRAM
+  LITER
+  PERCENT
+}
+
+enum ImpactEntrySource {
+  FIELD_REPORT
+  ADMIN_ENTRY
+  PARTICIPATION_ROLLUP
+  PARTNER_SUBMISSION
+  IMPORT
+  CORRECTION
+}
+
+// ────────────────────────────────── المتطوعون ────────────────────────────────
+
+enum VolunteerStatus {
+  PENDING
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum VolunteerAvailability {
+  WEEKDAYS
+  WEEKENDS
+  EVENINGS
+  FLEXIBLE
+  ON_CALL
+}
+
+enum VolunteerGender {
+  FEMALE
+  MALE
+  UNDISCLOSED
+}
+
+enum VolunteerApplicationStatus {
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  WAITLISTED
+  REJECTED
+  WITHDRAWN
+  CANCELLED
+}
+
+enum ParticipationRole {
+  FIELD_VOLUNTEER
+  TEAM_LEAD
+  LOGISTICS
+  MEDIA
+  TRAINER
+  COORDINATOR
+  FIRST_AID
+}
+
+enum AttendanceStatus {
+  REGISTERED
+  ATTENDED
+  PARTIALLY_ATTENDED
+  NO_SHOW
+  EXCUSED
+}
+
+/// أنواع الموافقات — للمتطوعين وللجهات الشريكة معاً.
+enum ConsentType {
+  DATA_PROCESSING
+  PHOTO_MEDIA
+  CONTACT_EMAIL
+  CONTACT_SMS
+  CONTACT_WHATSAPP
+  GUARDIAN
+  /// عرض اسم الجهة على الموقع العام
+  PUBLIC_NAME_DISPLAY
+  /// عرض شعار الجهة على الموقع العام
+  PUBLIC_LOGO_DISPLAY
+}
+
+enum ConsentAction {
+  GRANTED
+  WITHDRAWN
+  RENEWED
+}
+
+/// موافقة الصورة — الصمت ليس موافقة، لذلك الافتراضي NOT_ASKED.
+enum PhotoConsent {
+  NOT_ASKED
+  GRANTED
+  DENIED
+  WITHDRAWN
+}
+
+// ───────────────────────────── طلبات الانضمام ────────────────────────────────
+
+enum JoinRequestKind {
+  VOLUNTEER
+  PARTNERSHIP
+}
+
+enum JoinRequestStatus {
+  NEW
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+enum JoinRequestSource {
+  WEB_FORM
+  EMAIL
+  PHONE
+  EVENT
+  REFERRAL
+  SOCIAL_MEDIA
+  ADMIN_ENTRY
+}
+
+enum JoinRequestEventType {
+  CREATED
+  ASSIGNED
+  STATUS_CHANGED
+  NOTE_ADDED
+  CONTACTED
+  MEETING_HELD
+  DOCUMENT_REQUESTED
+  DECIDED
+  PARTNER_CREATED
+  VOLUNTEER_CREATED
+}
+
+// ─────────────────────────────────── التقارير ────────────────────────────────
+
+enum ReportKind {
+  PERIODIC
+  ANNUAL
+  INITIATIVE_SUMMARY
+  /// ملخص مساهمة الشريك — لا «كشف حساب»: الميثاق لا ينشئ أي التزام مالي.
+  PARTNER_CONTRIBUTION_SUMMARY
+  IMPACT_SNAPSHOT
+}
+
+/// حالة خط التوليد فقط — الأرشفة محور زمني (archivedAt).
+enum ReportStatus {
+  DRAFT
+  QUEUED
+  GENERATING
+  READY
+  FAILED
+}
+
+enum ReportVisibility {
+  /// إدارة المشروع فقط
+  INTERNAL
+  /// الجهة صاحبة النطاق فقط (+ المنح الصريحة)
+  SCOPED_PARTNER
+  /// شركاء المبادرة صاحبة التقرير (يشمل شريك الفعالية)
+  INITIATIVE_PARTNERS
+  /// كل الشركاء الفاعلين
+  ALL_PARTNERS
+  /// الموقع العام
+  PUBLIC
+}
+
+// ─────────────────────────────────── النظام ──────────────────────────────────
+
+enum ContentLocale {
+  AR
+  EN
+}
+
+enum ContactTopic {
+  GENERAL
+  PARTNERSHIP
+  VOLUNTEERING
+  MEDIA
+  /// دعم عيني/لوجستي — لا قناة تبرعات مالية في المنصة.
+  IN_KIND_SUPPORT
+  COMPLAINT
+  OTHER
+}
+
+enum ContactMessageStatus {
+  NEW
+  READ
+  IN_PROGRESS
+  REPLIED
+  SPAM
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  2) AUTH & RBAC — الحسابات والصلاحيات والجلسات
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// المستخدم — حساب دخول واحد لكل شخص (إدارة، ممثل شريك، متطوع).
+/// «ماذا يفعل» = role · «بيانات مَن يلمس» = PartnerContact · «كم يملك داخل الجهة» = capabilities.
+model User {
+  id String @id @default(cuid())
+
+  /// يُخزّن دائماً بأحرف صغيرة — مضمون بـ CHECK (email = lower(email)).
+  email           String    @unique @db.VarChar(254)
+  emailVerifiedAt DateTime? @map("email_verified_at")
+  /// argon2id أو bcrypt cost>=12. فارغ للمدعوين قبل التفعيل.
+  passwordHash    String?   @map("password_hash") @db.VarChar(255)
+
+  fullNameAr String        @map("full_name_ar") @db.VarChar(200)
+  fullNameEn String?       @map("full_name_en") @db.VarChar(200)
+  phone      String?       @db.VarChar(32)
+  avatarUrl  String?       @map("avatar_url") @db.VarChar(2048)
+  locale     ContentLocale @default(AR)
+
+  role   UserRole   @default(VOLUNTEER)
+  status UserStatus @default(PENDING_INVITE)
+
+  /// رفع الرقم يُبطل فوراً كل رموز الدخول القائمة لهذا المستخدم.
+  tokenVersion       Int       @default(0) @map("token_version")
+  passwordChangedAt  DateTime? @map("password_changed_at")
+  mustChangePassword Boolean   @default(false) @map("must_change_password")
+  failedLoginCount   Int       @default(0) @map("failed_login_count")
+  lockedUntil        DateTime? @map("locked_until")
+  lastLoginAt        DateTime? @map("last_login_at")
+  lastLoginIp        String?   @map("last_login_ip") @db.VarChar(45)
+
+  /// لا نحذف المستخدمين (يُفقد إسناد سجل التدقيق) بل نُعطّلهم.
+  /// CHECK: (status = 'DEACTIVATED') = (deactivated_at IS NOT NULL)
+  deactivatedAt DateTime? @map("deactivated_at")
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("UserCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  createdUsers                  User[]                   @relation("UserCreatedBy")
+  sessions                      Session[]
+  verificationTokens            VerificationToken[]
+  invitationsSent               Invitation[]             @relation("InvitationInviter")
+  invitationsAccepted           Invitation[]             @relation("InvitationAcceptedBy")
+  invitationsRevoked            Invitation[]             @relation("InvitationRevoker")
+  auditLogs                     AuditLog[]               @relation("AuditActor")
+  managedPartners               Partner[]                @relation("PartnerAccountManager")
+  suspendedPartners             Partner[]                @relation("PartnerSuspendedBy")
+  partnerContacts               PartnerContact[]         @relation("PartnerContactUser")
+  approvedPartnerships          PartnerPartnership[]     @relation("PartnershipApprovedBy")
+  partnerConsentRecorded        PartnerConsentEvent[]    @relation("PartnerConsentRecordedBy")
+  meetingsCreated               PartnerMeeting[]         @relation("PartnerMeetingCreatedBy")
+  charterVersionsCreated        CharterVersion[]         @relation("CharterVersionCreatedBy")
+  charterVersionsPublished      CharterVersion[]         @relation("CharterVersionPublishedBy")
+  recordedAcknowledgements      CharterAcknowledgement[] @relation("CharterAckRecordedBy")
+  uploadedMedia                 MediaAsset[]             @relation("MediaUploadedBy")
+  initiativesCreated            Initiative[]             @relation("InitiativeCreatedBy")
+  initiativesUpdated            Initiative[]             @relation("InitiativeUpdatedBy")
+  initiativeImpactVerified      Initiative[]             @relation("InitiativeImpactVerifiedBy")
+  initiativeUpdatesCreated      InitiativeUpdate[]       @relation("InitiativeUpdateCreatedBy")
+  impactEntriesRecorded         ImpactEntry[]            @relation("ImpactEntryRecordedBy")
+  volunteerProfile              VolunteerProfile?        @relation("UserVolunteerProfile")
+  consentEventsRecorded         VolunteerConsentEvent[]  @relation("ConsentEventRecordedBy")
+  volunteerApplicationsReviewed VolunteerApplication[]   @relation("VolunteerApplicationReviewer")
+  participationsVerified        Participation[]          @relation("ParticipationVerifiedBy")
+  joinRequestsAssigned          JoinRequest[]            @relation("JoinRequestAssignee")
+  joinRequestsReviewed          JoinRequest[]            @relation("JoinRequestReviewer")
+  joinRequestEvents             JoinRequestEvent[]       @relation("JoinRequestEventActor")
+  reportsGenerated              Report[]                 @relation("ReportGeneratedBy")
+  reportGrants                  ReportAccessGrant[]      @relation("ReportGrantUser")
+  reportGrantsGiven             ReportAccessGrant[]      @relation("ReportGrantGrantedBy")
+  reportGrantsRevoked           ReportAccessGrant[]      @relation("ReportGrantRevokedBy")
+  contactMessagesHandled        ContactMessage[]         @relation("ContactMessageHandledBy")
+  settingsUpdated               SiteSetting[]            @relation("SiteSettingUpdatedBy")
+
+  @@index([role, status])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([createdById])
+  @@map("users")
+}
+
+/// جلسة جهاز واحد — تحفظ بصمة رمز التحديث فقط، لا الرمز نفسه.
+model Session {
+  id String @id @default(cuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  /// SHA-256 لرمز التحديث؛ النص الصريح لا يلمس قاعدة البيانات.
+  refreshTokenHash String @unique @map("refresh_token_hash") @db.VarChar(128)
+
+  client    SessionClient @default(ADMIN_DASHBOARD)
+  ip        String?       @db.VarChar(45)
+  userAgent String?       @map("user_agent") @db.VarChar(512)
+
+  lastUsedAt DateTime @default(now()) @map("last_used_at")
+  expiresAt  DateTime @map("expires_at")
+
+  revokedAt     DateTime?            @map("revoked_at")
+  revokedReason SessionRevokeReason? @map("revoked_reason")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+/// رموز تحقق أحادية الاستخدام (استعادة كلمة مرور، تأكيد بريد).
+model VerificationToken {
+  id String @id @default(cuid())
+
+  userId String @map("user_id")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  purpose   TokenPurpose
+  /// SHA-256 للرمز المُرسل بالبريد.
+  tokenHash String       @unique @map("token_hash") @db.VarChar(128)
+  /// للبريد الجديد في حالة EMAIL_CHANGE.
+  newEmail  String?      @map("new_email") @db.VarChar(254)
+
+  expiresAt          DateTime  @map("expires_at")
+  consumedAt         DateTime? @map("consumed_at")
+  requestedIp        String?   @map("requested_ip") @db.VarChar(45)
+  requestedUserAgent String?   @map("requested_user_agent") @db.VarChar(512)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([userId, purpose, consumedAt])
+  @@index([expiresAt])
+  @@map("verification_tokens")
+}
+
+/// دعوة — الطريق الوحيد لإنشاء حساب ذي صلاحية (إدارة أو ممثل شريك).
+/// CHECK: (role = 'PARTNER_USER') = (partner_id IS NOT NULL AND partner_role IS NOT NULL)
+/// فهرس فريد جزئي: دعوة PENDING واحدة لكل بريد (lower(email)).
+model Invitation {
+  id String @id @default(cuid())
+
+  email     String @db.VarChar(254)
+  /// SHA-256 لرمز الدعوة في رابط البريد.
+  tokenHash String @unique @map("token_hash") @db.VarChar(128)
+
+  role UserRole
+
+  partnerId String? @map("partner_id")
+  /// الشريك لا يُحذف — الدعوة سجل منح وصول لبيانات الجهة.
+  partner     Partner?     @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  partnerRole PartnerRole? @map("partner_role")
+
+  messageAr String? @map("message_ar") @db.VarChar(1000)
+
+  status    InvitationStatus @default(PENDING)
+  expiresAt DateTime         @map("expires_at")
+
+  invitedById String @map("invited_by_id")
+  invitedBy   User   @relation("InvitationInviter", fields: [invitedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  acceptedAt       DateTime? @map("accepted_at")
+  acceptedByUserId String?   @map("accepted_by_user_id")
+  acceptedBy       User?     @relation("InvitationAcceptedBy", fields: [acceptedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// صف العضوية الناتج — يجعل منح الصلاحية داخل الجهة قابلاً للتدقيق.
+  resultingPartnerContactId String?         @unique @map("resulting_partner_contact_id")
+  resultingPartnerContact   PartnerContact? @relation("InvitationResultingContact", fields: [resultingPartnerContactId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  revokedAt   DateTime? @map("revoked_at")
+  revokedById String?   @map("revoked_by_id")
+  revokedBy   User?     @relation("InvitationRevoker", fields: [revokedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([email, status])
+  @@index([partnerId, status])
+  @@index([invitedById])
+  @@index([acceptedByUserId])
+  @@index([revokedById])
+  @@index([status, expiresAt])
+  @@map("invitations")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  3) PARTNERS & CHARTER — الشركاء وميثاق المدن الخضراء
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// الشريك — أي جهة انضمت للشبكة الوطنية.
+/// «يمكن أن يحمل الشريك أكثر من صفة شراكة» ⇒ لا عمود type هنا؛ الصفات صفوف في PartnerPartnership.
+/// الشريك لا يُحذف: كل أبنائه الإثباتية Restrict، والإخفاء عبر status/deletedAt.
+model Partner {
+  id String @id @default(cuid())
+
+  /// ASCII ثابت لا يُشتق من الاسم العربي ولا يُغيَّر بعد النشر.
+  slug             String           @unique @db.VarChar(96)
+  nameAr           String           @map("name_ar") @db.VarChar(200)
+  nameEn           String?          @map("name_en") @db.VarChar(200)
+  shortNameAr      String?          @map("short_name_ar") @db.VarChar(80)
+  shortNameEn      String?          @map("short_name_en") @db.VarChar(80)
+  aboutAr          String?          @map("about_ar") @db.Text
+  aboutEn          String?          @map("about_en") @db.Text
+  organizationKind OrganizationKind @map("organization_kind")
+
+  /// اسم مُطبَّع للبحث العربي (بلا تشكيل/تطويل، أإآ→ا، ة→ه، ى→ي) يكتبه التطبيق.
+  /// فهرس pg_trgm عليه في sql/constraints.sql — لا btree على nameAr (لا يخدم ILIKE '%..%').
+  searchName String? @map("search_name") @db.VarChar(400)
+
+  websiteUrl  String? @map("website_url") @db.VarChar(2048)
+  publicEmail String? @map("public_email") @db.VarChar(254)
+  publicPhone String? @map("public_phone") @db.VarChar(32)
+  /// { facebook, instagram, telegram, linkedin, x, youtube } — محدود الحجم بـ CHECK.
+  socialLinks Json?   @map("social_links")
+
+  /// مدينة المقر (اختيارية).
+  cityId String? @map("city_id")
+  city   City?   @relation(fields: [cityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// EVA-ONLY — لا يحرره الشريك (قائمة حقول بيضاء في واجهة الشريك).
+  status          PartnerStatus @default(PROSPECT)
+  statusChangedAt DateTime?     @map("status_changed_at")
+  /// EVA-ONLY
+  statusNoteAr    String?       @map("status_note_ar") @db.VarChar(500)
+  joinedOn        DateTime?     @map("joined_on") @db.Date
+  endedAt         DateTime?     @map("ended_at")
+  /// إيقاف مؤقت بالتوافق.
+  pausedAt        DateTime?     @map("paused_at")
+
+  /// تعليق أحادي من إدارة المشروع — محور مستقل عن status. EVA-ONLY.
+  suspendedAt        DateTime? @map("suspended_at")
+  suspensionReasonAr String?   @map("suspension_reason_ar") @db.VarChar(500)
+  suspendedById      String?   @map("suspended_by_id")
+  suspendedBy        User?     @relation("PartnerSuspendedBy", fields: [suspendedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  // ── سياسة العرض العام: «إمكانية عرض اسم وشعار الشريك وفق سياسة المشروع» ──
+  // الاسم والشعار موافقتان مستقلتان؛ صفوف PartnerConsentEvent هي الإثبات،
+  // وهذه الأعمدة ذاكرة لآخر حالة تُكتب في نفس معاملة الحدث.
+  // بوابة العرض: status=ACTIVE && suspendedAt IS NULL && publicNameConsent
+  //              && publicNameConsentRevokedAt IS NULL && !hiddenFromWall
+  publicNameConsent          Boolean         @default(false) @map("public_name_consent")
+  publicNameConsentAt        DateTime?       @map("public_name_consent_at")
+  publicNameConsentRevokedAt DateTime?       @map("public_name_consent_revoked_at")
+  publicLogoConsent          Boolean         @default(false) @map("public_logo_consent")
+  publicLogoConsentAt        DateTime?       @map("public_logo_consent_at")
+  publicLogoConsentRevokedAt DateTime?       @map("public_logo_consent_revoked_at")
+  displayConsentMethod       EvidenceMethod? @map("display_consent_method")
+  displayConsentByName       String?         @map("display_consent_by_name") @db.VarChar(200)
+  displayConsentByRole       String?         @map("display_consent_by_role") @db.VarChar(200)
+  displayConsentNote         String?         @map("display_consent_note") @db.VarChar(500)
+  /// تجاوز إداري بالمنع فقط — لا يمنح ظهوراً أبداً. EVA-ONLY.
+  hiddenFromWall             Boolean         @default(false) @map("hidden_from_wall")
+
+  // ── ترتيب جدار الشركاء — EVA-ONLY، ممنوع في واجهة الشريك ──
+  wallTier      PartnerWallTier @default(STANDARD) @map("wall_tier")
+  displayOrder  Int             @default(100) @map("display_order")
+  featuredUntil DateTime?       @map("featured_until")
+
+  logoId     String?     @map("logo_id")
+  logo       MediaAsset? @relation("PartnerLogo", fields: [logoId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  /// نسخة الشعار للخلفية الداكنة.
+  logoDarkId String?     @map("logo_dark_id")
+  logoDark   MediaAsset? @relation("PartnerLogoDark", fields: [logoDarkId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// أشكال الدعم المعروضة (قيم مغلقة بلا دورة حياة) — فهرس GIN في SQL.
+  offeredSupportForms SupportForm[] @default([]) @map("offered_support_forms")
+
+  metaTitleAr       String? @map("meta_title_ar") @db.VarChar(200)
+  metaDescriptionAr String? @map("meta_description_ar") @db.VarChar(320)
+  metaTitleEn       String? @map("meta_title_en") @db.VarChar(200)
+  metaDescriptionEn String? @map("meta_description_en") @db.VarChar(320)
+
+  /// مسؤول العلاقة داخل فريق إيفا. EVA-ONLY.
+  accountManagerId String? @map("account_manager_id")
+  accountManager   User?   @relation("PartnerAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  /// EVA-ONLY — لا يُعاد في أي واجهة شريك ولا في أي سجل تدقيق مرئي له.
+  internalNotes    String? @map("internal_notes") @db.Text
+
+  /// حذف ناعم لإدخال خاطئ فقط — إنهاء الشراكة يكون بـ status = ENDED.
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  partnerships      PartnerPartnership[]
+  contacts          PartnerContact[]
+  consentEvents     PartnerConsentEvent[]
+  acknowledgements  CharterAcknowledgement[]
+  invitations       Invitation[]
+  initiatives       InitiativePartner[]
+  meetingAttendance PartnerMeetingAttendance[]
+  impactEntries     ImpactEntry[]
+  originJoinRequest JoinRequest?               @relation("PartnerOriginJoinRequest")
+  reports           Report[]                   @relation("ReportScopePartner")
+  reportGrants      ReportAccessGrant[]        @relation("ReportGrantPartner")
+
+  @@index([status, wallTier, displayOrder])
+  @@index([organizationKind, status])
+  @@index([cityId, status])
+  @@index([accountManagerId])
+  @@index([suspendedById])
+  @@index([logoId])
+  @@index([logoDarkId])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@map("partners")
+}
+
+/// صفة شراكة واحدة يحملها الشريك — صف لكل (شريك، نوع، مبادرة).
+/// يجوز أن يحمل الشريك STRATEGIC + MEDIA + عدة صفات EVENT معاً.
+/// الفريدية على الصفوف الحيّة فقط (فهرس جزئي NULLS NOT DISTINCT في SQL) كي تُعاد
+/// الشراكة بعد انتهائها دون إتلاف سجل الاعتماد الأول. وجود initiativeId هو
+/// تعريف «صفة مقيدة بمبادرة» (لا عمود scope منفصل يناقضه).
+/// CHECK: type='EVENT' ⇒ initiative_id غير فارغ · status<>'PROPOSED' ⇒ approved_at غير فارغ
+///        · status='ENDED' ⇒ ended_on غير فارغ.
+model PartnerPartnership {
+  id String @id @default(cuid())
+
+  partnerId String  @map("partner_id")
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  type   PartnershipType
+  status PartnershipStatus @default(PROPOSED)
+
+  /// إلزامي عندما type = EVENT (شريك فعالية مرتبط بنشاط محدد).
+  initiativeId String?     @map("initiative_id")
+  initiative   Initiative? @relation("InitiativeEventPartnerships", fields: [initiativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  startedOn   DateTime? @map("started_on") @db.Date
+  endedOn     DateTime? @map("ended_on") @db.Date
+  endReasonAr String?   @map("end_reason_ar") @db.VarChar(500)
+
+  /// آلية الانضمام: «ثم يتم اعتماد صفة الشراكة المناسبة».
+  approvedById   String?   @map("approved_by_id")
+  approvedBy     User?     @relation("PartnershipApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  approvedAt     DateTime? @map("approved_at")
+  approvalNoteAr String?   @map("approval_note_ar") @db.VarChar(1000)
+
+  /// طبيعة المساهمة ضمن هذه الصفة تحديداً (تظهر في الصفحة العامة).
+  contributionAr String? @map("contribution_ar") @db.Text
+  contributionEn String? @map("contribution_en") @db.Text
+
+  /// فشل مغلق: لا يُعرض إلا مع موافقة الجهة على عرض الاسم (عرض public_partner_badges).
+  isPubliclyVisible Boolean @default(false) @map("is_publicly_visible")
+  sortOrder         Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([partnerId, type, initiativeId])
+  @@index([type, status, isPubliclyVisible, sortOrder])
+  @@index([partnerId, status])
+  @@index([initiativeId, status])
+  @@index([approvedById])
+  @@map("partner_partnerships")
+}
+
+/// ممثل / جهة اتصال لدى الشريك — وهذا الصف هو حدّ العزل (tenancy).
+/// CHECK: (status='ENDED') = (ended_at IS NOT NULL) · trigger: user_id يجب أن يكون PARTNER_USER.
+/// فهارس فريدة جزئية: بريد واحد لكل شريك بين الصفوف ACTIVE · جهة اتصال رئيسية واحدة.
+/// عرض العزل الوحيد: user_partner_scope (status='ACTIVE' AND ended_at IS NULL).
+model PartnerContact {
+  id String @id @default(cuid())
+
+  partnerId String  @map("partner_id")
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  /// حساب دخول للوحة التحكم (اختياري — كثير من جهات الاتصال بلا حساب).
+  userId String? @map("user_id")
+  user   User?   @relation("PartnerContactUser", fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  nameAr      String  @map("name_ar") @db.VarChar(200)
+  nameEn      String? @map("name_en") @db.VarChar(200)
+  roleTitleAr String? @map("role_title_ar") @db.VarChar(200)
+  roleTitleEn String? @map("role_title_en") @db.VarChar(200)
+  email       String? @db.VarChar(254)
+  phone       String? @db.VarChar(32)
+  whatsapp    String? @db.VarChar(32)
+
+  /// صلاحيته داخل جهته فقط.
+  role   PartnerRole      @default(PARTNER_VIEWER)
+  status MembershipStatus @default(ACTIVE)
+
+  /// القدرات المفحوصة فعلياً في التفويض — تُشتق من صفة الشراكة عند الاعتماد
+  /// (تنفيذي ⇒ LOG_FIELD_ACTIVITY/SUBMIT_IMPACT · إعلامي ⇒ UPLOAD_MEDIA/PUBLISH_UPDATES).
+  capabilities PartnerCapability[] @default([])
+
+  isPrimary         Boolean @default(false) @map("is_primary")
+  isPubliclyVisible Boolean @default(false) @map("is_publicly_visible")
+
+  /// مزايا الشركاء: التقارير الدورية + الاجتماعات والجلسات التشاورية.
+  receivesPeriodicReports Boolean @default(true) @map("receives_periodic_reports")
+  receivesMeetingInvites  Boolean @default(true) @map("receives_meeting_invites")
+
+  preferredLocale ContentLocale @default(AR) @map("preferred_locale")
+  notes           String?       @db.VarChar(1000)
+
+  startedAt DateTime  @default(now()) @map("started_at")
+  endedAt   DateTime? @map("ended_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  sourceInvitation  Invitation?                @relation("InvitationResultingContact")
+  meetingAttendance PartnerMeetingAttendance[]
+
+  @@unique([userId, partnerId])
+  @@index([partnerId, status])
+  @@index([userId, status])
+  @@map("partner_contacts")
+}
+
+/// سجل موافقات الجهة الشريكة — للإضافة فقط، هو الإثبات وليس العلم المنطقي.
+/// يفصل موافقة الاسم عن موافقة الشعار ويحفظ كل دورة منح/سحب على حدة.
+model PartnerConsentEvent {
+  id String @id @default(cuid())
+
+  partnerId String  @map("partner_id")
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  consentType ConsentType    @map("consent_type")
+  action      ConsentAction
+  method      EvidenceMethod @default(WEB_FORM)
+  byName      String?        @map("by_name") @db.VarChar(200)
+  byRoleAr    String?        @map("by_role_ar") @db.VarChar(200)
+  actedAt     DateTime       @default(now()) @map("acted_at")
+  noteAr      String?        @map("note_ar") @db.VarChar(1000)
+
+  recordedById String? @map("recorded_by_id")
+  recordedBy   User?   @relation("PartnerConsentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([partnerId, consentType, actedAt(sort: Desc)])
+  @@index([recordedById])
+  @@map("partner_consent_events")
+}
+
+/// اجتماع شركاء أو جلسة تشاورية — إثبات تسليم ميزة «المشاركة في الاجتماعات».
+model PartnerMeeting {
+  id String @id @default(cuid())
+
+  titleAr    String   @map("title_ar") @db.VarChar(300)
+  titleEn    String?  @map("title_en") @db.VarChar(300)
+  agendaAr   String?  @map("agenda_ar") @db.Text
+  heldAt     DateTime @map("held_at")
+  isOnline   Boolean  @default(false) @map("is_online")
+  locationAr String?  @map("location_ar") @db.VarChar(300)
+  /// محضر الجلسة نصاً — لا حاجة لتقرير بنطاق وفترة لتمثيل اجتماع.
+  minutesAr  String?  @map("minutes_ar") @db.Text
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("PartnerMeetingCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  attendees PartnerMeetingAttendance[]
+
+  @@index([heldAt(sort: Desc)])
+  @@index([createdById])
+  @@map("partner_meetings")
+}
+
+/// دعوة/حضور جهة شريكة في اجتماع — يجيب أيضاً «مع مَن تشبّكنا؟».
+model PartnerMeetingAttendance {
+  id String @id @default(cuid())
+
+  meetingId String         @map("meeting_id")
+  meeting   PartnerMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  partnerId String  @map("partner_id")
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  contactId String?         @map("contact_id")
+  contact   PartnerContact? @relation(fields: [contactId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  invited  Boolean @default(true)
+  attended Boolean @default(false)
+  noteAr   String? @map("note_ar") @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([meetingId, partnerId, contactId])
+  @@index([partnerId, createdAt(sort: Desc)])
+  @@index([contactId])
+  @@map("partner_meeting_attendance")
+}
+
+/// إصدار من ميثاق المدن الخضراء — الإقرارات تُربط بإصدار محدد.
+/// CHECK: is_current ⇒ published_at و effective_from غير فارغين · فهرس فريد: إصدار حالي واحد.
+model CharterVersion {
+  id String @id @default(cuid())
+
+  /// مثل "1.0" — ثابت بعد النشر.
+  versionLabel String  @unique @map("version_label") @db.VarChar(20)
+  titleAr      String  @map("title_ar") @db.VarChar(300)
+  titleEn      String? @map("title_en") @db.VarChar(300)
+  bodyAr       String  @map("body_ar") @db.Text
+  bodyEn       String? @map("body_en") @db.Text
+
+  /// نسخة PDF للتحميل من الموقع العام.
+  documentAssetId String?     @map("document_asset_id")
+  documentAsset   MediaAsset? @relation("CharterDocument", fields: [documentAssetId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  principles CharterPrinciple[] @default([])
+
+  publishedAt DateTime? @map("published_at")
+  /// اختياري: المسوّدة تُكتب قبل تحديد تاريخ السريان.
+  effectiveFrom DateTime? @map("effective_from") @db.Date
+  isCurrent     Boolean   @default(false) @map("is_current")
+
+  /// مَن أصدر ومَن نشر — حوكمة الميثاق ملك فريق إيفا وتُوثَّق.
+  createdById   String? @map("created_by_id")
+  createdBy     User?   @relation("CharterVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  publishedById String? @map("published_by_id")
+  publishedBy   User?   @relation("CharterVersionPublishedBy", fields: [publishedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  acknowledgements CharterAcknowledgement[]
+
+  @@index([isCurrent, effectiveFrom])
+  @@index([documentAssetId])
+  @@index([createdById])
+  @@index([publishedById])
+  @@map("charter_versions")
+}
+
+/// إقرار الشريك بالميثاق — إطار أخلاقي ومجتمعي.
+/// هذا الإقرار لا ينشئ أي التزام قانوني أو مالي؛ أي ترتيب مالي يُسجَّل حصراً في separateArrangementRef.
+/// التعديل مسموح فقط على supersededAt؛ كل إقرار جديد صف جديد (trigger يرفض ما عداه).
+model CharterAcknowledgement {
+  id String @id @default(cuid())
+
+  partnerId String  @map("partner_id")
+  /// سجل إثباتي: الشريك لا يُحذف ولا يُفقد إقراره.
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  /// لقطة اسم الجهة وقت الإقرار — يبقى السجل مقروءاً بعد أي إعادة تسمية.
+  partnerNameSnapshot String @map("partner_name_snapshot") @db.VarChar(200)
+
+  charterVersionId String         @map("charter_version_id")
+  charterVersion   CharterVersion @relation(fields: [charterVersionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  /// لقطة ثابتة من رقم الإصدار تبقى صحيحة حتى لو عُدّل صف الإصدار.
+  charterVersionLabel String @map("charter_version_label") @db.VarChar(20)
+
+  /// تاريخ التوقيع الفعلي — يُزوَّد صراحةً (توقيع ورقي من آذار لا يُختم بتاريخ اليوم).
+  acknowledgedAt       DateTime @map("acknowledged_at")
+  /// متى أُدخل الصف في النظام.
+  recordedAt           DateTime @default(now()) @map("recorded_at")
+  acknowledgedByName   String   @map("acknowledged_by_name") @db.VarChar(200)
+  acknowledgedByRoleAr String?  @map("acknowledged_by_role_ar") @db.VarChar(200)
+  acknowledgedByRoleEn String?  @map("acknowledged_by_role_en") @db.VarChar(200)
+  acknowledgedByEmail  String?  @map("acknowledged_by_email") @db.VarChar(254)
+
+  method EvidenceMethod
+  /// بيانات شخصية — للإثبات فقط ولا تُعاد في أي واجهة عامة.
+  ipAddress String? @map("ip_address") @db.VarChar(45)
+  userAgent String? @map("user_agent") @db.VarChar(512)
+
+  evidenceAssetId String?     @map("evidence_asset_id")
+  evidenceAsset   MediaAsset? @relation("CharterEvidence", fields: [evidenceAssetId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// المبادئ والالتزامات التي أقرّ بها.
+  affirmedPrinciples  CharterPrinciple[]      @default([]) @map("affirmed_principles")
+  affirmedCommitments PartnerCommitmentArea[] @default([]) @map("affirmed_commitments")
+
+  /// مرجع أي اتفاق منفصل — الميثاق نفسه لا ينشئ أي التزام.
+  separateArrangementRef  String? @map("separate_arrangement_ref") @db.VarChar(120)
+  separateArrangementNote String? @map("separate_arrangement_note") @db.VarChar(1000)
+
+  recordedById String? @map("recorded_by_id")
+  recordedBy   User?   @relation("CharterAckRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// يُملأ عند إقرار الجهة بإصدار أحدث أو بتوقيع مسؤول جديد.
+  /// فهرس فريد جزئي: إقرار حيّ واحد لكل (شريك، إصدار) حيث superseded_at IS NULL.
+  supersededAt DateTime? @map("superseded_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([partnerId, charterVersionId, supersededAt])
+  @@index([partnerId, acknowledgedAt(sort: Desc)])
+  @@index([charterVersionId])
+  @@index([recordedById])
+  @@index([evidenceAssetId])
+  @@map("charter_acknowledgements")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  4) GEOGRAPHY — المحافظات والمدن (مرجع مبذور Seeded)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// محافظة سورية — 14 صفاً مبذورة برموز ISO 3166-2:SY وإحداثيات المركز.
+model Governorate {
+  id String @id @default(cuid())
+
+  /// مثال: "SY-DI" دمشق، "SY-HL" حلب.
+  code   String  @unique @db.VarChar(10)
+  slug   String  @unique @db.VarChar(96)
+  nameAr String  @map("name_ar") @db.VarChar(120)
+  nameEn String? @map("name_en") @db.VarChar(120)
+
+  /// مركز المحافظة — تستخدمه الخريطة عند التكبير المنخفض وللتجميع.
+  centerLat   Float @map("center_lat")
+  centerLng   Float @map("center_lng")
+  defaultZoom Int   @default(9) @map("default_zoom")
+
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  cities      City[]
+  initiatives Initiative[]
+
+  @@index([isActive, sortOrder])
+  @@map("governorates")
+}
+
+/// مدينة أو بلدة داخل محافظة — مرجع ثابت لتصفية الخريطة وصفحات ‎/cities/[slug]‎.
+/// قيد إضافي في SQL: UNIQUE (id, governorate_id) ليستند إليه المفتاح المركّب في المبادرات.
+model City {
+  id String @id @default(cuid())
+
+  slug   String  @unique @db.VarChar(96)
+  nameAr String  @map("name_ar") @db.VarChar(120)
+  nameEn String? @map("name_en") @db.VarChar(120)
+
+  governorateId String      @map("governorate_id")
+  governorate   Governorate @relation(fields: [governorateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  centerLat   Float @map("center_lat")
+  centerLng   Float @map("center_lng")
+  defaultZoom Int   @default(13) @map("default_zoom")
+
+  /// عاصمة المحافظة؟
+  isGovernorateSeat Boolean @default(false) @map("is_governorate_seat")
+  sortOrder         Int     @default(0) @map("sort_order")
+  isActive          Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  initiatives       Initiative[]
+  events            InitiativeEvent[]
+  partners          Partner[]
+  impactEntries     ImpactEntry[]
+  volunteerProfiles VolunteerProfile[]
+  joinRequests      JoinRequest[]
+  reports           Report[]           @relation("ReportScopeCity")
+
+  @@unique([governorateId, nameAr])
+  @@index([governorateId, isActive, sortOrder])
+  @@map("cities")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  5) INITIATIVES & MEDIA — المبادرات والفعاليات والوسائط
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// مبادرة / مشروع — الكيان المحوري للمحتوى وللخريطة.
+/// محوران مستقلان: publishStatus (الظهور للجمهور) و status (الواقع الميداني).
+/// الإحداثيات اختيارية أثناء التحرير؛ CHECK يمنع نشر دبوس بلا إحداثيات ويحصر
+/// النطاق داخل سوريا، ومفتاح أجنبي مركّب (city_id, governorate_id) يمنع انحراف المحافظة.
+model Initiative {
+  id String @id @default(cuid())
+
+  /// ثابت بعد النشر — لا جدول إعادة توجيه في v1.
+  slug      String  @unique @db.VarChar(96)
+  titleAr   String  @map("title_ar") @db.VarChar(300)
+  titleEn   String? @map("title_en") @db.VarChar(300)
+  summaryAr String? @map("summary_ar") @db.VarChar(600)
+  summaryEn String? @map("summary_en") @db.VarChar(600)
+  bodyAr    String? @map("body_ar") @db.Text
+  bodyEn    String? @map("body_en") @db.Text
+
+  /// نص مُطبَّع للبحث العربي — يكتبه التطبيق (فهرس pg_trgm في SQL).
+  searchName String? @map("search_name") @db.VarChar(400)
+
+  publishStatus PublishStatus    @default(DRAFT) @map("publish_status")
+  status        InitiativeStatus @default(PLANNED)
+
+  scheduledPublishAt DateTime? @map("scheduled_publish_at")
+  /// لا يُعاد كتابته أبداً (trigger) — يثبّت lastmod في خريطة الموقع.
+  firstPublishedAt   DateTime? @map("first_published_at")
+  publishedAt        DateTime? @map("published_at")
+  archivedAt         DateTime? @map("archived_at")
+
+  // ── الجغرافيا: الدبوس مصدر الحقيقة للخريطة ولا يتطلب أي join ──
+  cityId String @map("city_id")
+  city   City   @relation(fields: [cityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  /// مُشتق من المدينة — مضمون بمفتاح أجنبي مركّب نحو cities(id, governorate_id).
+  governorateId String      @map("governorate_id")
+  governorate   Governorate @relation(fields: [governorateId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  lat               Float?
+  lng               Float?
+  locationPrecision LocationPrecision @default(EXACT) @map("location_precision")
+  /// إخفاء الدبوس عن الخريطة دون إلغاء نشر الصفحة.
+  mapPinVisible     Boolean           @default(true) @map("map_pin_visible")
+  locationNoteAr    String?           @map("location_note_ar") @db.VarChar(500)
+  locationNoteEn    String?           @map("location_note_en") @db.VarChar(500)
+
+  startDate   DateTime? @map("start_date")
+  endDate     DateTime? @map("end_date")
+  completedAt DateTime? @map("completed_at")
+
+  // ── الأثر الرئيسي: مصدر الحقيقة الوحيد للرقمين المعروضين على البطاقة والصفحة ──
+  // مفاتيح TREES_* و VOLUNTEERS_MOBILIZED محجوزة ولا تُنشأ في ImpactMetric (CHECK).
+  // NULL = «لم يُقَس بعد» وليس صفراً؛ العرض العام يستخدم COALESCE صراحةً.
+  /// الأثر المتوقع — عدد الأشجار
+  treesExpected          Int?      @map("trees_expected")
+  /// الأثر المحقق — عدد الأشجار المزروعة (CHECK: COMPLETED ⇒ غير فارغ)
+  treesPlanted           Int?      @map("trees_planted")
+  /// عدد الأشجار الحية عند آخر متابعة (مرحلة MAINTENANCE)
+  treesSurviving         Int?      @map("trees_surviving")
+  survivalCheckedAt      DateTime? @map("survival_checked_at")
+  volunteersExpected     Int?      @map("volunteers_expected")
+  /// عدد المتطوعين المتمايزين — يُعاد حسابه من Participation ولا يُزاد بمقدار.
+  volunteersParticipated Int?      @map("volunteers_participated")
+  countersRecomputedAt   DateTime? @map("counters_recomputed_at")
+  impactVerifiedAt       DateTime? @map("impact_verified_at")
+
+  impactVerifiedById String? @map("impact_verified_by_id")
+  impactVerifiedBy   User?   @relation("InitiativeImpactVerifiedBy", fields: [impactVerifiedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  // ── الوسائط و SEO ──
+  coverMediaId String?     @map("cover_media_id")
+  coverMedia   MediaAsset? @relation("InitiativeCover", fields: [coverMediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  ogMediaId    String?     @map("og_media_id")
+  ogMedia      MediaAsset? @relation("InitiativeOgImage", fields: [ogMediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  metaTitleAr       String? @map("meta_title_ar") @db.VarChar(200)
+  metaDescriptionAr String? @map("meta_description_ar") @db.VarChar(320)
+  metaTitleEn       String? @map("meta_title_en") @db.VarChar(200)
+  metaDescriptionEn String? @map("meta_description_en") @db.VarChar(320)
+
+  isFeatured    Boolean @default(false) @map("is_featured")
+  featuredOrder Int     @default(0) @map("featured_order")
+  /// عدّاد تقريبي يُجمَّع خارج القاعدة ويُكتب دفعة واحدة (fillfactor=85 على الجدول).
+  viewCount     Int     @default(0) @map("view_count")
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("InitiativeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  updatedById String? @map("updated_by_id")
+  updatedBy   User?   @relation("InitiativeUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// حذف ناعم — كل استعلام عام يجب أن يحمل deletedAt = null، وتُقيَّد قيود
+  /// عكسية في ImpactEntry وتُعاد حسبة عدّادات المتطوعين في نفس المعاملة.
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  categories        InitiativeCategoryLink[]
+  partners          InitiativePartner[]
+  media             InitiativeMedia[]
+  beforeAfterPairs  BeforeAfterPair[]
+  events            InitiativeEvent[]
+  updates           InitiativeUpdate[]
+  eventPartnerships PartnerPartnership[]     @relation("InitiativeEventPartnerships")
+  impactEntries     ImpactEntry[]
+  applications      VolunteerApplication[]
+  participations    Participation[]
+  joinRequests      JoinRequest[]            @relation("JoinRequestTargetInitiative")
+  reports           Report[]                 @relation("ReportScopeInitiative")
+
+  @@index([publishStatus, status, startDate(sort: Desc)])
+  @@index([cityId, publishStatus, status])
+  @@index([governorateId, publishStatus, status])
+  @@index([publishStatus, isFeatured, featuredOrder])
+  @@index([publishStatus, scheduledPublishAt])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([coverMediaId])
+  @@index([ogMediaId])
+  @@index([createdById])
+  @@index([updatedById])
+  @@index([impactVerifiedById])
+  @@map("initiatives")
+}
+
+/// تصنيف المبادرات (تشجير، تنظيف، توعية، تصميم حدائق...).
+model InitiativeCategory {
+  id String @id @default(cuid())
+
+  slug          String  @unique @db.VarChar(96)
+  nameAr        String  @map("name_ar") @db.VarChar(120)
+  nameEn        String? @map("name_en") @db.VarChar(120)
+  descriptionAr String? @map("description_ar") @db.VarChar(600)
+  descriptionEn String? @map("description_en") @db.VarChar(600)
+  /// اسم أيقونة تعرضها الواجهة الأمامية.
+  icon          String? @db.VarChar(60)
+  /// لون الدبوس والشارة.
+  colorHex      String? @map("color_hex") @db.VarChar(9)
+
+  sortOrder Int     @default(0) @map("sort_order")
+  isActive  Boolean @default(true) @map("is_active")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  initiatives InitiativeCategoryLink[]
+
+  @@index([isActive, sortOrder])
+  @@map("initiative_categories")
+}
+
+/// ربط المبادرة بتصنيفاتها (تصنيف رئيسي واحد — فهرس جزئي في SQL).
+model InitiativeCategoryLink {
+  id String @id @default(cuid())
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  categoryId String             @map("category_id")
+  category   InitiativeCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  isPrimary Boolean @default(false) @map("is_primary")
+  sortOrder Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([initiativeId, categoryId])
+  @@index([categoryId])
+  @@map("initiative_category_links")
+}
+
+/// مساهمة جهة شريكة في مبادرة — مصدر «شركاء هذه المبادرة» و«مبادراتي» في لوحة الشريك.
+/// مستقل عن صفة الشراكة: الشريك الاستراتيجي يساهم في مبادرات دون أن يحمل صفة EVENT.
+model InitiativePartner {
+  id String @id @default(cuid())
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  partnerId String  @map("partner_id")
+  partner   Partner @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  contributionAr String? @map("contribution_ar") @db.VarChar(1000)
+  contributionEn String? @map("contribution_en") @db.VarChar(1000)
+
+  /// فشل مغلق: العرض العام يشترط موافقة الجهة على إظهار اسمها.
+  isPubliclyVisible Boolean @default(false) @map("is_publicly_visible")
+  sortOrder         Int     @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([initiativeId, partnerId])
+  @@index([partnerId, createdAt(sort: Desc)])
+  @@index([initiativeId, sortOrder])
+  @@map("initiative_partners")
+}
+
+/// فعالية مؤرّخة تابعة لمبادرة (يوم تشجير، ورشة توعية).
+/// التسجيل لفعالية بعينها = VolunteerApplication يحمل eventId؛
+/// registeredCount ذاكرة مؤقتة يُعاد حسابها من تلك الصفوف المفتوحة.
+model InitiativeEvent {
+  id String @id @default(cuid())
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  /// ثابت ولا يُعاد استخدامه (حتى بعد الحذف الناعم).
+  slug          String  @unique @db.VarChar(96)
+  titleAr       String  @map("title_ar") @db.VarChar(300)
+  titleEn       String? @map("title_en") @db.VarChar(300)
+  descriptionAr String? @map("description_ar") @db.Text
+  descriptionEn String? @map("description_en") @db.Text
+
+  startsAt DateTime  @map("starts_at")
+  endsAt   DateTime? @map("ends_at")
+  allDay   Boolean   @default(false) @map("all_day")
+  /// سوريا UTC+3 على مدار السنة بعد إلغاء التوقيت الصيفي 2022.
+  timezone String    @default("Asia/Damascus") @db.VarChar(64)
+
+  cityId String? @map("city_id")
+  city   City?   @relation(fields: [cityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  meetingPointLat    Float?  @map("meeting_point_lat")
+  meetingPointLng    Float?  @map("meeting_point_lng")
+  meetingPointNoteAr String? @map("meeting_point_note_ar") @db.VarChar(500)
+  meetingPointNoteEn String? @map("meeting_point_note_en") @db.VarChar(500)
+
+  status        EventStatus   @default(SCHEDULED)
+  publishStatus PublishStatus @default(DRAFT) @map("publish_status")
+  /// CHECK: publish_status = 'SCHEDULED' ⇒ scheduled_publish_at غير فارغ.
+  scheduledPublishAt DateTime? @map("scheduled_publish_at")
+  firstPublishedAt   DateTime? @map("first_published_at")
+  publishedAt        DateTime? @map("published_at")
+
+  registrationEnabled     Boolean   @default(false) @map("registration_enabled")
+  registrationOpensAt     DateTime? @map("registration_opens_at")
+  registrationClosesAt    DateTime? @map("registration_closes_at")
+  capacity                Int?
+  /// ذاكرة مؤقتة تُعاد حسابها من الطلبات المفتوحة لهذه الفعالية.
+  registeredCount         Int       @default(0) @map("registered_count")
+  registeredRecomputedAt  DateTime? @map("registered_recomputed_at")
+  externalRegistrationUrl String?   @map("external_registration_url") @db.VarChar(2048)
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  applications   VolunteerApplication[]
+  participations Participation[]
+
+  @@index([initiativeId, startsAt])
+  @@index([publishStatus, status, startsAt])
+  @@index([publishStatus, scheduledPublishAt])
+  @@index([cityId, startsAt])
+  @@map("initiative_events")
+}
+
+/// تحديث زمني تحت المبادرة — يغذّي التقارير الدورية للشركاء.
+model InitiativeUpdate {
+  id String @id @default(cuid())
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  titleAr String  @map("title_ar") @db.VarChar(300)
+  titleEn String? @map("title_en") @db.VarChar(300)
+  bodyAr  String  @map("body_ar") @db.Text
+  bodyEn  String? @map("body_en") @db.Text
+
+  coverMediaId String?     @map("cover_media_id")
+  coverMedia   MediaAsset? @relation("InitiativeUpdateCover", fields: [coverMediaId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  publishStatus      PublishStatus @default(DRAFT) @map("publish_status")
+  /// CHECK: publish_status = 'SCHEDULED' ⇒ scheduled_publish_at غير فارغ.
+  scheduledPublishAt DateTime?     @map("scheduled_publish_at")
+  firstPublishedAt   DateTime?     @map("first_published_at")
+  publishedAt        DateTime?     @map("published_at")
+
+  createdById String? @map("created_by_id")
+  createdBy   User?   @relation("InitiativeUpdateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([initiativeId, publishedAt(sort: Desc)])
+  @@index([publishStatus, publishedAt(sort: Desc)])
+  @@index([publishStatus, scheduledPublishAt])
+  @@index([coverMediaId])
+  @@index([createdById])
+  @@map("initiative_updates")
+}
+
+/// أصل وسائطي مرفوع — الملف في التخزين السحابي وهذا الصف بياناته الوصفية.
+/// الحذف الناعم عملية خدمية: تُفرَّغ كل المراجع (cover/og) وتُحذف صفوف المعرض،
+/// ويُرفض الحذف إن كان الأصل طرفاً في زوج «قبل/بعد».
+/// CHECK: الصور والشعارات تتطلب altAr · المزوّدون المُدارون يتطلبون storageKey.
+model MediaAsset {
+  id String @id @default(cuid())
+
+  kind     MediaKind       @default(IMAGE)
+  provider StorageProvider @default(CLOUDINARY)
+  /// معرّف الملف لدى المزوّد (public_id / object key / fileKey).
+  storageKey String? @map("storage_key") @db.VarChar(400)
+  url        String  @db.VarChar(2048)
+  secureUrl  String? @map("secure_url") @db.VarChar(2048)
+
+  mimeType    String? @map("mime_type") @db.VarChar(120)
+  byteSize    Int?    @map("byte_size")
+  width       Int?
+  height      Int?
+  durationSec Int?    @map("duration_sec")
+  /// sha256 — فهرس فريد جزئي في SQL يكشف رفع الصورة نفسها مرتين.
+  checksum    String? @db.VarChar(64)
+  /// صورة مصغّرة base64 — لا تُختار إلا في قراءة التفصيل.
+  blurDataUrl String? @map("blur_data_url") @db.Text
+
+  /// النص البديل بالعربية — إلزامي للصور والشعارات (CHECK).
+  altAr     String? @map("alt_ar") @db.VarChar(300)
+  altEn     String? @map("alt_en") @db.VarChar(300)
+  captionAr String? @map("caption_ar") @db.VarChar(500)
+  captionEn String? @map("caption_en") @db.VarChar(500)
+  creditAr  String? @map("credit_ar") @db.VarChar(200)
+  creditEn  String? @map("credit_en") @db.VarChar(200)
+
+  capturedAt DateTime? @map("captured_at")
+  /// إحداثيات EXIF للتوثيق فقط — ليست دبوس الخريطة.
+  exifLat    Float?    @map("exif_lat")
+  exifLng    Float?    @map("exif_lng")
+  /// مقاسات srcset الناتجة عن خط معالجة الصور.
+  variants   Json?
+
+  uploadedById String? @map("uploaded_by_id")
+  uploadedBy   User?   @relation("MediaUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// حذف ناعم — فهرس جزئي (deleted_at IS NOT NULL) في SQL لمهمة التنظيف.
+  deletedAt DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  partnerLogos       Partner[]                @relation("PartnerLogo")
+  partnerLogosDark   Partner[]                @relation("PartnerLogoDark")
+  charterDocuments   CharterVersion[]         @relation("CharterDocument")
+  charterEvidence    CharterAcknowledgement[] @relation("CharterEvidence")
+  initiativeCovers   Initiative[]             @relation("InitiativeCover")
+  initiativeOgImages Initiative[]             @relation("InitiativeOgImage")
+  updateCovers       InitiativeUpdate[]       @relation("InitiativeUpdateCover")
+  galleryLinks       InitiativeMedia[]        @relation("InitiativeMediaAsset")
+  beforeInPairs      BeforeAfterPair[]        @relation("PairBefore")
+  afterInPairs       BeforeAfterPair[]        @relation("PairAfter")
+
+  @@unique([provider, storageKey])
+  @@index([kind, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc), id(sort: Desc)])
+  @@index([uploadedById])
+  @@map("media_assets")
+}
+
+/// معرض صور المبادرة — ربط مرتّب بين المبادرة والوسائط.
+model InitiativeMedia {
+  id String @id @default(cuid())
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  mediaId String     @map("media_id")
+  media   MediaAsset @relation("InitiativeMediaAsset", fields: [mediaId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  role      InitiativeMediaRole @default(GALLERY)
+  /// لا تجعله فريداً مع المبادرة — إعادة الترتيب بالسحب ستنكسر.
+  sortOrder Int                 @default(0) @map("sort_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([initiativeId, mediaId, role])
+  @@index([initiativeId, role, sortOrder])
+  @@index([mediaId])
+  @@map("initiative_media")
+}
+
+/// زوج «قبل/بعد» — الوحدة التي يعرضها المنزلق. الطرفان إلزاميان معاً.
+model BeforeAfterPair {
+  id String @id @default(cuid())
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  beforeMediaId String     @map("before_media_id")
+  beforeMedia   MediaAsset @relation("PairBefore", fields: [beforeMediaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  afterMediaId  String     @map("after_media_id")
+  afterMedia    MediaAsset @relation("PairAfter", fields: [afterMediaId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  /// نفس القيمة عبر الزيارات = نفس زاوية التصوير.
+  viewpointKey     String? @map("viewpoint_key") @db.VarChar(60)
+  viewpointLabelAr String? @map("viewpoint_label_ar") @db.VarChar(200)
+  viewpointLabelEn String? @map("viewpoint_label_en") @db.VarChar(200)
+  captionAr        String? @map("caption_ar") @db.VarChar(500)
+  captionEn        String? @map("caption_en") @db.VarChar(500)
+
+  beforeCapturedAt DateTime? @map("before_captured_at")
+  afterCapturedAt  DateTime? @map("after_captured_at")
+  /// نسبة العرض/الارتفاع المشتركة — المنزلق ينكسر بصرياً إن اختلفت.
+  aspectRatio      Float?    @map("aspect_ratio")
+
+  sortOrder  Int     @default(0) @map("sort_order")
+  isFeatured Boolean @default(false) @map("is_featured")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([initiativeId, sortOrder])
+  @@index([beforeMediaId])
+  @@index([afterMediaId])
+  @@map("before_after_pairs")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  6) IMPACT — كتالوج المؤشرات + دفتر قيود واحد (بلا جدول تجميع مخزَّن)
+//  التجميع يُقرأ من عرض SQL: SUM(value) لكل (metric, scope) — لا عمود يمكن أن ينحرف.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// كتالوج مؤشرات الأثر — إضافة مؤشر جديد لا تحتاج migration.
+/// كل المؤشرات جمعيّة (SUM) لأن الدفتر دفتر قيود موجبة/سالبة؛ لا متوسطات ولا «آخر قيمة».
+model ImpactMetric {
+  id String @id @default(cuid())
+
+  /// مفاتيح مبذورة: GREEN_AREA_REHABILITATED_M2, VOLUNTEER_HOURS,
+  /// WASTE_REMOVED_KG, SEEDLINGS_DONATED ...
+  /// محجوزة لعدّادات Initiative ولا تُنشأ هنا (CHECK):
+  /// TREES_EXPECTED, TREES_PLANTED, TREES_SURVIVING, VOLUNTEERS_MOBILIZED.
+  key String @unique @db.VarChar(60)
+
+  nameAr        String  @map("name_ar") @db.VarChar(120)
+  nameEn        String? @map("name_en") @db.VarChar(120)
+  descriptionAr String? @map("description_ar") @db.VarChar(600)
+  descriptionEn String? @map("description_en") @db.VarChar(600)
+
+  unit MetricUnit
+  /// وحدة حرة لما لا يغطيه enum: «شتلة»، «مقعد»، «عمود إنارة».
+  unitLabelAr String? @map("unit_label_ar") @db.VarChar(60)
+  unitLabelEn String? @map("unit_label_en") @db.VarChar(60)
+
+  /// عدد المنازل العشرية عند العرض.
+  decimals Int @default(0)
+
+  /// يظهر في بطاقات الصفحة الرئيسية.
+  isCore   Boolean @default(false) @map("is_core")
+  isPublic Boolean @default(true) @map("is_public")
+  isActive Boolean @default(true) @map("is_active")
+
+  sortOrder Int     @default(0) @map("sort_order")
+  iconKey   String? @map("icon_key") @db.VarChar(60)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  entries ImpactEntry[]
+
+  @@index([isActive, sortOrder])
+  @@index([isPublic, isCore])
+  @@map("impact_metrics")
+}
+
+/// دفتر قيود الأثر — إضافة فقط. التصحيح بقيد عكسي وليس بتعديل أو حذف.
+/// كل مراجع النطاق Restrict: لا شيء يُحذف من تحت الدفتر فيتيتّم قيد.
+/// CHECK: عدد المفاتيح غير الفارغة = (scope_type <> 'PROJECT') ومطابقة النوع للمفتاح.
+/// مساهمات الشركاء العينية تُسجَّل هنا (source = PARTNER_SUBMISSION) كإنجاز محقق فقط —
+/// لا يوجد «متوقَّع» مسجَّل على شريك لأن الميثاق لا ينشئ أي التزام.
+model ImpactEntry {
+  id String @id @default(cuid())
+
+  metricId String       @map("metric_id")
+  metric   ImpactMetric @relation(fields: [metricId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  scopeType ScopeType @map("scope_type")
+
+  initiativeId String?     @map("initiative_id")
+  initiative   Initiative? @relation(fields: [initiativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cityId       String?     @map("city_id")
+  city         City?       @relation(fields: [cityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  partnerId    String?     @map("partner_id")
+  partner      Partner?    @relation(fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  /// موجبة للإنجاز، سالبة للتصحيح (تُحوَّل في طبقة DTO إلى رقم قبل أي JSON).
+  value      Decimal           @db.Decimal(14, 2)
+  occurredAt DateTime          @map("occurred_at")
+  source     ImpactEntrySource @default(ADMIN_ENTRY)
+
+  /// عندما يُشتق القيد آلياً من ساعات تطوع مؤكدة — قيد واحد لكل (مشاركة، مؤشر).
+  participationId String?        @map("participation_id")
+  participation   Participation? @relation(fields: [participationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  /// مفتاح المصدر الخارجي لمنع التكرار عند إعادة المحاولة: "IMPORT:<batch>:<row>".
+  externalKey String? @unique @map("external_key") @db.VarChar(200)
+
+  recordedById String? @map("recorded_by_id")
+  recordedBy   User?   @relation("ImpactEntryRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  noteAr String? @map("note_ar") @db.VarChar(1000)
+  noteEn String? @map("note_en") @db.VarChar(1000)
+  /// روابط صور/مستندات الإثبات.
+  evidenceUrls String[] @default([]) @map("evidence_urls")
+
+  /// قيد عكسي: يشير إلى القيد الذي يلغيه (Restrict كي لا يبقى عكس بلا أصل).
+  reversesEntryId String?      @unique @map("reverses_entry_id")
+  reversesEntry   ImpactEntry? @relation("ImpactEntryReversal", fields: [reversesEntryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reversedBy      ImpactEntry? @relation("ImpactEntryReversal")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([participationId, metricId])
+  @@index([metricId, occurredAt(sort: Desc)])
+  @@index([initiativeId, occurredAt(sort: Desc)])
+  @@index([cityId, occurredAt(sort: Desc)])
+  @@index([partnerId, occurredAt(sort: Desc)])
+  @@index([recordedById])
+  @@map("impact_entries")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  7) PEOPLE — المتطوعون (الشخص ≠ الطلب ≠ الحضور)
+//  تنبيه خصوصية: بيانات مدنيين سوريين. الحد الأدنى من البيانات، حذف ناعم ثم إخفاء
+//  هوية، ومهام تنظيف دورية (Vercel Cron) للحقول المؤقتة.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// المتطوع كشخص ضمن الشبكة.
+/// الاسم والسيرة نصوص كتبها الشخص نفسه ⇒ أعمدة محايدة اللغة + preferredLocale.
+/// فهارس فريدة جزئية في SQL: البريد (lower) للصفوف الحيّة، و(هاتف + اسم) لالتقاط
+/// التكرار الشائع؛ كل إحصاء رؤوس يشترط merged_into_id IS NULL.
+model VolunteerProfile {
+  id String @id @default(cuid())
+
+  /// مرجع بشري لا يُعاد إصداره أبداً: VOL-2026-000123
+  publicRef String @unique @map("public_ref") @db.VarChar(32)
+
+  /// حساب دخول اختياري — أغلب المتطوعين بلا حساب.
+  userId String? @unique @map("user_id")
+  user   User?   @relation("UserVolunteerProfile", fields: [userId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// بيانات شخصية — كما كتبها صاحبها (أي لغة أو أبجدية).
+  fullName String  @map("full_name") @db.VarChar(200)
+  /// بيانات شخصية — بصيغة E.164. غير فريد عمداً (هواتف عائلية مشتركة شائعة).
+  phone    String? @db.VarChar(32)
+  /// بيانات شخصية — بأحرف صغيرة (CHECK + فهرس فريد جزئي).
+  email    String? @db.VarChar(254)
+  /// بيانات شخصية غير مباشرة — سنة الميلاد فقط، لا التاريخ الكامل.
+  birthYear Int?   @map("birth_year")
+
+  gender          VolunteerGender @default(UNDISCLOSED)
+  preferredLocale ContentLocale   @default(AR) @map("preferred_locale")
+
+  cityId String? @map("city_id")
+  city   City?   @relation(fields: [cityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  /// بيانات شخصية غير مباشرة — الحي فقط، لا العنوان الكامل.
+  district String? @db.VarChar(120)
+
+  /// نص مُطبَّع للبحث (فهرس pg_trgm في SQL).
+  searchName String? @map("search_name") @db.VarChar(400)
+
+  bio          String?               @db.VarChar(1000)
+  skills       String[]              @default([])
+  interests    String[]              @default([])
+  availability VolunteerAvailability @default(FLEXIBLE)
+
+  /// بيانات شخصية — لأيام العمل الميداني فقط وتُمسح بعدها.
+  emergencyContactName    String?   @map("emergency_contact_name") @db.VarChar(200)
+  emergencyContactPhone   String?   @map("emergency_contact_phone") @db.VarChar(32)
+  emergencyContactPurgeAt DateTime? @map("emergency_contact_purge_at")
+
+  /// المشروع يستهدف الشباب ⇒ موافقة ولي الأمر مطلوبة للقاصرين.
+  /// NULL = العمر غير معروف بعد (يمنع الإسناد الميداني) — الصمت ليس إقراراً بالبلوغ.
+  /// CHECK: is_minor ⇒ اسم وموافقة ولي أمر · status='ACTIVE' ⇒ is_minor غير فارغ.
+  isMinor           Boolean?  @map("is_minor")
+  guardianName      String?   @map("guardian_name") @db.VarChar(200)
+  guardianPhone     String?   @map("guardian_phone") @db.VarChar(32)
+  guardianConsentAt DateTime? @map("guardian_consent_at")
+
+  consentVersion          String?         @map("consent_version") @db.VarChar(20)
+  consentDataProcessingAt DateTime?       @map("consent_data_processing_at")
+  consentSource           EvidenceMethod? @map("consent_source")
+  /// بيانات شخصية — إثبات موافقة يُمسح بعد 30 يوماً.
+  consentIp               String?         @map("consent_ip") @db.VarChar(45)
+  /// يجب أن يبوّب أي ظهور لوجه المتطوع في الصور أو التقارير.
+  photoConsent            PhotoConsent    @default(NOT_ASKED) @map("photo_consent")
+  photoConsentAt          DateTime?       @map("photo_consent_at")
+  contactByEmail          Boolean         @default(false) @map("contact_by_email")
+  contactBySms            Boolean         @default(false) @map("contact_by_sms")
+  contactByWhatsapp       Boolean         @default(false) @map("contact_by_whatsapp")
+
+  status VolunteerStatus @default(PENDING)
+
+  /// ذاكرة مؤقتة تُعاد حسابها من صفوف الحضور — لا تُزاد بمقدار (الساعات تُعدَّل بعد التوثيق).
+  totalHours           Decimal   @default(0) @map("total_hours") @db.Decimal(10, 2)
+  participationCount   Int       @default(0) @map("participation_count")
+  countersRecomputedAt DateTime? @map("counters_recomputed_at")
+  lastActivityAt       DateTime? @map("last_activity_at")
+
+  /// دمج المكرّرات بدل حذفها (سجلات الحضور Restrict).
+  mergedIntoId String?           @map("merged_into_id")
+  mergedInto   VolunteerProfile? @relation("VolunteerMerge", fields: [mergedIntoId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  mergedAt     DateTime?         @map("merged_at")
+
+  retentionExpiresAt DateTime? @map("retention_expires_at")
+  erasureRequestedAt DateTime? @map("erasure_requested_at")
+  /// حذف ناعم — يبقى الصف لتماسك سجلات الحضور والأثر.
+  deletedAt          DateTime? @map("deleted_at")
+  /// إخفاء الهوية يُفرّغ الحقول الشخصية هنا وفي الطلبات والحضور (redactedAt).
+  anonymizedAt       DateTime? @map("anonymized_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  mergedProfiles VolunteerProfile[]      @relation("VolunteerMerge")
+  applications   VolunteerApplication[]
+  participations Participation[]
+  consentEvents  VolunteerConsentEvent[]
+  joinRequest    JoinRequest?            @relation("VolunteerOriginJoinRequest")
+
+  @@index([status, cityId])
+  @@index([status, createdAt(sort: Desc)])
+  @@index([cityId])
+  @@index([phone])
+  @@index([mergedIntoId])
+  @@index([retentionExpiresAt])
+  @@index([skills(ops: ArrayOps)], type: Gin)
+  @@index([interests(ops: ArrayOps)], type: Gin)
+  @@map("volunteer_profiles")
+}
+
+/// سجل تدقيق الموافقات — الإثبات هو هذا السجل لا العلم المنطقي.
+/// Restrict: لا يُحذف الملف من تحت موافقاته (الإخفاء بتفريغ الحقول لا بالحذف).
+model VolunteerConsentEvent {
+  id String @id @default(cuid())
+
+  volunteerProfileId String           @map("volunteer_profile_id")
+  volunteerProfile   VolunteerProfile @relation(fields: [volunteerProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  consentType ConsentType    @map("consent_type")
+  action      ConsentAction
+  version     String?        @db.VarChar(20)
+  source      EvidenceMethod @default(WEB_FORM)
+  /// بيانات شخصية — تُمسح بعد 30 يوماً.
+  ip          String?        @db.VarChar(45)
+  actedAt     DateTime       @default(now()) @map("acted_at")
+  noteAr      String?        @map("note_ar") @db.VarChar(1000)
+
+  recordedById String? @map("recorded_by_id")
+  recordedBy   User?   @relation("ConsentEventRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([volunteerProfileId, consentType, actedAt(sort: Desc)])
+  @@index([recordedById])
+  @@map("volunteer_consent_events")
+}
+
+/// طلب تطوع — في مبادرة كاملة أو في فعالية بعينها (eventId).
+/// لا قيد فريد كلي: فهرس فريد جزئي في SQL على الطلبات المفتوحة فقط
+/// (SUBMITTED/UNDER_REVIEW/ACCEPTED/WAITLISTED) لكل (مبادرة، فعالية، متطوع)،
+/// كي يمكن إعادة التقديم بعد الانسحاب والتسجيل في أكثر من فعالية ضمن الحملة.
+model VolunteerApplication {
+  id String @id @default(cuid())
+
+  volunteerProfileId String           @map("volunteer_profile_id")
+  volunteerProfile   VolunteerProfile @relation(fields: [volunteerProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  /// التسجيل في فعالية محددة (يوم تشجير من عدة أيام) — فارغ = طلب على مستوى المبادرة.
+  eventId String?          @map("event_id")
+  event   InitiativeEvent? @relation(fields: [eventId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  status VolunteerApplicationStatus @default(SUBMITTED)
+
+  preferredRole ParticipationRole? @map("preferred_role")
+  /// نص كتبه المتطوع وقد يعرّف بصاحبه — يُفرَّغ عند إخفاء الهوية.
+  motivation    String?            @db.VarChar(2000)
+  note          String?            @db.VarChar(1000)
+  redactedAt    DateTime?          @map("redacted_at")
+
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  reviewedById   String?   @map("reviewed_by_id")
+  reviewedBy     User?     @relation("VolunteerApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  decidedAt      DateTime? @map("decided_at")
+  decisionNoteAr String?   @map("decision_note_ar") @db.VarChar(1000)
+  withdrawnAt    DateTime? @map("withdrawn_at")
+  cancelledAt    DateTime? @map("cancelled_at")
+
+  retentionExpiresAt DateTime? @map("retention_expires_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  participations Participation[]
+
+  @@index([initiativeId, status])
+  @@index([eventId, status])
+  @@index([volunteerProfileId, status])
+  @@index([reviewedById])
+  @@map("volunteer_applications")
+}
+
+/// حضور مؤكد وساعات فعلية.
+/// الفريدية في SQL بفهرسين جزئيين: (فعالية، متطوع، دور) عند وجود فعالية،
+/// و(مبادرة، متطوع، يوم، دور) عند غيابها — كي لا تُدمج ورشة الصباح مع تشجير المساء.
+/// CHECK: attendance='NO_SHOW' ⇒ hours = 0.
+model Participation {
+  id String @id @default(cuid())
+
+  volunteerProfileId String           @map("volunteer_profile_id")
+  volunteerProfile   VolunteerProfile @relation(fields: [volunteerProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  initiativeId String     @map("initiative_id")
+  initiative   Initiative @relation(fields: [initiativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  eventId String?          @map("event_id")
+  event   InitiativeEvent? @relation(fields: [eventId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// قد يحضر شخص دون طلب مسبق (walk-in) ⇒ الحقل اختياري.
+  applicationId String?               @map("application_id")
+  application   VolunteerApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// يوم العمل الميداني بتوقيت دمشق.
+  sessionDate DateTime @map("session_date") @db.Date
+
+  role       ParticipationRole @default(FIELD_VOLUNTEER)
+  attendance AttendanceStatus  @default(REGISTERED)
+
+  checkInAt  DateTime? @map("check_in_at")
+  checkOutAt DateTime? @map("check_out_at")
+  /// الساعات المعتمدة للتقارير (قد تختلف عن الفرق بين البصمتين).
+  hours      Decimal   @default(0) @db.Decimal(6, 2)
+
+  verifiedById String?   @map("verified_by_id")
+  verifiedBy   User?     @relation("ParticipationVerifiedBy", fields: [verifiedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  verifiedAt   DateTime? @map("verified_at")
+
+  /// ملاحظة ميدانية — تُفرَّغ عند إخفاء هوية المتطوع.
+  note       String?   @db.VarChar(1000)
+  redactedAt DateTime? @map("redacted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  impactEntries ImpactEntry[]
+
+  @@index([initiativeId, volunteerProfileId, sessionDate])
+  @@index([initiativeId, attendance])
+  @@index([volunteerProfileId, sessionDate(sort: Desc)])
+  @@index([eventId])
+  @@index([applicationId])
+  @@index([verifiedById])
+  @@map("participations")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  8) REQUESTS — طلبات الانضمام (تطوع + شراكة في باب واحد)
+//  الميثاق: «الانضمام يتم عبر التواصل والتنسيق مع إدارة المشروع، ثم يتم اعتماد
+//  صفة الشراكة المناسبة» ⇒ نوع مطلوب مقابل نوع معتمد + مراجعة + قرار.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// طلب انضمام واحد يخدم المتطوعين والجهات — سير المراجعة والقرار متطابق.
+/// CHECK: VOLUNTEER ⇒ entity_kind='INDIVIDUAL' · PARTNERSHIP ⇒ نوع مطلوب واحد على الأقل
+///        · طلب/اعتماد EVENT ⇒ target_initiative_id غير فارغ
+///        · APPROVED/REJECTED ⇒ reviewed_by_id و decided_at غير فارغين.
+model JoinRequest {
+  id String @id @default(cuid())
+
+  /// مرجع بشري لا يُعاد إصداره: JR-2026-000123
+  publicRef String @unique @map("public_ref") @db.VarChar(32)
+
+  requestKind JoinRequestKind  @map("request_kind")
+  entityKind  OrganizationKind @default(INDIVIDUAL) @map("entity_kind")
+
+  // نصوص كتبها مقدّم الطلب — محايدة اللغة، ولغتها في locale.
+  /// بيانات شخصية — اسم شخص التواصل.
+  contactPersonName String? @map("contact_person_name") @db.VarChar(200)
+  /// اسم الجهة (فارغ للأفراد).
+  orgName           String? @map("org_name") @db.VarChar(200)
+  /// بيانات شخصية
+  email             String? @db.VarChar(254)
+  /// بيانات شخصية
+  phone             String? @db.VarChar(32)
+  websiteUrl        String? @map("website_url") @db.VarChar(2048)
+  socialLinks       Json?   @map("social_links")
+
+  cityId String? @map("city_id")
+  city   City?   @relation(fields: [cityId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  about   String?       @db.Text
+  message String?       @db.Text
+  locale  ContentLocale @default(AR)
+
+  /// أشكال الدعم التي يعرضها مقدم الطلب.
+  supportForms SupportForm[] @default([]) @map("support_forms")
+
+  /// صفات الشراكة المطلوبة (لقطة توثيقية) — فارغة عند طلبات التطوع.
+  requestedPartnershipTypes PartnershipType[] @default([]) @map("requested_partnership_types")
+  /// صفات الشراكة المعتمدة وقت القرار (لقطة ثابتة؛ المرجع الحي هو PartnerPartnership).
+  approvedPartnershipTypes  PartnershipType[] @default([]) @map("approved_partnership_types")
+
+  /// إلزامي عند طلب صفة EVENT.
+  targetInitiativeId String?     @map("target_initiative_id")
+  targetInitiative   Initiative? @relation("JoinRequestTargetInitiative", fields: [targetInitiativeId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  status JoinRequestStatus @default(NEW)
+  source JoinRequestSource @default(WEB_FORM)
+
+  assignedToId String? @map("assigned_to_id")
+  assignedTo   User?   @relation("JoinRequestAssignee", fields: [assignedToId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  firstResponseAt DateTime? @map("first_response_at")
+  reviewStartedAt DateTime? @map("review_started_at")
+
+  reviewedById String?   @map("reviewed_by_id")
+  reviewedBy   User?     @relation("JoinRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  decidedAt    DateTime? @map("decided_at")
+  /// ملاحظة داخلية — لا تُعرض لمقدم الطلب أبداً.
+  decisionNoteAr String? @map("decision_note_ar") @db.VarChar(1000)
+  /// سبب الرفض المعلن لمقدم الطلب.
+  rejectionReasonAr String?   @map("rejection_reason_ar") @db.VarChar(1000)
+  rejectionReasonEn String?   @map("rejection_reason_en") @db.VarChar(1000)
+  withdrawnAt       DateTime? @map("withdrawn_at")
+
+  /// سجل الشريك الناتج عند الاعتماد (فريد كي لا ينشئ الضغط المزدوج شريكين).
+  resultingPartnerId String?  @unique @map("resulting_partner_id")
+  resultingPartner   Partner? @relation("PartnerOriginJoinRequest", fields: [resultingPartnerId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// ملف المتطوع الناتج عند الاعتماد.
+  resultingVolunteerProfileId String?           @unique @map("resulting_volunteer_profile_id")
+  resultingVolunteerProfile   VolunteerProfile? @relation("VolunteerOriginJoinRequest", fields: [resultingVolunteerProfileId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  consentVersion          String?   @map("consent_version") @db.VarChar(20)
+  consentDataProcessingAt DateTime? @map("consent_data_processing_at")
+  /// بيانات شخصية — تُمسح بعد 30 يوماً.
+  submitterIp             String?   @map("submitter_ip") @db.VarChar(45)
+  retentionExpiresAt      DateTime? @map("retention_expires_at")
+  deletedAt               DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  events               JoinRequestEvent[]
+  sourceContactMessage ContactMessage?    @relation("JoinRequestSourceContact")
+
+  @@index([status, requestKind, createdAt(sort: Desc)])
+  @@index([entityKind, status])
+  @@index([assignedToId, status])
+  @@index([reviewedById])
+  @@index([cityId])
+  @@index([targetInitiativeId])
+  @@index([email])
+  @@index([phone])
+  @@map("join_requests")
+}
+
+/// سجل سير المراجعة (من حالة إلى حالة، من قام، متى، لماذا).
+model JoinRequestEvent {
+  id String @id @default(cuid())
+
+  joinRequestId String      @map("join_request_id")
+  joinRequest   JoinRequest @relation(fields: [joinRequestId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  type       JoinRequestEventType
+  fromStatus JoinRequestStatus?   @map("from_status")
+  toStatus   JoinRequestStatus?   @map("to_status")
+  noteAr     String?              @map("note_ar") @db.VarChar(2000)
+  /// ملاحظة داخلية لا تُعرض لمقدم الطلب.
+  isInternal Boolean              @default(true) @map("is_internal")
+
+  actorId String? @map("actor_id")
+  actor   User?   @relation("JoinRequestEventActor", fields: [actorId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([joinRequestId, createdAt])
+  @@index([actorId])
+  @@map("join_request_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  9) REPORTS — التقارير الدورية (ميزة الشركاء: الاطلاع على التقارير والإنجازات)
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// تقرير بنطاق وفترة محددين، يُولَّد PDF عبر عامل يستطلع الحالة QUEUED.
+/// CHECK صارم في SQL: scope_type مرتبط بمفتاحه الوحيد · SCOPED_PARTNER يستلزم partner_id
+/// · تقرير نطاقه شريك لا يُبَث (visibility ∈ {INTERNAL, SCOPED_PARTNER}) · period_end >= period_start.
+/// INITIATIVE_PARTNERS تُحلّ إلى كل جهة لها PartnerPartnership أو InitiativePartner على المبادرة.
+model Report {
+  id String @id @default(cuid())
+
+  slug      String @unique @db.VarChar(96)
+  /// مرجع ثابت يُطبع على الملف: GC-2026-Q1-001
+  reference String @unique @db.VarChar(32)
+
+  titleAr   String  @map("title_ar") @db.VarChar(300)
+  titleEn   String? @map("title_en") @db.VarChar(300)
+  summaryAr String? @map("summary_ar") @db.VarChar(1000)
+  summaryEn String? @map("summary_en") @db.VarChar(1000)
+
+  kind      ReportKind
+  scopeType ScopeType  @map("scope_type")
+
+  partnerId String?  @map("partner_id")
+  partner   Partner? @relation("ReportScopePartner", fields: [partnerId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  cityId    String?  @map("city_id")
+  city      City?    @relation("ReportScopeCity", fields: [cityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  initiativeId String?     @map("initiative_id")
+  initiative   Initiative? @relation("ReportScopeInitiative", fields: [initiativeId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  periodStart DateTime @map("period_start")
+  periodEnd   DateTime @map("period_end")
+
+  locale ContentLocale @default(AR)
+  status ReportStatus  @default(DRAFT)
+
+  /// مفتاح الملف في التخزين — مصدر الحقيقة.
+  pdfStorageKey String? @map("pdf_storage_key") @db.VarChar(400)
+  /// رابط مباشر فقط عندما visibility = PUBLIC، وإلا رابط موقّع قصير العمر.
+  pdfUrl        String? @map("pdf_url") @db.VarChar(2048)
+  pdfSizeBytes  Int?    @map("pdf_size_bytes")
+  pdfChecksum   String? @map("pdf_checksum") @db.VarChar(64)
+  pageCount     Int?    @map("page_count")
+
+  templateVersion String?   @map("template_version") @db.VarChar(20)
+  /// لقطة مجمّدة للأرقام المطبوعة — لا تُختار إلا عند إعادة التوليد.
+  dataSnapshot    Json?     @map("data_snapshot")
+  snapshotTakenAt DateTime? @map("snapshot_taken_at")
+
+  generationAttempts Int       @default(0) @map("generation_attempts")
+  generationError    String?   @map("generation_error") @db.VarChar(2000)
+  generatedAt        DateTime? @map("generated_at")
+  generatedById      String?   @map("generated_by_id")
+  generatedBy        User?     @relation("ReportGeneratedBy", fields: [generatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  visibility  ReportVisibility @default(INTERNAL)
+  publishedAt DateTime?        @map("published_at")
+  /// الأرشفة محور زمني مستقل عن حالة التوليد.
+  archivedAt  DateTime?        @map("archived_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  grants ReportAccessGrant[]
+
+  @@index([status, createdAt])
+  @@index([scopeType, periodStart, periodEnd])
+  @@index([partnerId, status, createdAt(sort: Desc)])
+  @@index([partnerId, visibility, publishedAt])
+  @@index([visibility, publishedAt])
+  @@index([cityId])
+  @@index([initiativeId])
+  @@index([generatedById])
+  @@map("reports")
+}
+
+/// منح وصول صريح لتقرير (جهة كاملة أو مستخدم بعينه) — للاستثناءات فقط.
+/// CHECK: num_nonnulls(partner_id, user_id) = 1 — لا منحة بلا مستفيد.
+model ReportAccessGrant {
+  id String @id @default(cuid())
+
+  reportId String @map("report_id")
+  report   Report @relation(fields: [reportId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  partnerId String?  @map("partner_id")
+  partner   Partner? @relation("ReportGrantPartner", fields: [partnerId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  userId    String?  @map("user_id")
+  user      User?    @relation("ReportGrantUser", fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  canDownload Boolean @default(true) @map("can_download")
+
+  grantedById String?   @map("granted_by_id")
+  grantedBy   User?     @relation("ReportGrantGrantedBy", fields: [grantedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  grantedAt   DateTime  @default(now()) @map("granted_at")
+  expiresAt   DateTime? @map("expires_at")
+  revokedAt   DateTime? @map("revoked_at")
+  revokedById String?   @map("revoked_by_id")
+  revokedBy   User?     @relation("ReportGrantRevokedBy", fields: [revokedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  noteAr String? @map("note_ar") @db.VarChar(500)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([reportId, partnerId])
+  @@unique([reportId, userId])
+  @@index([partnerId, revokedAt])
+  @@index([userId, revokedAt])
+  @@index([grantedById])
+  @@index([revokedById])
+  @@map("report_access_grants")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  10) SYSTEM — التدقيق والإعدادات والتواصل
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/// سجل التدقيق — للإضافة فقط (trigger يمنع UPDATE/DELETE في أول migration).
+/// ممنوع كتابة أي سر (passwordHash, tokenHash) داخل before/after.
+/// صفوف لوحة الشريك: partnerVisible = true فقط، وبفرق حقول من قائمة بيضاء
+/// لا تتضمن أبداً internalNotes أو statusNoteAr أو decisionNoteAr أو أي عمود IP.
+model AuditLog {
+  id String @id @default(cuid())
+
+  actorUserId String?   @map("actor_user_id")
+  actor       User?     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  actorType   ActorType @default(USER) @map("actor_type")
+  /// لقطات محفوظة كي يبقى السجل مقروءاً بعد تعطيل المستخدم أو تغيير اسمه.
+  actorEmail  String?   @map("actor_email") @db.VarChar(254)
+  actorRole   UserRole? @map("actor_role")
+  /// بلا مفتاح أجنبي عمداً: السجل يجب أن ينجو من أي تغيير في الجداول الأخرى.
+  actorPartnerId String? @map("actor_partner_id")
+
+  /// اصطلاح "ENTITY.VERB": "PARTNER.APPROVED", "PARTNER.LOGO_CONSENT_UPDATED".
+  action        String  @db.VarChar(80)
+  entityType    String  @map("entity_type") @db.VarChar(60)
+  entityId      String? @map("entity_id")
+  /// وصف عربي مختصر يبقى بعد حذف الكيان أو إعادة تسميته.
+  entityLabelAr String? @map("entity_label_ar") @db.VarChar(300)
+
+  /// لعرض «نشاط على جهتي» — CHECK: action LIKE 'PARTNER.%' ⇒ partner_id غير فارغ.
+  partnerId      String? @map("partner_id")
+  /// فشل مغلق: لا يظهر للشريك إلا ما وُسم صراحةً.
+  partnerVisible Boolean @default(false) @map("partner_visible")
+
+  /// جسر البحث: «أي تغييرات مسّت موافقة الشعار؟» (فهرس GIN).
+  changedFields String[] @default([]) @map("changed_fields")
+  before        Json?
+  after         Json?
+  metadata      Json?
+
+  severity  AuditSeverity @default(INFO)
+  ip        String?       @db.VarChar(45)
+  userAgent String?       @map("user_agent") @db.VarChar(512)
+  /// يربط كل صفوف السجل الناتجة عن طلب HTTP واحد.
+  requestId String?       @map("request_id") @db.VarChar(64)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([entityType, entityId, createdAt(sort: Desc)])
+  @@index([actorUserId, createdAt(sort: Desc)])
+  @@index([partnerId, partnerVisible, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+  @@index([changedFields(ops: ArrayOps)], type: Gin)
+  @@map("audit_logs")
+}
+
+/// إعدادات الموقع القابلة للتحرير من لوحة التحكم (أرقام تواصل، روابط، نصوص ثابتة).
+model SiteSetting {
+  id String @id @default(cuid())
+
+  key      String @unique @db.VarChar(80)
+  value    Json
+  /// تجميع منطقي في الواجهة: general | contact | social | seo | map
+  groupKey String @default("general") @map("group_key") @db.VarChar(40)
+
+  labelAr       String  @map("label_ar") @db.VarChar(200)
+  descriptionAr String? @map("description_ar") @db.VarChar(500)
+  /// هل يُقرأ من الموقع العام؟
+  isPublic      Boolean @default(false) @map("is_public")
+
+  updatedById String? @map("updated_by_id")
+  updatedBy   User?   @relation("SiteSettingUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([groupKey, isPublic])
+  @@index([updatedById])
+  @@map("site_settings")
+}
+
+/// رسائل «اتصل بنا» — القناة التي يبدأ منها الانضمام حسب الميثاق.
+/// النص كما كتبه المرسل (أي لغة) ولغته في locale.
+model ContactMessage {
+  id String @id @default(cuid())
+
+  /// بيانات شخصية
+  fullName String  @map("full_name") @db.VarChar(200)
+  /// بيانات شخصية
+  email    String? @db.VarChar(254)
+  /// بيانات شخصية
+  phone    String? @db.VarChar(32)
+  orgName  String? @map("org_name") @db.VarChar(200)
+
+  topic   ContactTopic  @default(GENERAL)
+  subject String?       @db.VarChar(200)
+  /// CHECK: char_length(body) <= 5000
+  body    String        @db.Text
+  locale  ContentLocale @default(AR)
+
+  status ContactMessageStatus @default(NEW)
+
+  handledById    String?   @map("handled_by_id")
+  handledBy      User?     @relation("ContactMessageHandledBy", fields: [handledById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  readAt         DateTime? @map("read_at")
+  repliedAt      DateTime? @map("replied_at")
+  internalNoteAr String?   @map("internal_note_ar") @db.VarChar(2000)
+
+  /// عندما تتحول الرسالة إلى طلب انضمام رسمي دون إعادة إدخال البيانات.
+  convertedJoinRequestId String?      @unique @map("converted_join_request_id")
+  convertedJoinRequest   JoinRequest? @relation("JoinRequestSourceContact", fields: [convertedJoinRequestId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  /// بيانات شخصية — مكافحة سبام فقط، تُمسح بعد 30 يوماً.
+  submitterIp String? @map("submitter_ip") @db.VarChar(45)
+  userAgent   String? @map("user_agent") @db.VarChar(512)
+  spamScore   Float?  @map("spam_score")
+
+  retentionExpiresAt DateTime? @map("retention_expires_at")
+  /// الأرشفة والحذف محور زمني، لا قيمة في enum الحالة.
+  deletedAt          DateTime? @map("deleted_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([status, createdAt(sort: Desc)])
+  @@index([topic, status])
+  @@index([handledById])
+  @@index([email])
+  @@map("contact_messages")
+}

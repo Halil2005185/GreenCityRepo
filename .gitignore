@@ -1,0 +1,46 @@
+# Dependencies
+node_modules/
+.npm-cache/
+.pnpm-store/
+
+# Build output
+dist/
+build/
+.next/
+out/
+
+# Environment — never commit real secrets
+.env
+.env.*
+!.env.example
+!.env.vps.example
+
+# Test and tooling
+coverage/
+.vitest/
+*.tsbuildinfo
+
+# Logs
+*.log
+npm-debug.log*
+yarn-error.log*
+
+# Editors and OS
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+Thumbs.db
+
+# Temporary Office lock files next to the source documents
+~$*
+
+# ── الوثائق المصدرية ───────────────────────────────────────────────────
+#
+# محضر الاجتماع وملف الفريق التنفيذي والملخص التقني والميثاق: تحمل أسماء
+# أعضاء الفريق ومناصبهم ونقاشًا داخليًا. تبقى على أجهزة الفريق وتُتداول
+# بقنواته، ولا تدخل مستودعًا يتسع وصوله مع الوقت.
+#
+# PLAN.md وحده مرفوع: خطة تقنية لا تحوي بيانات أشخاص، ويحتاجها كل مساهم.
+*.docx
+*.pdf

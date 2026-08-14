@@ -1,0 +1,18 @@
+# الفريق يعمل على أنظمة مختلفة. التوحيد على LF داخل المستودع يمنع فروقًا
+# وهمية في المراجعات عندما يحفظ محرر على Windows الملف بـ CRLF.
+* text=auto eol=lf
+
+# ملفات ثنائية لا تُعامَل كنص إطلاقًا.
+*.pdf  binary
+*.docx binary
+*.xlsx binary
+*.png  binary
+*.jpg  binary
+*.ico  binary
+*.woff binary
+*.woff2 binary
+
+# مخرجات مولَّدة: تُستبعد من إحصاءات اللغات ومن مراجعة الفروق التفصيلية.
+GreenBackend/docs/api/openapi.json linguist-generated=true
+GreenBackend/drizzle/**/snapshot.json linguist-generated=true
+package-lock.json linguist-generated=true
