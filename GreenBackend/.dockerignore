@@ -6,4 +6,6 @@ coverage
 .env.*
 .git
 test
+deploy
+docs
 *.log

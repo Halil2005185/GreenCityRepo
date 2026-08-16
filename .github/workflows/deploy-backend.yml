@@ -1,0 +1,74 @@
+name: نشر الباك‌اند
+
+# البناء يجري على الـVPS لا هنا: لا سجل صور ولا حساب إضافي، والخادم يبني
+# ما في Git بالضبط. دور هذا الملف أن يوقف الإصدار المعطوب قبل أن يصل
+# إليه، ثم يطلق `deploy.sh` عبر SSH.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "GreenBackend/**"
+      - ".github/workflows/deploy-backend.yml"
+  workflow_dispatch:
+
+# نشران متوازيان يتسابقان على نفس مجلد الخادم ونفس القاعدة.
+concurrency:
+  group: deploy-backend
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: بناء وفحص الأنواع
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: GreenBackend
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: GreenBackend/package-lock.json
+
+      - run: npm ci
+
+      - name: فحص الأنواع
+        run: npm run typecheck
+
+      # نفس الأمر الذي تنفذه صورة Docker. فشله هنا يوفّر بناءً فاشلًا على
+      # الخادم، ويترك الإصدار العامل قائمًا.
+      - name: البناء
+        run: npm run build
+
+  deploy:
+    name: النشر على الـVPS
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: تهيئة SSH
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # بصمة المضيف من سرّ مخزَّن لا من ssh-keyscan لحظة التشغيل:
+          # الثاني يقبل أي مفتاح يرد عليه، فيبطل الغرض من التحقق.
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: تشغيل deploy.sh
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          APP_DIR: ${{ vars.VPS_APP_DIR || '~/GreenCitys' }}
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
+            "DEPLOY_BRANCH=main $APP_DIR/GreenBackend/deploy/deploy.sh"

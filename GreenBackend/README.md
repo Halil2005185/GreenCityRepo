@@ -61,13 +61,11 @@ docker compose -f compose.local.yml up -d
 
 عندها اجعل منفذ `DATABASE_URL` هو `5433`.
 
-## الانتقال إلى VPS
+## النشر على VPS
 
-1. أنشئ قاعدة `greencities` ومستخدمًا مخصصًا لها على PostgreSQL في الـVPS، ولا تستخدم مستخدم `postgres` داخل التطبيق.
-2. انسخ `deploy/.env.vps.example` إلى `.env` خارج Git وغيّر النطاقات وكلمة المرور.
-3. إذا كان الـAPI وPostgreSQL على نفس الـVPS فاستخدم `127.0.0.1` ولا تفتح المنفذ `5432` للعامة. إذا كانت القاعدة على خادم منفصل فعّل TLS بوضع `DATABASE_SSL=true`.
-4. نفّذ migrations مرة واحدة عند النشر: `npm run db:migrate`، ثم شغّل `npm run start` بعد `npm run build`.
-5. ضع Nginx أمام التطبيق واضبط `TRUST_PROXY=1`، وأبقِ التطبيق مستمعًا على `127.0.0.1:4000`.
+الإجراء كاملًا في [deploy/README.md](deploy/README.md): تجهيز الخادم، Nginx والشهادة على `gc-service.evavolunteer.com`، النشر عبر `deploy/deploy.sh`، والأتمتة من GitHub Actions.
+
+باختصار: `deploy/compose.prod.yml` يشغّل PostgreSQL وخدمة ترحيل تنتهي قبل بدء الـAPI وعامل البريد. التطبيق يستمع داخل حاويته على `0.0.0.0:4000`، وCompose ينشر المنفذ على `127.0.0.1` للمضيف وحده، وNginx هو ما يصله من الخارج — ومعه `TRUST_PROXY=1`.
 
 ## دورة تغييرات قاعدة البيانات
 
