@@ -691,6 +691,18 @@
               "null"
             ]
           },
+          "contactRole": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "NAME",
+              "EMAIL",
+              "PHONE",
+              null
+            ]
+          },
           "options": {
             "type": "array",
             "items": {
@@ -810,6 +822,7 @@
           "minSelections",
           "maxSelections",
           "maxLength",
+          "contactRole",
           "options",
           "condition"
         ]
@@ -956,6 +969,138 @@
               "published"
             ]
           }
+        ]
+      },
+      "PublicFormField": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "labelAr": {
+            "type": "string"
+          },
+          "hintAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string"
+          },
+          "isRequired": {
+            "type": "boolean"
+          },
+          "minSelections": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxSelections": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxLength": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "labelAr": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "value",
+                "labelAr"
+              ]
+            }
+          },
+          "condition": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "fieldKey": {
+                "type": "string"
+              },
+              "op": {
+                "type": "string",
+                "enum": [
+                  "eq",
+                  "in",
+                  "notEmpty"
+                ]
+              },
+              "value": {}
+            },
+            "required": [
+              "fieldKey",
+              "op"
+            ]
+          }
+        },
+        "required": [
+          "key",
+          "labelAr",
+          "hintAr",
+          "type",
+          "isRequired",
+          "minSelections",
+          "maxSelections",
+          "maxLength",
+          "options",
+          "condition"
+        ]
+      },
+      "PublicForm": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isAccepting": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicFormField"
+            }
+          }
+        },
+        "required": [
+          "slug",
+          "nameAr",
+          "descriptionAr",
+          "isAccepting",
+          "version",
+          "fields"
         ]
       },
       "Area": {
@@ -5021,6 +5166,18 @@
                     "minimum": 1,
                     "maximum": 10000
                   },
+                  "contactRole": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "NAME",
+                      "EMAIL",
+                      "PHONE",
+                      null
+                    ]
+                  },
                   "options": {
                     "type": "array",
                     "items": {
@@ -5312,6 +5469,18 @@
                     ],
                     "minimum": 1,
                     "maximum": 10000
+                  },
+                  "contactRole": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "NAME",
+                      "EMAIL",
+                      "PHONE",
+                      null
+                    ]
                   },
                   "options": {
                     "type": "array",
@@ -5682,6 +5851,147 @@
           },
           "409": {
             "description": "الترتيب ناقص أو يكسر شرطًا",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/forms/{slug}": {
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "الاستمارة المنشورة",
+        "description": "بلا مصادقة. تعيد الإصدار المنشور وحده؛ غير المنشور وغير الموجود يعطيان 404 نفسه.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الاستمارة",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PublicForm"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "غير متاحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "تجاوز حد الطلبات",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/forms/{slug}/submissions": {
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "summary": "تقديم طلب",
+        "description": "بلا مصادقة. يعيد 202 بلا جسم ولا معرّف. التحقق كامل على الخادم: الإلزام والشرطية والأنواع والحدود والانتماء إلى الخيارات.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "answers": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "answers"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "وصل الطلب"
+          },
+          "404": {
+            "description": "غير متاحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الاستمارة مغلقة ولا تستقبل طلبات",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "إجابات غير صالحة — التفاصيل تحمل مواضع الأخطاء",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "تجاوز حد الطلبات",
             "content": {
               "application/problem+json": {
                 "schema": {

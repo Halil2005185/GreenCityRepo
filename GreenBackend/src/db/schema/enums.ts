@@ -304,3 +304,25 @@ export const formVersionStatus = pgEnum('form_version_status', [
   'PUBLISHED',
   'ARCHIVED',
 ])
+
+/**
+ * حالات الطلب — enum في الكود لا سير عمل قابل للتحرير، كما `partner_stage`
+ * و`initiative_status`. الحد الثالث في PLAN.md.
+ */
+export const submissionStatus = pgEnum('submission_status', [
+  'NEW',
+  'IN_REVIEW',
+  'ACCEPTED',
+  'REJECTED',
+])
+
+/**
+ * دور الحقل في التواصل. يُعرَّف صراحةً لا بالاتفاق على أسماء المفاتيح:
+ * استمارة تسمّي حقلها `mail` بدل `email` تكسر أي اصطلاح صامت، ويصير
+ * الطلب بلا بريد يُراسَل عليه دون أن يشتكي شيء.
+ */
+export const fieldContactRole = pgEnum('field_contact_role', [
+  'NAME',
+  'EMAIL',
+  'PHONE',
+])

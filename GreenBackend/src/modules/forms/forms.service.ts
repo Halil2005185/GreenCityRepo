@@ -49,6 +49,7 @@ function serializeField(row: FieldRow) {
     minSelections: row.minSelections,
     maxSelections: row.maxSelections,
     maxLength: row.maxLength,
+    contactRole: row.contactRole,
     options: row.options,
     condition: toCondition(row),
   }
@@ -380,6 +381,7 @@ export async function publishDraft(formId: string, publishedById: string) {
         minSelections: field.minSelections,
         maxSelections: field.maxSelections,
         maxLength: field.maxLength,
+        contactRole: field.contactRole,
         options: field.options,
         conditionFieldKey: field.conditionFieldKey,
         conditionOp: field.conditionOp,
@@ -446,6 +448,7 @@ export async function addField(formId: string, body: FieldBody) {
       minSelections: body.minSelections ?? null,
       maxSelections: body.maxSelections ?? null,
       maxLength: body.maxLength ?? null,
+      contactRole: body.contactRole ?? null,
       options: body.options,
       ...conditionColumns(body.condition),
     })
