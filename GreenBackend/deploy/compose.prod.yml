@@ -1,11 +1,15 @@
-# نشر الباك‌اند على الـVPS: PostgreSQL، ترحيل يسبق الإصدار، الـAPI، وعامل البريد.
+# نشر الباك‌اند على الـVPS: ترحيل يسبق الإصدار، الـAPI، وعامل البريد.
 #
 # يُشغَّل من داخل مجلد `deploy/` كي يلتقط Compose ملف `.env` المجاور تلقائيًا:
 #
 #   docker compose -f compose.prod.yml up -d --build
 #
-# لا Nginx هنا: هو على المضيف لأنه المدخل المشترك لهذا النطاق ولنطاقَي
-# اللوحة والموقع لاحقًا، ولا معنى لحبسه داخل مشروع الباك‌اند.
+# لا خدمة PostgreSQL هنا: القاعدة على Neon في المنطقة نفسها (فرانكفورت)،
+# فالنسخ والرجوع الزمني وترقيات الإصدار من عندهم، ولا تزاحم على نواة
+# الخادم الواحدة. الاتصال عبر TLS بضبط `DATABASE_SSL=true`.
+#
+# لا Nginx هنا أيضًا: هو على المضيف لأنه المدخل المشترك لهذا النطاق
+# ولنطاقَي اللوحة والموقع لاحقًا.
 
 name: greencities
 
@@ -16,29 +20,11 @@ x-logging: &logging
     max-file: "5"
 
 services:
-  postgres:
-    image: postgres:18-alpine
-    restart: unless-stopped
-    logging: *logging
-    # لا `ports`: القاعدة تُرى من شبكة Compose وحدها ولا تلمس واجهة الخادم.
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
-      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
-    # التركيب على `/var/lib/postgresql` لا على `data` تحته: صور PostgreSQL
-    # من الإصدار 18 تضع الكتلة في مجلد باسم الإصدار داخله، وترفض البدء إن
-    # وجدت التركيب على المسار القديم.
-    volumes:
-      - postgres_data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 30s
-
   # وظيفة تنتهي، لا خدمة تعمل. الـAPI لا يبدأ قبل نجاحها، فلا يخدم إصدار
   # جديد قاعدةً بمخطط قديم. تكرار التشغيل بلا ضرر: Drizzle يتخطى المطبَّق.
+  #
+  # يستعمل `DIRECT_URL` لا النقطة المُجمَّعة: تنفيذ DDL عبر PgBouncer في
+  # وضع المعاملات يعمل أحيانًا ويفشل أحيانًا. الاختيار في drizzle.config.ts.
   migrate:
     build:
       context: ..
@@ -47,9 +33,6 @@ services:
     restart: "no"
     logging: *logging
     env_file: .env
-    depends_on:
-      postgres:
-        condition: service_healthy
 
   api:
     build:
@@ -64,8 +47,6 @@ services:
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
     healthcheck:
@@ -88,10 +69,5 @@ services:
     env_file: .env
     command: ["node", "dist/worker.js"]
     depends_on:
-      postgres:
-        condition: service_healthy
       migrate:
         condition: service_completed_successfully
-
-volumes:
-  postgres_data:

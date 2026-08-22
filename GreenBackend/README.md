@@ -65,7 +65,9 @@ docker compose -f compose.local.yml up -d
 
 الإجراء كاملًا في [deploy/README.md](deploy/README.md): تجهيز الخادم، Nginx والشهادة على `gc-service.evavolunteer.com`، النشر عبر `deploy/deploy.sh`، والأتمتة من GitHub Actions.
 
-باختصار: `deploy/compose.prod.yml` يشغّل PostgreSQL وخدمة ترحيل تنتهي قبل بدء الـAPI وعامل البريد. التطبيق يستمع داخل حاويته على `0.0.0.0:4000`، وCompose ينشر المنفذ على `127.0.0.1` للمضيف وحده، وNginx هو ما يصله من الخارج — ومعه `TRUST_PROXY=1`.
+باختصار: القاعدة على Neon، و`deploy/compose.prod.yml` يشغّل خدمة ترحيل تنتهي قبل بدء الـAPI وعامل البريد. التطبيق يستمع داخل حاويته على `0.0.0.0:4000`، وCompose ينشر المنفذ على `127.0.0.1` للمضيف وحده، وNginx هو ما يصله من الخارج — ومعه `TRUST_PROXY=1`.
+
+الترحيل يستعمل `DIRECT_URL` لا النقطة المُجمَّعة: تنفيذ DDL عبر PgBouncer في وضع المعاملات غير مضمون.
 
 ## دورة تغييرات قاعدة البيانات
 
