@@ -10,7 +10,7 @@
 |---|---|---|
 | `GreenBackend/` | واجهة API على Express 5 وDrizzle وPostgreSQL | المصادقة والصلاحيات والدعوات والشركاء والميثاق |
 | `GreenAdminDash/` | لوحة فريق إيفا وبوابة الشركاء على Next.js 16 | الدخول وسجل الشركاء والميثاق والدعوات وبوابة الشريك |
-| `GreenWebsite/` | الموقع العام | خارج النسخة الأولى |
+| `GreenWebsite/` | الموقع العام على Next.js 16 | البنية والصفحات جاهزة — بانتظار مسارات `/api/public/*` |
 
 ## التشغيل محليًا
 
@@ -32,10 +32,18 @@ cd GreenAdminDash && npm install && npm run dev
 
 اللوحة على `http://localhost:3000` والـAPI على `4000`. اللوحة تمرّر `/api` إلى الـAPI فيبقيان على أصل واحد — وهو شرط عمل كوكي الجلسة.
 
+الموقع العام مستقل عنهما على المنفذ `3001`، ولا يحتاج الـAPI ليعمل:
+
+```bash
+cd GreenWebsite && npm install && npm run dev
+```
+
 ## المراجع
 
 - [PLAN.md](PLAN.md) — الخطة المعتمدة ونموذج البيانات الديناميكي. **اقرأه أولًا.**
 - [GreenBackend/README.md](GreenBackend/README.md) — تشغيل الـAPI محليًا والنشر.
+- [GreenAdminDash/README.md](GreenAdminDash/README.md) — نشر اللوحة على Cloudflare Workers.
+- [GreenWebsite/README.md](GreenWebsite/README.md) — الموقع العام وعقد مسارات `/api/public/*` المطلوبة.
 - [docs/legacy/](docs/legacy/) — تصاميم مهجورة للاطلاع التاريخي فقط.
 
 ## المبدأ الحاكم

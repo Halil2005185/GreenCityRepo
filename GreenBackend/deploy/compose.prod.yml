@@ -1,0 +1,73 @@
+# نشر الباك‌اند على الـVPS: ترحيل يسبق الإصدار، الـAPI، وعامل البريد.
+#
+# يُشغَّل من داخل مجلد `deploy/` كي يلتقط Compose ملف `.env` المجاور تلقائيًا:
+#
+#   docker compose -f compose.prod.yml up -d --build
+#
+# لا خدمة PostgreSQL هنا: القاعدة على Neon في المنطقة نفسها (فرانكفورت)،
+# فالنسخ والرجوع الزمني وترقيات الإصدار من عندهم، ولا تزاحم على نواة
+# الخادم الواحدة. الاتصال عبر TLS بضبط `DATABASE_SSL=true`.
+#
+# لا Nginx هنا أيضًا: هو على المضيف لأنه المدخل المشترك لهذا النطاق
+# ولنطاقَي اللوحة والموقع لاحقًا.
+
+name: greencities
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  # وظيفة تنتهي، لا خدمة تعمل. الـAPI لا يبدأ قبل نجاحها، فلا يخدم إصدار
+  # جديد قاعدةً بمخطط قديم. تكرار التشغيل بلا ضرر: Drizzle يتخطى المطبَّق.
+  #
+  # يستعمل `DIRECT_URL` لا النقطة المُجمَّعة: تنفيذ DDL عبر PgBouncer في
+  # وضع المعاملات يعمل أحيانًا ويفشل أحيانًا. الاختيار في drizzle.config.ts.
+  migrate:
+    build:
+      context: ..
+      target: migrate
+    image: greencities-migrate:local
+    restart: "no"
+    logging: *logging
+    env_file: .env
+
+  api:
+    build:
+      context: ..
+      target: runtime
+    image: greencities-api:local
+    restart: unless-stopped
+    logging: *logging
+    env_file: .env
+    # يستمع داخل الحاوية على 0.0.0.0، ويُنشر على loopback المضيف وحده
+    # فلا يصله شيء إلا عبر Nginx.
+    ports:
+      - "127.0.0.1:${API_PORT:-4000}:4000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        ["CMD-SHELL", "wget -qO- http://127.0.0.1:4000/api/health/ready || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  # نفس صورة الـAPI بأمر مختلف: إعادة نشر الـAPI لا توقف إرسال الدعوات،
+  # وبطء مزوّد البريد لا يشغل خيط الطلبات.
+  worker:
+    build:
+      context: ..
+      target: runtime
+    image: greencities-api:local
+    restart: unless-stopped
+    logging: *logging
+    env_file: .env
+    command: ["node", "dist/worker.js"]
+    depends_on:
+      migrate:
+        condition: service_completed_successfully

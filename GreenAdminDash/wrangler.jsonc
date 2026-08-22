@@ -1,0 +1,22 @@
+// إعداد Worker لوحة التحكم على Cloudflare. يقرأه `wrangler deploy` في
+// Workers Builds و`npm run cf:preview` محليًا.
+//
+// `build.command` هو ما يجعل `npx wrangler deploy` كافيًا بلا أمر بناء في
+// إعدادات المشروع على Cloudflare: يبني Next عبر محوّل OpenNext ثم يرفع
+// `.open-next/`. لا تضف أمر بناء هناك أيضًا وإلا بُني التطبيق مرتين.
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "greencities",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-08-20",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "services": [
+    { "binding": "WORKER_SELF_REFERENCE", "service": "greencities" }
+  ],
+  "observability": { "enabled": true },
+  "build": { "command": "npx opennextjs-cloudflare build" }
+}

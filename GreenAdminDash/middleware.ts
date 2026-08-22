@@ -15,9 +15,14 @@ import {
  * `requireAuth` و`requireCapability` — تجاوز هذا الملف يعطي صفحة فارغة
  * لا بيانات.
  *
- * في Next.js 16 استُبدل ملف `middleware` بـ`proxy`، والدالة تُصدَّر باسمه.
+ * لماذا `middleware.ts` لا `proxy.ts` رغم أن Next.js 16 أهمل الاسم الأول؟
+ * `proxy` يعمل على Node.js حصرًا ولا يقبل ضبط `runtime`، ومحوّل OpenNext
+ * الذي ينشر اللوحة على Cloudflare Workers لا يقبل إلا middleware الـedge
+ * ويُسقط البناء عند غيره («Node.js middleware is not currently supported»).
+ * الكود هنا Web APIs فقط فلا يخسر شيئًا على الـedge. لا تُعِد التسمية إلى
+ * `proxy.ts` قبل أن يدعم OpenNext ذلك، وإلا عاد النشر إلى الفشل.
  */
-export function proxy(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const kind = parseSessionKind(
     request.cookies.get(SESSION_HINT_COOKIE_NAME)?.value,
