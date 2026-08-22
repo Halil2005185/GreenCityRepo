@@ -25,7 +25,7 @@
 
 الـAPI على نطاق واللوحة على نطاق آخر. هذا سليم بشرط واحد: **متصفح المستخدم لا ينادي `gc-service` مباشرة.** اللوحة تمرّر `/api` من خادم Next إلى الـAPI داخليًا — الآلية موجودة أصلًا في `GreenAdminDash/next.config.ts`، ويكفي ضبط `API_ORIGIN` عند نشرها على العنوان الداخلي للـAPI.
 
-سبب الشرط أن كوكي تلميح الجلسة يقرأه خادم Next في `proxy.ts` ليقرر إلى أين يوجّه الزائر. لو ضبطه الـAPI من `gc-service` لما أرسله المتصفح إلى `gc-admin` أصلًا، فلا يراه `proxy.ts`، فيعيد كل زائر إلى صفحة الدخول بعد دخوله مباشرة — حلقة لا تنكسر.
+سبب الشرط أن كوكي تلميح الجلسة يقرأه خادم Next في `middleware.ts` ليقرر إلى أين يوجّه الزائر. لو ضبطه الـAPI من `gc-service` لما أرسله المتصفح إلى `gc-admin` أصلًا، فلا يراه `middleware.ts`، فيعيد كل زائر إلى صفحة الدخول بعد دخوله مباشرة — حلقة لا تنكسر.
 
 العلاج بضبط `AUTH_COOKIE_DOMAIN=.evavolunteer.com` يعمل، لكنه يسلّم كوكي التحديث لكل نطاق فرعي على `evavolunteer.com` بما فيها ما لا علاقة له بالمشروع. لا تسلكه إلا بقرار واعٍ.
 
@@ -82,11 +82,22 @@ sudo cp /opt/greencities/GreenBackend/deploy/nginx/gc-service.conf /etc/nginx/si
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-التجديد التلقائي يأتي مع حزمة certbot عبر مؤقّت systemd. تحقق منه ومن أن Nginx يلتقط الشهادة الجديدة:
+التجديد التلقائي يأتي مع حزمة certbot عبر مؤقّت systemd، لكنه يكتب الشهادة على القرص ولا يخبر Nginx. بدون خطّاف يبقى Nginx على الشهادة المحمّلة في الذاكرة حتى تنتهي صلاحيتها والبديل جاهز بجانبها. الخطّاف عام على الخادم فيغطي كل الشهادات عليه:
+
+```bash
+sudo mkdir -p /etc/letsencrypt/renewal-hooks/deploy
+sudo tee /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh >/dev/null <<'HOOK'
+#!/bin/sh
+nginx -t && systemctl reload nginx
+HOOK
+sudo chmod 755 /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+```
+
+ثم تحقق:
 
 ```bash
 systemctl list-timers | grep certbot
-sudo certbot renew --dry-run --deploy-hook "systemctl reload nginx"
+sudo certbot renew --dry-run --cert-name gc-service.evavolunteer.com
 ```
 
 ### 5. الكود والمتغيرات
@@ -195,4 +206,4 @@ curl -s http://127.0.0.1:4100/api/health/ready
 
 ## ما ليس هنا
 
-نشر اللوحة والموقع العام. وقبل نشر الموقع لاحقًا: مجلد `GreenWebsite/` غير مُودَع في Git بعد، وكذلك `GreenAdminDash/public/` — أي نشر يسحب من Git لن يجد شيئًا منهما.
+الموقع العام. أما اللوحة فتُنشر على Cloudflare Workers، والإجراء في [`GreenAdminDash/README.md`](../../GreenAdminDash/README.md). وقبل نشر الموقع لاحقًا: مجلد `GreenWebsite/` غير مُودَع في Git بعد — أي نشر يسحب من Git لن يجد شيئًا منه.
