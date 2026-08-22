@@ -28,6 +28,10 @@ COPY tsconfig.json drizzle.config.ts ./
 COPY src ./src
 COPY drizzle ./drizzle
 
+# `scripts/` معها لأن البذر يُشغَّل من هذه الصورة أيضًا:
+#   docker compose run --rm migrate npm run db:seed
+COPY scripts ./scripts
+
 CMD ["npm", "run", "db:migrate"]
 
 # ───────────────────────────── التشغيل ────────────────────────────────
