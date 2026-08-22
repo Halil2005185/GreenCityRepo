@@ -37,6 +37,8 @@ export function listTasks(
     overdue?: boolean;
     unassigned?: boolean;
     officeId?: string;
+    /** مهام عضو بعينه — يُستعمل في ملفه ضمن دليل الفريق. */
+    assigneeUserId?: string;
     status?: readonly WorkStatus[];
   } = {},
 ) {
@@ -46,6 +48,8 @@ export function listTasks(
   if (filters.overdue) params.set("overdue", "true");
   if (filters.unassigned) params.set("unassigned", "true");
   if (filters.officeId) params.set("officeId", filters.officeId);
+  if (filters.assigneeUserId)
+    params.set("assigneeUserId", filters.assigneeUserId);
   for (const status of filters.status ?? []) params.append("status", status);
 
   const query = params.toString();

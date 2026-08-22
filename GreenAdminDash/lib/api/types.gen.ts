@@ -4124,6 +4124,139 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/people": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * دليل الفريق
+         * @description أعضاء الفريق وعضوياتهم النشطة. لا يشمل ممثلي الشركاء: هؤلاء يُقرأون من سجل الشركاء لأن نطاقهم جهتهم لا مكتبًا.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    officeId?: string;
+                    status?: "ACTIVE" | "SUSPENDED" | "DISABLED";
+                    q?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الأعضاء */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TeamMember"][];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة users.view */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/people/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ملف عضو الفريق
+         * @description يشمل العضويات المنتهية كتاريخ. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description العضو */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TeamMember"];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة users.view */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يوجد عضو فريق بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4891,6 +5024,39 @@ export interface components {
             acknowledgements: components["schemas"]["CharterAcknowledgement"][];
             interactions: components["schemas"]["PartnerInteraction"][];
             activation: components["schemas"]["ActivationRequirements"];
+        };
+        TeamMembership: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            officeId: string;
+            officeSlug: string;
+            officeNameAr: string;
+            /** Format: uuid */
+            roleId: string;
+            roleSlug: string;
+            roleNameAr: string;
+            isPrimary: boolean;
+            /** @enum {string} */
+            status: "ACTIVE" | "ENDED";
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            endedAt: string | null;
+        };
+        TeamMember: {
+            /** Format: uuid */
+            id: string;
+            /** Format: email */
+            email: string;
+            fullNameAr: string;
+            /** @enum {string} */
+            status: "ACTIVE" | "SUSPENDED" | "DISABLED";
+            /** Format: date-time */
+            emailVerifiedAt: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            memberships: components["schemas"]["TeamMembership"][];
         };
     };
     responses: never;

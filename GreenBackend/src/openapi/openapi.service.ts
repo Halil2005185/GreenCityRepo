@@ -20,6 +20,7 @@ import '../modules/metrics/metrics.schemas.js'
 import '../modules/org/org.schemas.js'
 import '../modules/partner-portal/portal.schemas.js'
 import '../modules/partners/partners.schemas.js'
+import '../modules/people/people.schemas.js'
 import '../modules/programs/programs.schemas.js'
 import '../modules/work/work.schemas.js'
 
