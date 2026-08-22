@@ -25,8 +25,11 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in .env}
       POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in .env}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    # التركيب على `/var/lib/postgresql` لا على `data` تحته: صور PostgreSQL
+    # من الإصدار 18 تضع الكتلة في مجلد باسم الإصدار داخله، وترفض البدء إن
+    # وجدت التركيب على المسار القديم.
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 10s
