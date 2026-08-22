@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -109,6 +110,16 @@ function LoginForm() {
           <Button type="submit" className="w-full" loading={isSubmitting}>
             دخول
           </Button>
+
+          {/* بدون هذا الرابط لا يبلغ أحد صفحة الاستعادة إلا بعنوانها. */}
+          <p className="text-center text-sm">
+            <Link
+              href="/forgot-password"
+              className="text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+            >
+              نسيت كلمة المرور؟
+            </Link>
+          </p>
         </form>
       </CardContent>
     </Card>
