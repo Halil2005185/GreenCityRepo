@@ -69,6 +69,7 @@ export const formFieldSchema = registry.register(
     minSelections: z.number().int().nullable(),
     maxSelections: z.number().int().nullable(),
     maxLength: z.number().int().nullable(),
+    contactRole: z.enum(['NAME', 'EMAIL', 'PHONE']).nullable(),
     options: z.array(optionSchema),
     condition: conditionSchema.nullable(),
   }),
@@ -145,6 +146,7 @@ export const fieldBodySchema = z
     minSelections: z.number().int().min(1).max(100).nullable().optional(),
     maxSelections: z.number().int().min(1).max(100).nullable().optional(),
     maxLength: z.number().int().min(1).max(10000).nullable().optional(),
+    contactRole: z.enum(['NAME', 'EMAIL', 'PHONE']).nullable().optional(),
     options: z.array(optionSchema).max(100).default([]),
     condition: conditionSchema.nullable().optional(),
   })
@@ -186,6 +188,18 @@ export const fieldBodySchema = z
     {
       message: 'الحد الأقصى أكبر من عدد الخيارات المتاحة.',
       path: ['maxSelections'],
+    },
+  )
+  /** الدور يطابق نوعه، وإلا نُسخ نص حر إلى عمود بريد. */
+  .refine(
+    (body) =>
+      body.contactRole == null ||
+      (body.contactRole === 'NAME' && body.type === 'TEXT') ||
+      (body.contactRole === 'EMAIL' && body.type === 'EMAIL') ||
+      (body.contactRole === 'PHONE' && body.type === 'PHONE'),
+    {
+      message: 'دور التواصل يجب أن يطابق نوع الحقل: الاسم نص، والبريد بريد، والهاتف هاتف.',
+      path: ['contactRole'],
     },
   )
   .refine(

@@ -12,9 +12,11 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import {
+  fieldContactRole,
   formConditionOp,
   formFieldType,
   formVersionStatus,
+  submissionStatus,
 } from './enums.js'
 import { users } from './identity.js'
 import { offices } from './org.js'
@@ -141,6 +143,13 @@ export const formFields = pgTable(
     maxLength: integer('max_length'),
 
     /**
+     * أي حقل يحمل اسم المتقدّم وبريده وهاتفه — يُنسَخ منه إلى عمود على
+     * الطلب. صريح لا اصطلاحي: الاعتماد على مفتاح اسمه `email` يكسر أول
+     * استمارة تسمّيه `mail`، فيصير الطلب بلا بريد يُراسَل عليه صامتًا.
+     */
+    contactRole: fieldContactRole('contact_role'),
+
+    /**
      * خيارات `SINGLE_SELECT` و`MULTI_SELECT`: `[{ value, labelAr }]`.
      * المراجع (`*_REF`) تقرأ خياراتها من كتالوجها فتبقى فارغة هنا.
      */
@@ -201,5 +210,65 @@ export const formFields = pgTable(
       sql`(${table.type} in ('TEXT', 'LONG_TEXT') and coalesce(${table.maxLength}, 1) >= 1)
           or (${table.type} not in ('TEXT', 'LONG_TEXT') and ${table.maxLength} is null)`,
     ),
+    // حقل واحد لكل دور تواصل في الإصدار: بريدان يعنيان أيهما نراسل.
+    uniqueIndex('form_fields_contact_role_unique')
+      .on(table.versionId, table.contactRole)
+      .where(sql`${table.contactRole} is not null`),
+    // الدور يطابق النوع، وإلا نُسخ نص حر إلى عمود بريد.
+    check(
+      'form_fields_contact_role_type',
+      sql`${table.contactRole} is null
+          or (${table.contactRole} = 'NAME' and ${table.type} = 'TEXT')
+          or (${table.contactRole} = 'EMAIL' and ${table.type} = 'EMAIL')
+          or (${table.contactRole} = 'PHONE' and ${table.type} = 'PHONE')`,
+    ),
+  ],
+)
+
+/**
+ * طلب مقدَّم على إصدار مجمَّد.
+ *
+ * `answers` خام لا يُعدَّل — هو ما كتبه المتقدّم مقابل الأسئلة كما سُئلت.
+ * وبجانبه أعمدة حقيقية مستخرجة ومحسوبة، لأن الفرز والفهرسة ومنع التكرار
+ * لا تُبنى على jsonb، والوثيقة تطلب «ملف متطوع قابل للفرز» لا أرشيف
+ * إجابات. صفٌّ واحد بعمودين نوعين خير من ستة جداول قبل أن يصل أول طلب.
+ */
+export const formSubmissions = pgTable(
+  'form_submissions',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    /** الإصدار لا الاستمارة: الطلب يُقرأ مقابل أسئلته هو. */
+    formVersionId: uuidColumn('form_version_id')
+      .notNull()
+      .references(() => formVersions.id, { onDelete: 'restrict' }),
+
+    answers: jsonb('answers')
+      .$type<Record<string, unknown>>()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
+
+    status: submissionStatus('status').default('NEW').notNull(),
+
+    applicantNameAr: varchar('applicant_name_ar', { length: 160 }),
+    applicantEmail: varchar('applicant_email', { length: 254 }),
+    applicantPhone: varchar('applicant_phone', { length: 32 }),
+
+    /**
+     * تجزئة العنوان لا العنوان.
+     *
+     * يكفي لكشف التكرار والإساءة من مصدر واحد، ولا يبني سجلًا يربط شخصًا
+     * بمكانه. الطلب يأتي من متطوع لا من مستخدم النظام، فلا مبرر لحفظ
+     * أكثر مما يلزم للحماية.
+     */
+    sourceIpHash: varchar('source_ip_hash', { length: 64 }),
+
+    submittedAt: tsColumn('submitted_at').defaultNow().notNull(),
+    ...timestamps,
+  },
+  (table) => [
+    index('form_submissions_version_idx').on(table.formVersionId),
+    index('form_submissions_status_idx').on(table.status),
+    index('form_submissions_email_idx').on(table.applicantEmail),
+    index('form_submissions_submitted_idx').on(table.submittedAt),
   ],
 )
