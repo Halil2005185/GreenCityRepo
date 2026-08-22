@@ -3,6 +3,7 @@
 import {
   Building2,
   CheckSquare,
+  ClipboardList,
   FileText,
   LayoutDashboard,
   Mail,
@@ -50,6 +51,12 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "الفريق",
     icon: Users,
     requires: [CAPABILITIES.usersView],
+  },
+  {
+    href: "/dashboard/forms",
+    label: "الاستمارات",
+    icon: ClipboardList,
+    requires: [CAPABILITIES.formsView],
   },
   {
     href: "/dashboard/charter",

@@ -43,6 +43,10 @@ export const CAPABILITIES = {
   impactManage: "impact.manage",
   metricsManage: "metrics.manage",
 
+  formsView: "forms.view",
+  formsManage: "forms.manage",
+  formsPublish: "forms.publish",
+
   reportsView: "reports.view",
   auditView: "audit.view",
 } as const;

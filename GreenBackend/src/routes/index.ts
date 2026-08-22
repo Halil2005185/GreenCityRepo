@@ -7,6 +7,7 @@ import {
   charterPublicRouter,
 } from '../modules/charter/charter.routes.js'
 import { dashboardRouter } from '../modules/dashboard/dashboard.routes.js'
+import { formsRouter } from '../modules/forms/forms.routes.js'
 import { geoRouter } from '../modules/geo/geo.routes.js'
 import { healthRouter } from '../modules/health/health.routes.js'
 import { impactRouter } from '../modules/impact/impact.routes.js'
@@ -34,6 +35,7 @@ apiRouter.use('/admin/charter', charterAdminRouter)
 apiRouter.use('/admin/invitations', invitationsRouter)
 apiRouter.use('/admin/partners', partnersRouter)
 apiRouter.use('/admin/people', peopleRouter)
+apiRouter.use('/admin/forms', formsRouter)
 
 // المرجعيات: قوائم قابلة للتحرير لا ثوابت واجهة.
 apiRouter.use('/admin/areas', geoRouter)

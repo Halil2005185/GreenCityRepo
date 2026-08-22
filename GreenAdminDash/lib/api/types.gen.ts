@@ -776,6 +776,644 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** قائمة الاستمارات */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الاستمارات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormSummary"][];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.view */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * إنشاء استمارة
+         * @description تُنشأ معها مسوّدة الإصدار الأول فورًا — لا استمارة بلا مسوّدة.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        slug: string;
+                        nameAr: string;
+                        descriptionAr?: string;
+                        /** Format: uuid */
+                        officeId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُنشئت */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormDetail"];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المعرّف مستعمل */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/forms/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** استمارة بمسوّدتها وإصدارها المنشور */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الاستمارة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormDetail"];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.view */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * تعديل بيانات الاستمارة
+         * @description `isAccepting` يفتح الاستقبال ويغلقه، ويحتاج إصدارًا منشورًا وقدرة forms.publish.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr?: string;
+                        descriptionAr?: string | null;
+                        /** Format: uuid */
+                        officeId?: string | null;
+                        isAccepting?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description حُدِّثت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormDetail"];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة اللازمة */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا إصدار منشور يمكن فتح الاستقبال عليه */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/forms/{id}/fields": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إضافة سؤال إلى المسوّدة
+         * @description المنشور مجمَّد؛ الأسئلة تُضاف إلى المسوّدة وحدها. شرط الظهور يجب أن يشير إلى سؤال يسبقه ترتيبًا.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        key: string;
+                        labelAr: string;
+                        hintAr?: string | null;
+                        /** @enum {string} */
+                        type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
+                        /** @default false */
+                        isRequired?: boolean;
+                        /** @default [] */
+                        options?: {
+                            value: string;
+                            labelAr: string;
+                        }[];
+                        condition?: {
+                            fieldKey: string;
+                            /** @enum {string} */
+                            op: "notEmpty";
+                        } | {
+                            fieldKey: string;
+                            /** @enum {string} */
+                            op: "eq";
+                            value: string;
+                        } | {
+                            fieldKey: string;
+                            /** @enum {string} */
+                            op: "in";
+                            value: string[];
+                        } | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيف */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormField"];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المفتاح مستعمل، أو الشرط يشير إلى سؤال لاحق */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة — خيارات ناقصة على قائمة، أو خيارات على نوع لا يحملها */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/forms/{id}/fields/{fieldId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** حذف سؤال من المسوّدة */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    fieldId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذف */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description السؤال غير موجود في المسوّدة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description سؤال آخر يشترط عليه */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** تعديل سؤال في المسوّدة */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    fieldId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        key: string;
+                        labelAr: string;
+                        hintAr?: string | null;
+                        /** @enum {string} */
+                        type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
+                        /** @default false */
+                        isRequired?: boolean;
+                        /** @default [] */
+                        options?: {
+                            value: string;
+                            labelAr: string;
+                        }[];
+                        condition?: {
+                            fieldKey: string;
+                            /** @enum {string} */
+                            op: "notEmpty";
+                        } | {
+                            fieldKey: string;
+                            /** @enum {string} */
+                            op: "eq";
+                            value: string;
+                        } | {
+                            fieldKey: string;
+                            /** @enum {string} */
+                            op: "in";
+                            value: string[];
+                        } | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormField"];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description السؤال غير موجود في المسوّدة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المفتاح مستعمل، أو الشرط يشير إلى سؤال لاحق */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة — خيارات ناقصة على قائمة، أو خيارات على نوع لا يحملها */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/forms/{id}/fields/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إعادة ترتيب أسئلة المسوّدة
+         * @description ترتيب كامل بمفاتيح المسوّدة كلها. يُرفض إن كسر الترتيب الجديد شرطًا يشير إلى سؤال صار لاحقًا.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        keys: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description رُتِّبت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormField"][];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة forms.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الترتيب ناقص أو يكسر شرطًا */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/areas": {
         parameters: {
             query?: never;
@@ -4396,6 +5034,65 @@ export interface components {
                 unitAr: string;
                 total: number;
             }[] | null;
+        };
+        FormField: {
+            /** Format: uuid */
+            id: string;
+            key: string;
+            labelAr: string;
+            hintAr: string | null;
+            /** @enum {string} */
+            type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
+            isRequired: boolean;
+            displayOrder: number;
+            options: {
+                value: string;
+                labelAr: string;
+            }[];
+            condition: {
+                fieldKey: string;
+                /** @enum {string} */
+                op: "notEmpty";
+            } | {
+                fieldKey: string;
+                /** @enum {string} */
+                op: "eq";
+                value: string;
+            } | {
+                fieldKey: string;
+                /** @enum {string} */
+                op: "in";
+                value: string[];
+            } | null;
+        };
+        FormVersion: {
+            /** Format: uuid */
+            id: string;
+            version: number;
+            /** @enum {string} */
+            status: "DRAFT" | "PUBLISHED" | "ARCHIVED";
+            /** Format: date-time */
+            publishedAt: string | null;
+            fields: components["schemas"]["FormField"][];
+        };
+        FormSummary: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            nameAr: string;
+            descriptionAr: string | null;
+            /** Format: uuid */
+            officeId: string | null;
+            officeNameAr: string | null;
+            isAccepting: boolean;
+            publishedVersion: number | null;
+            draftFieldCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        FormDetail: components["schemas"]["FormSummary"] & {
+            draft: components["schemas"]["FormVersion"] & (Record<string, never> | null);
+            published: components["schemas"]["FormVersion"] & (Record<string, never> | null);
         };
         Area: {
             /** Format: uuid */

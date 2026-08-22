@@ -269,3 +269,37 @@ export const outboxStatus = pgEnum('outbox_status', [
   'SENT',
   'FAILED',
 ])
+
+// ── استمارات الانضمام ──────────────────────────────────────────────────
+//
+// النوع مجموعة مغلقة لا نص حر: الخادم يتحقق من الإجابة حسب النوع، فنوع
+// لا يعرفه الكود لا يمكن التحقق منه أصلًا. راجع «الحدود الأربعة» في
+// PLAN.md قبل التوسيع.
+export const formFieldType = pgEnum('form_field_type', [
+  'TEXT',
+  'LONG_TEXT',
+  'NUMBER',
+  'DATE',
+  'BOOLEAN',
+  'EMAIL',
+  'PHONE',
+  'SINGLE_SELECT',
+  'MULTI_SELECT',
+  // مراجع إلى كتالوجات النظام: تربط الاستمارة بالبيانات بدل أن تجاورها.
+  'AREA_REF',
+  'OFFICE_REF',
+  'PROGRAM_REF',
+])
+
+/** ثلاث عمليات لا أكثر — الحد الرابع في PLAN.md. */
+export const formConditionOp = pgEnum('form_condition_op', [
+  'eq',
+  'in',
+  'notEmpty',
+])
+
+export const formVersionStatus = pgEnum('form_version_status', [
+  'DRAFT',
+  'PUBLISHED',
+  'ARCHIVED',
+])
