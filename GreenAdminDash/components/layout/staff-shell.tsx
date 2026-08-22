@@ -9,6 +9,7 @@ import {
   Map,
   ScrollText,
   Sprout,
+  Users,
 } from "lucide-react";
 
 import { AppShell, type NavItem } from "@/components/layout/app-shell";
@@ -43,6 +44,12 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "الخريطة",
     icon: Map,
     requires: [CAPABILITIES.initiativesView],
+  },
+  {
+    href: "/dashboard/people",
+    label: "الفريق",
+    icon: Users,
+    requires: [CAPABILITIES.usersView],
   },
   {
     href: "/dashboard/charter",

@@ -66,6 +66,20 @@ export const OFFICE_SEEDS: readonly OfficeSeed[] = [
     descriptionAr: 'الموارد والوثائق والمالية وتنسيق الاجتماعات ومحاضرها.',
     displayOrder: 40,
   },
+  /**
+   * مكتب مستقل لا قسم تحت `admin-finance`.
+   *
+   * المكتب هو وحدة الإسناد في `work_items.scope_id` و`follow_up_office_id`،
+   * فجعل شؤون الفريق قسمًا فرعيًا يخلط مهامها بمهام المالية في كل تقرير.
+   */
+  {
+    slug: 'people',
+    nameAr: 'مكتب شؤون الفريق',
+    nameEn: 'People & HR',
+    descriptionAr:
+      'استقطاب المتطوعين وفرزهم، وعضويات الفريق وأدواره، ومتابعة انتظام العمل.',
+    displayOrder: 45,
+  },
   {
     slug: 'media',
     nameAr: 'مكتب الإعلام والاتصال',
@@ -177,6 +191,26 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'reports.manage',
       'files.upload',
       'files.manage',
+    ],
+  },
+  {
+    slug: 'PEOPLE',
+    nameAr: 'مسؤول شؤون الفريق',
+    nameEn: 'People Lead',
+    descriptionAr:
+      'دليل الفريق والعضويات والدعوات، واستقبال طلبات الانضمام وفرزها.',
+    scope: 'STAFF',
+    displayOrder: 45,
+    capabilities: [
+      'users.view',
+      'users.manage',
+      // مسؤول الفريق هو من يدعو المقبولين، فالدعوة أداته لا امتياز إضافي.
+      'invitations.manage',
+      'work.view',
+      'work.manage',
+      'meetings.manage',
+      'initiatives.view',
+      'reports.view',
     ],
   },
   {
