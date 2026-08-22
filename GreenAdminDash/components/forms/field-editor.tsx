@@ -13,6 +13,7 @@ import {
   type FieldType,
   type FormField,
   SELECT_TYPES,
+  TEXT_TYPES,
 } from "@/lib/api/forms";
 
 const selectClass =
@@ -44,6 +45,11 @@ export function FieldEditor({
   const [type, setType] = useState<FieldType>(field?.type ?? "TEXT");
   const [isRequired, setIsRequired] = useState(field?.isRequired ?? false);
   const [options, setOptions] = useState<Option[]>(field?.options ?? []);
+  const num = (value: number | null | undefined) =>
+    value === null || value === undefined ? "" : String(value);
+  const [minSelections, setMinSelections] = useState(num(field?.minSelections));
+  const [maxSelections, setMaxSelections] = useState(num(field?.maxSelections));
+  const [maxLength, setMaxLength] = useState(num(field?.maxLength));
 
   const [conditionKey, setConditionKey] = useState(
     field?.condition?.fieldKey ?? "",
@@ -96,6 +102,13 @@ export function FieldEditor({
       hintAr: hintAr.trim() || null,
       type,
       isRequired,
+      // الحدود تخص أنواعها وحدها؛ إرسالها على غيرها يرفضه الخادم.
+      minSelections:
+        type === "MULTI_SELECT" && minSelections ? Number(minSelections) : null,
+      maxSelections:
+        type === "MULTI_SELECT" && maxSelections ? Number(maxSelections) : null,
+      maxLength:
+        TEXT_TYPES.includes(type) && maxLength ? Number(maxLength) : null,
       options: needsOptions ? options : [],
       condition: buildCondition(),
     });
@@ -172,6 +185,55 @@ export function FieldEditor({
           </label>
         </div>
       </div>
+
+      {type === "MULTI_SELECT" ? (
+        <div className="grid gap-3 sm:grid-cols-2">
+          <Field id="field-min" label="أقل عدد اختيارات">
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                min={1}
+                value={minSelections}
+                onChange={(event) => setMinSelections(event.target.value)}
+                placeholder="بلا حد"
+              />
+            )}
+          </Field>
+
+          <Field id="field-max" label="أكثر عدد اختيارات">
+            {(props) => (
+              <Input
+                {...props}
+                type="number"
+                min={1}
+                value={maxSelections}
+                onChange={(event) => setMaxSelections(event.target.value)}
+                placeholder="بلا حد"
+              />
+            )}
+          </Field>
+        </div>
+      ) : null}
+
+      {TEXT_TYPES.includes(type) ? (
+        <Field
+          id="field-maxlen"
+          label="حد الأحرف"
+          hint="يُفرض على الخادم أيضًا، لا في المتصفح وحده."
+        >
+          {(props) => (
+            <Input
+              {...props}
+              type="number"
+              min={1}
+              value={maxLength}
+              onChange={(event) => setMaxLength(event.target.value)}
+              placeholder="بلا حد"
+            />
+          )}
+        </Field>
+      ) : null}
 
       {needsOptions ? (
         <div className="space-y-2 rounded-md border border-border p-3">

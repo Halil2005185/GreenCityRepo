@@ -13,6 +13,7 @@ export const fieldTypeEnum = z.enum([
   'BOOLEAN',
   'EMAIL',
   'PHONE',
+  'URL',
   'SINGLE_SELECT',
   'MULTI_SELECT',
   'AREA_REF',
@@ -65,6 +66,9 @@ export const formFieldSchema = registry.register(
     type: fieldTypeEnum,
     isRequired: z.boolean(),
     displayOrder: z.number().int(),
+    minSelections: z.number().int().nullable(),
+    maxSelections: z.number().int().nullable(),
+    maxLength: z.number().int().nullable(),
     options: z.array(optionSchema),
     condition: conditionSchema.nullable(),
   }),
@@ -138,6 +142,9 @@ export const fieldBodySchema = z
     hintAr: z.string().trim().max(300).nullable().optional(),
     type: fieldTypeEnum,
     isRequired: z.boolean().default(false),
+    minSelections: z.number().int().min(1).max(100).nullable().optional(),
+    maxSelections: z.number().int().min(1).max(100).nullable().optional(),
+    maxLength: z.number().int().min(1).max(10000).nullable().optional(),
     options: z.array(optionSchema).max(100).default([]),
     condition: conditionSchema.nullable().optional(),
   })
@@ -149,6 +156,46 @@ export const fieldBodySchema = z
     {
       message: 'الخيارات مطلوبة للقوائم وحدها. المراجع تقرأ خياراتها من كتالوجها.',
       path: ['options'],
+    },
+  )
+  .refine(
+    (body) =>
+      body.type === 'MULTI_SELECT' ||
+      (body.minSelections == null && body.maxSelections == null),
+    {
+      message: 'حدود الاختيار للاختيار المتعدد وحده.',
+      path: ['minSelections'],
+    },
+  )
+  .refine(
+    (body) =>
+      body.minSelections == null ||
+      body.maxSelections == null ||
+      body.maxSelections >= body.minSelections,
+    {
+      message: 'الحد الأقصى لا يقل عن الأدنى.',
+      path: ['maxSelections'],
+    },
+  )
+  /** حدّ اختيار يتجاوز عدد الخيارات وعدٌ لا يمكن الوفاء به. */
+  .refine(
+    (body) =>
+      body.maxSelections == null ||
+      body.options.length === 0 ||
+      body.maxSelections <= body.options.length,
+    {
+      message: 'الحد الأقصى أكبر من عدد الخيارات المتاحة.',
+      path: ['maxSelections'],
+    },
+  )
+  .refine(
+    (body) =>
+      body.maxLength == null ||
+      body.type === 'TEXT' ||
+      body.type === 'LONG_TEXT',
+    {
+      message: 'حد الأحرف للنصوص وحدها.',
+      path: ['maxLength'],
     },
   )
 

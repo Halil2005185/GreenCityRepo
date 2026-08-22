@@ -659,6 +659,7 @@
               "BOOLEAN",
               "EMAIL",
               "PHONE",
+              "URL",
               "SINGLE_SELECT",
               "MULTI_SELECT",
               "AREA_REF",
@@ -671,6 +672,24 @@
           },
           "displayOrder": {
             "type": "integer"
+          },
+          "minSelections": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxSelections": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxLength": {
+            "type": [
+              "integer",
+              "null"
+            ]
           },
           "options": {
             "type": "array",
@@ -788,6 +807,9 @@
           "type",
           "isRequired",
           "displayOrder",
+          "minSelections",
+          "maxSelections",
+          "maxLength",
           "options",
           "condition"
         ]
@@ -4963,6 +4985,7 @@
                       "BOOLEAN",
                       "EMAIL",
                       "PHONE",
+                      "URL",
                       "SINGLE_SELECT",
                       "MULTI_SELECT",
                       "AREA_REF",
@@ -4973,6 +4996,30 @@
                   "isRequired": {
                     "type": "boolean",
                     "default": false
+                  },
+                  "minSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxLength": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 10000
                   },
                   "options": {
                     "type": "array",
@@ -5230,6 +5277,7 @@
                       "BOOLEAN",
                       "EMAIL",
                       "PHONE",
+                      "URL",
                       "SINGLE_SELECT",
                       "MULTI_SELECT",
                       "AREA_REF",
@@ -5240,6 +5288,30 @@
                   "isRequired": {
                     "type": "boolean",
                     "default": false
+                  },
+                  "minSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxLength": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 10000
                   },
                   "options": {
                     "type": "array",

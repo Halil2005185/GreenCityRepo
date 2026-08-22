@@ -130,6 +130,17 @@ export const formFields = pgTable(
     displayOrder: integer('display_order').notNull(),
 
     /**
+     * حدود الاختيار للقوائم المتعددة، وحد الأحرف للنصوص.
+     *
+     * `isRequired` يقول «أجب»، وهذه تقول «كم». سؤال «اختر من واحد إلى
+     * خمسة مجالات» لا يُعبَّر عنه بالإلزام وحده، وسؤال بحد خمسمئة حرف
+     * يحتاج رقمًا لا نية.
+     */
+    minSelections: integer('min_selections'),
+    maxSelections: integer('max_selections'),
+    maxLength: integer('max_length'),
+
+    /**
      * خيارات `SINGLE_SELECT` و`MULTI_SELECT`: `[{ value, labelAr }]`.
      * المراجع (`*_REF`) تقرأ خياراتها من كتالوجها فتبقى فارغة هنا.
      */
@@ -170,6 +181,25 @@ export const formFields = pgTable(
       'form_fields_options_consistency',
       sql`(${table.type} in ('SINGLE_SELECT', 'MULTI_SELECT') and jsonb_array_length(${table.options}) > 0)
           or (${table.type} not in ('SINGLE_SELECT', 'MULTI_SELECT') and jsonb_array_length(${table.options}) = 0)`,
+    ),
+    /**
+     * حدود الاختيار على الاختيار المتعدد وحده، وحد الأحرف على النصوص
+     * وحدها. حدٌّ على نوع لا يحمله يعني رقمًا لا يقرأه أحد ولا يتحقق منه
+     * شيء — وهو أسوأ من غيابه لأنه يوهم بضمانة.
+     */
+    check(
+      'form_fields_selection_limits',
+      sql`(${table.type} = 'MULTI_SELECT'
+             and coalesce(${table.minSelections}, 1) >= 1
+             and coalesce(${table.maxSelections}, 1) >= coalesce(${table.minSelections}, 1))
+          or (${table.type} <> 'MULTI_SELECT'
+             and ${table.minSelections} is null
+             and ${table.maxSelections} is null)`,
+    ),
+    check(
+      'form_fields_max_length_scope',
+      sql`(${table.type} in ('TEXT', 'LONG_TEXT') and coalesce(${table.maxLength}, 1) >= 1)
+          or (${table.type} not in ('TEXT', 'LONG_TEXT') and ${table.maxLength} is null)`,
     ),
   ],
 )

@@ -16,6 +16,7 @@ export const FIELD_TYPE_LABELS: Record<FieldType, string> = {
   BOOLEAN: "نعم / لا",
   EMAIL: "بريد إلكتروني",
   PHONE: "رقم هاتف",
+  URL: "رابط",
   SINGLE_SELECT: "اختيار واحد",
   MULTI_SELECT: "اختيار متعدد",
   AREA_REF: "منطقة جغرافية",
@@ -28,6 +29,9 @@ export const SELECT_TYPES: readonly FieldType[] = [
   "SINGLE_SELECT",
   "MULTI_SELECT",
 ];
+
+/** الأنواع التي تقبل حد أحرف. */
+export const TEXT_TYPES: readonly FieldType[] = ["TEXT", "LONG_TEXT"];
 
 export const REF_TYPES: readonly FieldType[] = [
   "AREA_REF",
@@ -47,6 +51,9 @@ export type FieldInput = {
   hintAr?: string | null;
   type: FieldType;
   isRequired: boolean;
+  minSelections?: number | null;
+  maxSelections?: number | null;
+  maxLength?: number | null;
   options: Array<{ value: string; labelAr: string }>;
   condition?: FieldCondition | null;
 };

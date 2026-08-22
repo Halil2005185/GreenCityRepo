@@ -90,6 +90,7 @@ function PreviewField({
             <textarea
               {...props}
               rows={3}
+              {...(field.maxLength ? { maxLength: field.maxLength } : {})}
               value={String(value ?? "")}
               onChange={(event) => onChange(event.target.value)}
               className={`${selectClass} h-auto`}
@@ -110,6 +111,12 @@ function PreviewField({
                   <input
                     type="checkbox"
                     checked={selected.includes(option.value)}
+                    disabled={
+                      !selected.includes(option.value) &&
+                      field.maxSelections !== null &&
+                      field.maxSelections !== undefined &&
+                      selected.length >= field.maxSelections
+                    }
                     onChange={(event) =>
                       onChange(
                         event.target.checked
@@ -122,6 +129,15 @@ function PreviewField({
                   {option.labelAr}
                 </label>
               ))}
+              {field.minSelections || field.maxSelections ? (
+                <p className="pt-1 text-xs text-muted-foreground">
+                  {field.minSelections ? `اختر ${field.minSelections} فأكثر` : ""}
+                  {field.minSelections && field.maxSelections ? " و" : ""}
+                  {field.maxSelections ? `بحد أقصى ${field.maxSelections}` : ""}
+                  {" · "}
+                  اخترت {selected.length}
+                </p>
+              ) : null}
             </div>
           );
         }
@@ -153,12 +169,15 @@ function PreviewField({
                 ? "email"
                 : field.type === "PHONE"
                   ? "tel"
-                  : "text";
+                  : field.type === "URL"
+                    ? "url"
+                    : "text";
 
         return (
           <Input
             {...props}
             type={inputType}
+            {...(field.maxLength ? { maxLength: field.maxLength } : {})}
             value={String(value ?? "")}
             onChange={(event) => onChange(event.target.value)}
             {...(inputType === "text" ? {} : { dir: "ltr" as const })}

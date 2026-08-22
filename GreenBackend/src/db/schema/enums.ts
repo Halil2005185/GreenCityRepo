@@ -283,6 +283,7 @@ export const formFieldType = pgEnum('form_field_type', [
   'BOOLEAN',
   'EMAIL',
   'PHONE',
+  'URL',
   'SINGLE_SELECT',
   'MULTI_SELECT',
   // مراجع إلى كتالوجات النظام: تربط الاستمارة بالبيانات بدل أن تجاورها.

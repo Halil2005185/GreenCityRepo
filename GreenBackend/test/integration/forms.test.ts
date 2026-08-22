@@ -379,3 +379,151 @@ describe.runIf(ready)('publishing', () => {
     expect(opened.body.data.isAccepting).toBe(true)
   })
 })
+
+describe.runIf(ready)('field limits', () => {
+  let token = ''
+  let formId = ''
+
+  beforeEach(async () => {
+    await resetDatabase()
+    await runSeed({ quiet: true })
+
+    await createStaffUser({
+      email: 'lead@greencities.test',
+      roleSlug: 'PEOPLE',
+      officeSlug: 'people',
+    })
+
+    token = (await login('lead@greencities.test')).accessToken
+
+    const created = await request(app)
+      .post('/api/admin/forms')
+      .set('authorization', bearer(token))
+      .send({ slug: 'join', nameAr: 'الانضمام' })
+      .expect(201)
+
+    formId = created.body.data.id
+  })
+
+  const post = (body: Record<string, unknown>, expected: number) =>
+    request(app)
+      .post(`/api/admin/forms/${formId}/fields`)
+      .set('authorization', bearer(token))
+      .send({ isRequired: false, options: [], ...body })
+      .expect(expected)
+
+  const domains = [
+    { value: 'ENG', labelAr: 'الهندسة' },
+    { value: 'ENV', labelAr: 'البيئة' },
+    { value: 'MEDIA', labelAr: 'الإعلام' },
+  ]
+
+  it('stores selection limits on a multi select', async () => {
+    const response = await post(
+      {
+        key: 'skill_domains',
+        labelAr: 'المجالات',
+        type: 'MULTI_SELECT',
+        options: domains,
+        minSelections: 1,
+        maxSelections: 2,
+      },
+      201,
+    )
+
+    expect(response.body.data).toMatchObject({
+      minSelections: 1,
+      maxSelections: 2,
+    })
+  })
+
+  it('refuses selection limits on types that cannot use them', async () => {
+    await post(
+      { key: 'full_name', labelAr: 'الاسم', type: 'TEXT', minSelections: 1 },
+      422,
+    )
+  })
+
+  it('refuses a maximum below the minimum', async () => {
+    await post(
+      {
+        key: 'skill_domains',
+        labelAr: 'المجالات',
+        type: 'MULTI_SELECT',
+        options: domains,
+        minSelections: 3,
+        maxSelections: 2,
+      },
+      422,
+    )
+  })
+
+  it('refuses a maximum larger than the option count', async () => {
+    await post(
+      {
+        key: 'skill_domains',
+        labelAr: 'المجالات',
+        type: 'MULTI_SELECT',
+        options: domains,
+        maxSelections: 9,
+      },
+      422,
+    )
+  })
+
+  it('stores a character limit on text and refuses it elsewhere', async () => {
+    const response = await post(
+      {
+        key: 'green_city_idea',
+        labelAr: 'ماذا ستغيّر؟',
+        type: 'LONG_TEXT',
+        maxLength: 500,
+      },
+      201,
+    )
+
+    expect(response.body.data.maxLength).toBe(500)
+
+    await post(
+      { key: 'joined_at', labelAr: 'التاريخ', type: 'DATE', maxLength: 500 },
+      422,
+    )
+  })
+
+  it('accepts the new URL type', async () => {
+    const response = await post(
+      {
+        key: 'professional_links',
+        labelAr: 'روابطك المهنية',
+        type: 'URL',
+      },
+      201,
+    )
+
+    expect(response.body.data.type).toBe('URL')
+  })
+
+  it('carries the limits into the next draft on publish', async () => {
+    await post(
+      {
+        key: 'skill_domains',
+        labelAr: 'المجالات',
+        type: 'MULTI_SELECT',
+        options: domains,
+        minSelections: 1,
+        maxSelections: 2,
+      },
+      201,
+    )
+
+    const published = await request(app)
+      .post(`/api/admin/forms/${formId}/publish`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    expect(published.body.data.draft.fields[0]).toMatchObject({
+      minSelections: 1,
+      maxSelections: 2,
+    })
+  })
+})

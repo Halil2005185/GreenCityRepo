@@ -1142,9 +1142,12 @@ export interface paths {
                         labelAr: string;
                         hintAr?: string | null;
                         /** @enum {string} */
-                        type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
+                        type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "URL" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
                         /** @default false */
                         isRequired?: boolean;
+                        minSelections?: number | null;
+                        maxSelections?: number | null;
+                        maxLength?: number | null;
                         /** @default [] */
                         options?: {
                             value: string;
@@ -1321,9 +1324,12 @@ export interface paths {
                         labelAr: string;
                         hintAr?: string | null;
                         /** @enum {string} */
-                        type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
+                        type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "URL" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
                         /** @default false */
                         isRequired?: boolean;
+                        minSelections?: number | null;
+                        maxSelections?: number | null;
+                        maxLength?: number | null;
                         /** @default [] */
                         options?: {
                             value: string;
@@ -5121,9 +5127,12 @@ export interface components {
             labelAr: string;
             hintAr: string | null;
             /** @enum {string} */
-            type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
+            type: "TEXT" | "LONG_TEXT" | "NUMBER" | "DATE" | "BOOLEAN" | "EMAIL" | "PHONE" | "URL" | "SINGLE_SELECT" | "MULTI_SELECT" | "AREA_REF" | "OFFICE_REF" | "PROGRAM_REF";
             isRequired: boolean;
             displayOrder: number;
+            minSelections: number | null;
+            maxSelections: number | null;
+            maxLength: number | null;
             options: {
                 value: string;
                 labelAr: string;
