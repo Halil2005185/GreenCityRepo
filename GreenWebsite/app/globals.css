@@ -1,0 +1,145 @@
+@import "tailwindcss";
+
+/**
+ * اللوحة اللونية نفسها المستعملة في `GreenAdminDash`، لأن الموقع واللوحة
+ * وجهان لهوية واحدة. القيم بـ oklch لأن تفتيح لون أو تغميقه فيها يحافظ
+ * على الإشباع المُدرَك، بخلاف hsl التي تنتج درجات باهتة عند الأطراف.
+ */
+:root {
+  --radius: 0.75rem;
+
+  --background: oklch(0.995 0.003 145);
+  --foreground: oklch(0.22 0.02 155);
+
+  --card: oklch(1 0 0);
+  --card-foreground: var(--foreground);
+
+  --primary: oklch(0.52 0.13 152);
+  --primary-foreground: oklch(0.99 0.01 145);
+
+  --secondary: oklch(0.96 0.02 150);
+  --secondary-foreground: oklch(0.32 0.05 155);
+
+  --muted: oklch(0.96 0.01 150);
+  --muted-foreground: oklch(0.52 0.02 155);
+
+  --accent: oklch(0.94 0.04 150);
+  --accent-foreground: oklch(0.3 0.06 155);
+
+  --destructive: oklch(0.58 0.21 27);
+  --destructive-foreground: oklch(0.99 0.01 145);
+
+  --success: oklch(0.6 0.14 150);
+  --warning: oklch(0.75 0.15 75);
+
+  --border: oklch(0.9 0.01 150);
+  --input: oklch(0.9 0.01 150);
+  --ring: oklch(0.52 0.13 152);
+}
+
+/**
+ * لا مبدّل سمة في الموقع العام: الزائر لا يبقى ليضبط تفضيلًا. تفضيل
+ * النظام وحده هو المصدر، وكل لون معرّف مرتين فلا يبقى لون بلا مقابل داكن.
+ */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: oklch(0.19 0.02 155);
+    --foreground: oklch(0.96 0.01 145);
+
+    --card: oklch(0.23 0.02 155);
+    --card-foreground: var(--foreground);
+
+    --primary: oklch(0.68 0.14 152);
+    --primary-foreground: oklch(0.18 0.03 155);
+
+    --secondary: oklch(0.28 0.02 155);
+    --secondary-foreground: oklch(0.94 0.01 145);
+
+    --muted: oklch(0.28 0.02 155);
+    --muted-foreground: oklch(0.7 0.02 150);
+
+    --accent: oklch(0.32 0.04 152);
+    --accent-foreground: oklch(0.95 0.01 145);
+
+    --destructive: oklch(0.65 0.19 27);
+    --destructive-foreground: oklch(0.18 0.03 155);
+
+    --success: oklch(0.7 0.13 150);
+    --warning: oklch(0.8 0.14 75);
+
+    --border: oklch(0.32 0.02 155);
+    --input: oklch(0.34 0.02 155);
+    --ring: oklch(0.68 0.14 152);
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --font-sans: var(--font-plex-arabic), system-ui, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/40;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "kern";
+  }
+
+  /**
+   * النصوص عربية، لكن الأرقام المعلنة (أثر، أهداف، سنوات) تبقى لاتينية
+   * لأنها تُقارَن بصريًا وتُنسخ. العزل يمنع محرك BiDi من قلب ترتيب
+   * الرقم حين يجاور نصًا عربيًا.
+   */
+  .numeric {
+    font-variant-numeric: tabular-nums;
+    direction: ltr;
+    unicode-bidi: isolate;
+  }
+}
+
+@layer components {
+  /**
+   * خلفية القسم البطل: تدرّج خفيف من الأخضر يعطي عمقًا دون صورة تُحمَّل.
+   * `--primary` مصدره واحد، فيتبع التدرّج السمة الداكنة تلقائيًا.
+   */
+  .hero-surface {
+    background-image:
+      radial-gradient(
+        60rem 30rem at 85% -10%,
+        color-mix(in oklch, var(--primary) 18%, transparent),
+        transparent
+      ),
+      radial-gradient(
+        45rem 25rem at 0% 0%,
+        color-mix(in oklch, var(--accent) 55%, transparent),
+        transparent
+      );
+  }
+}

@@ -8,7 +8,10 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-    "gen:api": "openapi-typescript ../GreenBackend/docs/api/openapi.json -o lib/api/types.gen.ts"
+    "gen:api": "openapi-typescript ../GreenBackend/docs/api/openapi.json -o lib/api/types.gen.ts",
+    "cf:build": "opennextjs-cloudflare build",
+    "cf:preview": "wrangler dev",
+    "cf:deploy": "wrangler deploy"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.7.1",
@@ -26,6 +29,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.20.2",
     "@tailwindcss/postcss": "^4",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^20",
@@ -35,7 +39,8 @@
     "eslint-config-next": "16.3.0",
     "openapi-typescript": "^7.13.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.125.0"
   },
   "description": "لوحة تشغيل فريق إيفا وبوابة الشركاء — المدن الخضراء"
 }

@@ -1,34 +1,57 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# لوحة التحكم — المدن الخضراء
 
-## Getting Started
-
-First, run the development server:
+لوحة فريق إيفا وبوابة الشركاء على Next.js 16. التشغيل المحلي والمبدأ الحاكم في
+[README الجذر](../README.md)؛ باختصار:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+npm run dev   # http://localhost:3000 — يمرّر /api إلى الـAPI على المنفذ 4000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## النشر على Cloudflare Workers
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+تُنشر اللوحة Workerًا اسمه `greencities` عبر محوّل
+[OpenNext](https://opennext.js.org/cloudflare). كل ما يلزم داخل المستودع، فلا
+يعتمد النشر على الإعداد التلقائي الذي يجريه `wrangler` عند غياب الملفات:
 
-## Learn More
+| الملف | الدور |
+|---|---|
+| `wrangler.jsonc` | اسم الـWorker وأعلام التوافق، و`build.command` الذي يبني التطبيق قبل الرفع |
+| `open-next.config.ts` | إعداد المحوّل — بلا cache لأن لا ISR في اللوحة |
+| `.env.production` | `API_ORIGIN` العلني الذي يُبنى عليه تمرير `/api` — قيم علنية فقط، مُودَع عمدًا |
+| `public/_headers` | تخزين `/_next/static` سنة كاملة على حافة Cloudflare |
+| `middleware.ts` | الحارس — على الـedge لا على Node.js (انظر أدناه) |
 
-To learn more about Next.js, take a look at the following resources:
+إعداد مشروع Workers Builds على Cloudflare: جذر المشروع `GreenAdminDash`، أمر
+النشر `npx wrangler deploy`، **وبلا أمر بناء** — `build.command` في
+`wrangler.jsonc` يتكفّل به، وتكراره هناك يبني التطبيق مرتين.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+محليًا بعد `npx wrangler login`:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+npm run cf:preview   # يبني ثم يشغّل الـWorker في workerd على localhost:8787
+npm run cf:deploy    # يبني ثم ينشر
+```
 
-## Deploy on Vercel
+### لماذا `middleware.ts` لا `proxy.ts`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Next.js 16 أهمل اسم `middleware` لصالح `proxy`، لكن `proxy` يعمل على Node.js
+حصرًا ولا يقبل ضبط `runtime`، ومحوّل OpenNext لـCloudflare لا يقبل إلا
+middleware الـedge ويُسقط البناء عند غيره:
+`Node.js middleware is not currently supported`. الحارس هنا Web APIs فقط فلا
+يخسر شيئًا على الـedge. لا تُعِد التسمية قبل أن يدعم OpenNext ذلك.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### ما يجب أن يطابقه الباك‌اند
+
+المتصفح لا ينادي `gc-service` مباشرة: الـWorker يمرّر `/api` إليه، فتبقى الكوكي
+على أصل اللوحة — شرط `SameSite=Strict`. وعليه في `.env` على الخادم:
+
+- `CORS_ORIGINS` يحوي أصل اللوحة، وإلا رُفض كل طلب مغيّر بـ`403`. النموذج يذكر
+  `https://gc-admin.evavolunteer.com`؛ اربط الـWorker بهذا النطاق (Custom
+  Domain)، أو أضف عنوان `workers.dev` مؤقتًا أثناء التجربة.
+- `ADMIN_APP_URL` = عنوان اللوحة، فروابط الدعوات وإعادة التعيين تُبنى منه.
+- `AUTH_COOKIE_DOMAIN` يبقى فارغًا.
+
+تنبيه: الطلبات تصل الخادم من عناوين Cloudflare لا من المستخدم، فحدود المعدل
+وسجل التدقيق ترى تلك العناوين حتى يُضبط Nginx ليثق بنطاقات Cloudflare (انظر
+التعليق آخر `GreenBackend/deploy/nginx/gc-service.conf`).

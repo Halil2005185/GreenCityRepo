@@ -7,6 +7,8 @@ node_modules/
 dist/
 build/
 .next/
+.open-next/
+.wrangler/
 out/
 
 # Environment — never commit real secrets
@@ -14,6 +16,8 @@ out/
 .env.*
 !.env.example
 !.env.vps.example
+# GreenAdminDash/.env.production: قيم علنية فقط (عنوان الـAPI)، مُودَع عمدًا
+!.env.production
 
 # Test and tooling
 coverage/
