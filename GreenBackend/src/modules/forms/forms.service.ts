@@ -321,6 +321,71 @@ export async function updateForm(
 }
 
 /**
+ * النشر: يجمّد المسوّدة ويفتح التالية بنسخة من أسئلتها.
+ *
+ * الفتح الفوري للمسوّدة التالية مقصود — لا «استمارة بلا مكان للتحرير»
+ * ولا خطوة إضافية قبل أول تعديل. والنسخ لا الإحالة: الإصدار المجمَّد لا
+ * يجوز أن تتغير أسئلته لأن طلبًا قُدّم عليه يُقرأ مقابلها.
+ */
+export async function publishDraft(formId: string, publishedById: string) {
+  await requireForm(formId)
+
+  const draft = await requireDraft(formId)
+  const fields = await fieldsOf(draft.id)
+
+  if (fields.length === 0) {
+    throw errors.conflict('لا يمكن نشر استمارة بلا أسئلة.')
+  }
+
+  await db.transaction(async (tx) => {
+    // المنشور الحالي يصير تاريخًا قبل أن يحل محله الجديد.
+    await tx
+      .update(formVersions)
+      .set({ status: 'ARCHIVED' })
+      .where(
+        and(
+          eq(formVersions.formId, formId),
+          eq(formVersions.status, 'PUBLISHED'),
+        ),
+      )
+
+    await tx
+      .update(formVersions)
+      .set({
+        status: 'PUBLISHED',
+        publishedAt: new Date(),
+        publishedById,
+      })
+      .where(eq(formVersions.id, draft.id))
+
+    const [next] = await tx
+      .insert(formVersions)
+      .values({ formId, version: draft.version + 1 })
+      .returning({ id: formVersions.id })
+
+    if (!next) throw errors.unprocessable('تعذّر فتح المسوّدة التالية.')
+
+    await tx.insert(formFields).values(
+      fields.map((field) => ({
+        versionId: next.id,
+        key: field.key,
+        labelAr: field.labelAr,
+        hintAr: field.hintAr,
+        type: field.type,
+        isRequired: field.isRequired,
+        displayOrder: field.displayOrder,
+        options: field.options,
+        conditionFieldKey: field.conditionFieldKey,
+        conditionOp: field.conditionOp,
+        conditionValue: field.conditionValue,
+      })),
+    )
+  })
+
+  return getForm(formId)
+}
+
+/**
  * الشرط يجب أن يشير إلى سؤال **يسبقه** ترتيبًا.
  *
  * السبب أن الشرطية تُقيَّم أثناء ملء الاستمارة بالتسلسل: شرط على سؤال

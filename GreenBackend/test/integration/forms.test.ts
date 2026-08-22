@@ -237,3 +237,145 @@ describe.runIf(ready)('form builder', () => {
     expect(response.body.detail).toContain('نشر')
   })
 })
+
+describe.runIf(ready)('publishing', () => {
+  let token = ''
+
+  beforeEach(async () => {
+    await resetDatabase()
+    await runSeed({ quiet: true })
+
+    await createStaffUser({
+      email: 'lead@greencities.test',
+      roleSlug: 'PEOPLE',
+      officeSlug: 'people',
+    })
+
+    token = (await login('lead@greencities.test')).accessToken
+  })
+
+  async function seedForm() {
+    const created = await request(app)
+      .post('/api/admin/forms')
+      .set('authorization', bearer(token))
+      .send({ slug: 'join', nameAr: 'الانضمام' })
+      .expect(201)
+
+    const formId = created.body.data.id as string
+
+    await request(app)
+      .post(`/api/admin/forms/${formId}/fields`)
+      .set('authorization', bearer(token))
+      .send({
+        key: 'full_name',
+        labelAr: 'الاسم',
+        type: 'TEXT',
+        isRequired: true,
+        options: [],
+      })
+      .expect(201)
+
+    return formId
+  }
+
+  const publish = (formId: string, expected = 200) =>
+    request(app)
+      .post(`/api/admin/forms/${formId}/publish`)
+      .set('authorization', bearer(token))
+      .expect(expected)
+
+  it('refuses publishing a draft with no questions', async () => {
+    const created = await request(app)
+      .post('/api/admin/forms')
+      .set('authorization', bearer(token))
+      .send({ slug: 'empty', nameAr: 'فارغة' })
+      .expect(201)
+
+    await publish(created.body.data.id, 409)
+  })
+
+  it('freezes the draft and opens the next one with copied questions', async () => {
+    const formId = await seedForm()
+
+    const response = await publish(formId)
+
+    expect(response.body.data.published).toMatchObject({
+      version: 1,
+      status: 'PUBLISHED',
+    })
+    expect(response.body.data.published.fields).toHaveLength(1)
+
+    // المسوّدة التالية مفتوحة فورًا بنسخة من الأسئلة.
+    expect(response.body.data.draft).toMatchObject({
+      version: 2,
+      status: 'DRAFT',
+    })
+    expect(response.body.data.draft.fields[0].key).toBe('full_name')
+  })
+
+  it('keeps the published version untouched when the new draft changes', async () => {
+    const formId = await seedForm()
+
+    await publish(formId)
+
+    const detail = await request(app)
+      .get(`/api/admin/forms/${formId}`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    const draftFieldId = detail.body.data.draft.fields[0].id as string
+
+    await request(app)
+      .patch(`/api/admin/forms/${formId}/fields/${draftFieldId}`)
+      .set('authorization', bearer(token))
+      .send({
+        key: 'full_name',
+        labelAr: 'الاسم الكامل بعد التعديل',
+        type: 'TEXT',
+        isRequired: true,
+        options: [],
+      })
+      .expect(200)
+
+    const after = await request(app)
+      .get(`/api/admin/forms/${formId}`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    expect(after.body.data.draft.fields[0].labelAr).toBe(
+      'الاسم الكامل بعد التعديل',
+    )
+    // المجمَّد لا يتأثر — وهذا كل الغرض من الإصدارات.
+    expect(after.body.data.published.fields[0].labelAr).toBe('الاسم')
+  })
+
+  it('archives the previous version on a second publish', async () => {
+    const formId = await seedForm()
+
+    await publish(formId)
+    const second = await publish(formId)
+
+    expect(second.body.data.published.version).toBe(2)
+    expect(second.body.data.draft.version).toBe(3)
+  })
+
+  it('opens intake only after something is published', async () => {
+    const formId = await seedForm()
+
+    await request(app)
+      .patch(`/api/admin/forms/${formId}`)
+      .set('authorization', bearer(token))
+      .send({ isAccepting: true })
+      .expect(409)
+
+    await publish(formId)
+
+    const opened = await request(app)
+      .patch(`/api/admin/forms/${formId}`)
+      .set('authorization', bearer(token))
+      .send({ isAccepting: true })
+      .expect(200)
+
+    expect(opened.body.data.isAccepting).toBe(true)
+  })
+})

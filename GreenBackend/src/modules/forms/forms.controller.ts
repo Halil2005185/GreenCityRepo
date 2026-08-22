@@ -77,3 +77,9 @@ export const postReorder: RequestHandler = async (request, response) => {
 
   response.status(200).json({ data })
 }
+
+export const postPublish: RequestHandler = async (request, response) => {
+  const data = await service.publishDraft(readId(request), request.auth!.userId)
+
+  response.status(200).json({ data })
+}

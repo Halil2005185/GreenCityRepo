@@ -151,3 +151,10 @@ export function isFieldVisible(
 
   return String(value ?? "") === String(field.condition.value ?? "");
 }
+
+/** يجمّد المسوّدة ويفتح التالية بنسخة من أسئلتها. */
+export function publishForm(id: string) {
+  return apiFetch<{ data: FormDetail }>(`/admin/forms/${id}/publish`, {
+    method: "POST",
+  }).then((response) => response.data);
+}

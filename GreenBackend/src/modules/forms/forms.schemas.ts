@@ -254,6 +254,29 @@ registry.registerPath({
 
 registry.registerPath({
   method: 'post',
+  path: path('/{id}/publish'),
+  tags: ['Forms'],
+  summary: 'نشر المسوّدة',
+  description:
+    'يجمّد المسوّدة ويؤرشف المنشور السابق، ثم يفتح المسوّدة التالية بنسخة من الأسئلة. المنشور لا يُعدَّل بعدها.',
+  security,
+  request: { params: z.object({ id: z.uuid() }) },
+  responses: {
+    200: {
+      description: 'نُشرت',
+      content: {
+        'application/json': { schema: z.object({ data: formDetailSchema }) },
+      },
+    },
+    401: problemResponse('غير مصادق'),
+    403: problemResponse('لا يملك القدرة forms.publish'),
+    404: problemResponse('الاستمارة غير موجودة'),
+    409: problemResponse('لا مسوّدة، أو المسوّدة بلا أسئلة'),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
   path: path('/{id}/fields'),
   tags: ['Forms'],
   summary: 'إضافة سؤال إلى المسوّدة',

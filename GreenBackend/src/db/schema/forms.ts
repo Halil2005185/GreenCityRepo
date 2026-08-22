@@ -89,10 +89,20 @@ export const formVersions = pgTable(
     uniqueIndex('form_versions_single_draft')
       .on(table.formId)
       .where(sql`${table.status} = 'DRAFT'`),
+    // إصدار منشور واحد لكل استمارة؛ السابق يُؤرشَف عند نشر التالي.
+    uniqueIndex('form_versions_single_published')
+      .on(table.formId)
+      .where(sql`${table.status} = 'PUBLISHED'`),
     index('form_versions_form_idx').on(table.formId),
+    /**
+     * المسوّدة وحدها بلا تاريخ نشر. المؤرشف كان منشورًا يومًا فيحتفظ
+     * بتاريخه — وربط التاريخ بحالة `PUBLISHED` وحدها كان يمنع الأرشفة
+     * أصلًا، فلا يمكن نشر إصدار ثانٍ.
+     */
     check(
       'form_versions_published_consistency',
-      sql`(${table.status} = 'PUBLISHED') = (${table.publishedAt} is not null)`,
+      sql`(${table.status} = 'DRAFT' and ${table.publishedAt} is null)
+          or (${table.status} in ('PUBLISHED', 'ARCHIVED') and ${table.publishedAt} is not null)`,
     ),
   ],
 )

@@ -43,6 +43,12 @@ formsRouter.patch(
 )
 
 formsRouter.post(
+  '/:id/publish',
+  requireCapability('forms.publish'),
+  controller.postPublish,
+)
+
+formsRouter.post(
   '/:id/fields',
   manage,
   validate({ body: fieldBodySchema }),
