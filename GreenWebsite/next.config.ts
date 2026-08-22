@@ -1,8 +1,15 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // صورة نشر مستقلة لا تحمل node_modules كاملة داخل حاوية Docker.
-  output: "standalone",
+  /**
+   * بلا `output: "standalone"`.
+   *
+   * وُضع حين كان النشر مزمعًا في حاوية Docker، والموقع اليوم على Vercel
+   * وهي تبني مخرجاتها بنفسها. تركه يعني مسار بناء ثانيًا لا يستعمله أحد،
+   * وقد ظهر مع وجوده فشل في `onBuildComplete` عن ملف تتبّع مفقود.
+   *
+   * أعده إن عاد الموقع إلى حاوية، لا قبل ذلك.
+   */
 
   /**
    * الموقع العام يقرأ الـAPI من الخادم لا من المتصفح، فلا rewrite هنا
