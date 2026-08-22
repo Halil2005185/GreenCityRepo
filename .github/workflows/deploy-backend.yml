@@ -1,8 +1,8 @@
 name: نشر الباك‌اند
 
-# البناء يجري على الـVPS لا هنا: لا سجل صور ولا حساب إضافي، والخادم يبني
-# ما في Git بالضبط. دور هذا الملف أن يوقف الإصدار المعطوب قبل أن يصل
-# إليه، ثم يطلق `deploy.sh` عبر SSH.
+# الكود يُدفع إلى الخادم من هنا، ولا يسحبه الخادم من GitHub: سياسة المنظمة
+# تمنع deploy keys، والدفع يلغي الحاجة إلى اعتماد GitHub على الخادم أصلًا.
+# البناء يبقى على الـVPS — لا سجل صور ولا حساب إضافي.
 
 on:
   push:
@@ -16,6 +16,9 @@ on:
 concurrency:
   group: deploy-backend
   cancel-in-progress: false
+
+env:
+  APP_DIR: /opt/greencities
 
 jobs:
   build:
@@ -51,6 +54,8 @@ jobs:
     environment: production
 
     steps:
+      - uses: actions/checkout@v4
+
       - name: تهيئة SSH
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -64,11 +69,24 @@ jobs:
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
 
+      - name: شحن الشجرة إلى الخادم
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+        run: |
+          printf '%s · %s · %s\n' "${{ github.sha }}" "${{ github.ref_name }}" "$(date -u +%FT%TZ)" \
+            > GreenBackend/deploy/REVISION
+
+          # tar لا يحذف ما ليس في الأرشيف، فملف deploy/.env على الخادم يبقى.
+          # وبالمقابل لا يُزال ملف حُذف من المستودع — نظّف يدويًا عند إعادة
+          # هيكلة كبيرة.
+          tar czf - GreenBackend | ssh -i ~/.ssh/deploy_key -o BatchMode=yes \
+            "$VPS_USER@$VPS_HOST" "mkdir -p '$APP_DIR' && tar xzf - -C '$APP_DIR'"
+
       - name: تشغيل deploy.sh
         env:
           VPS_HOST: ${{ secrets.VPS_HOST }}
           VPS_USER: ${{ secrets.VPS_USER }}
-          APP_DIR: ${{ vars.VPS_APP_DIR || '~/GreenCitys' }}
         run: |
           ssh -i ~/.ssh/deploy_key -o BatchMode=yes "$VPS_USER@$VPS_HOST" \
-            "DEPLOY_BRANCH=main $APP_DIR/GreenBackend/deploy/deploy.sh"
+            "chmod +x '$APP_DIR/GreenBackend/deploy/'*.sh && '$APP_DIR/GreenBackend/deploy/deploy.sh'"

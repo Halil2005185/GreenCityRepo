@@ -2,21 +2,22 @@
 #
 # نشر الباك‌اند على الـVPS. يُنفَّذ على الخادم، يدويًا أو من CI عبر SSH:
 #
-#   ~/GreenCitys/GreenBackend/deploy/deploy.sh
+#   /opt/greencities/GreenBackend/deploy/deploy.sh
+#
+# الكود يصل إلى الخادم دفعًا من GitHub Actions لا سحبًا من الخادم: سياسة
+# المنظمة تمنع deploy keys، والدفع يلغي حاجة الخادم إلى أي اعتماد لـGitHub
+# أصلًا. لذلك لا git هنا — السكربت يبني ما يجده في مكانه.
 #
 # متغيرات اختيارية:
-#   DEPLOY_BRANCH=main   الفرع الذي يُنشر
-#   DEPLOY_FORCE=1       يتابع رغم وجود تعديلات غير مُودعة على الخادم
 #   HEALTH_RETRIES=30    عدد محاولات فحص الجاهزية بفاصل ثانيتين
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 COMPOSE_FILE="${SCRIPT_DIR}/compose.prod.yml"
 ENV_FILE="${SCRIPT_DIR}/.env"
+REVISION_FILE="${SCRIPT_DIR}/REVISION"
 
-BRANCH="${DEPLOY_BRANCH:-main}"
 HEALTH_RETRIES="${HEALTH_RETRIES:-30}"
 
 log() { printf '\n\033[1;32m▸ %s\033[0m\n' "$*"; }
@@ -24,10 +25,11 @@ fail() { printf '\n\033[1;31m✗ %s\033[0m\n' "$*" >&2; exit 1; }
 
 # ─────────────────────────── فحوص أولية ───────────────────────────
 
-command -v git >/dev/null || fail 'git غير مثبت.'
 command -v docker >/dev/null || fail 'docker غير مثبت.'
 docker compose version >/dev/null 2>&1 || fail 'docker compose v2 غير متاح.'
 command -v curl >/dev/null || fail 'curl غير مثبت — يلزم لفحص الجاهزية.'
+
+[ -f "${COMPOSE_FILE}" ] || fail "الملف ${COMPOSE_FILE} غير موجود. لم تصل شجرة الكود إلى الخادم."
 
 # الغياب هنا يعني بدء الخدمات بمتغيرات ناقصة ثم سقوطها عند فحص Zod.
 [ -f "${ENV_FILE}" ] || fail "الملف ${ENV_FILE} غير موجود. انسخ .env.vps.example إليه أولًا."
@@ -37,28 +39,10 @@ if [ "$(stat -c '%a' "${ENV_FILE}")" != "600" ]; then
   printf '\033[1;33m! صلاحيات %s ليست 600 — نفّذ: chmod 600 %s\033[0m\n' "${ENV_FILE}" "${ENV_FILE}"
 fi
 
-cd "${REPO_ROOT}"
-
-if [ -n "$(git status --porcelain)" ] && [ "${DEPLOY_FORCE:-0}" != "1" ]; then
-  git status --short
-  fail 'توجد تعديلات غير مُودعة على الخادم. هذه نسخة نشر لا نسخة عمل — أودعها أو احذفها، أو مرّر DEPLOY_FORCE=1.'
-fi
-
-# ─────────────────────────── جلب الإصدار ───────────────────────────
-
-log "جلب ${BRANCH}"
-git fetch --prune origin "${BRANCH}"
-
-PREVIOUS_SHA="$(git rev-parse HEAD)"
-git checkout -q "${BRANCH}"
-git reset --hard "origin/${BRANCH}"
-CURRENT_SHA="$(git rev-parse HEAD)"
-
-if [ "${PREVIOUS_SHA}" = "${CURRENT_SHA}" ]; then
-  log "لا جديد على ${BRANCH} (${CURRENT_SHA:0:8}) — يُعاد البناء والتشغيل للتأكد من مطابقة الحالة."
+if [ -f "${REVISION_FILE}" ]; then
+  log "الإصدار: $(cat "${REVISION_FILE}")"
 else
-  log "من ${PREVIOUS_SHA:0:8} إلى ${CURRENT_SHA:0:8}"
-  git --no-pager log --oneline "${PREVIOUS_SHA}..${CURRENT_SHA}" | head -20
+  log 'الإصدار: غير معروف (نشر يدوي بلا ملف REVISION)'
 fi
 
 # ─────────────────────────────── البناء ───────────────────────────────
