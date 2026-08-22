@@ -1,0 +1,3 @@
+CREATE UNIQUE INDEX "form_versions_single_published" ON "form_versions" ("form_id") WHERE "status" = 'PUBLISHED';--> statement-breakpoint
+ALTER TABLE "form_versions" DROP CONSTRAINT "form_versions_published_consistency", ADD CONSTRAINT "form_versions_published_consistency" CHECK (("status" = 'DRAFT' and "published_at" is null)
+          or ("status" in ('PUBLISHED', 'ARCHIVED') and "published_at" is not null));

@@ -630,6 +630,334 @@
           "impact"
         ]
       },
+      "FormField": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "key": {
+            "type": "string"
+          },
+          "labelAr": {
+            "type": "string"
+          },
+          "hintAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "NUMBER",
+              "DATE",
+              "BOOLEAN",
+              "EMAIL",
+              "PHONE",
+              "URL",
+              "SINGLE_SELECT",
+              "MULTI_SELECT",
+              "AREA_REF",
+              "OFFICE_REF",
+              "PROGRAM_REF"
+            ]
+          },
+          "isRequired": {
+            "type": "boolean"
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "minSelections": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxSelections": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "maxLength": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "value": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "labelAr": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 160
+                }
+              },
+              "required": [
+                "value",
+                "labelAr"
+              ]
+            }
+          },
+          "condition": {
+            "oneOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "fieldKey": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "notEmpty"
+                    ]
+                  }
+                },
+                "required": [
+                  "fieldKey",
+                  "op"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "fieldKey": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "eq"
+                    ]
+                  },
+                  "value": {
+                    "type": "string",
+                    "maxLength": 160
+                  }
+                },
+                "required": [
+                  "fieldKey",
+                  "op",
+                  "value"
+                ]
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "fieldKey": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "op": {
+                    "type": "string",
+                    "enum": [
+                      "in"
+                    ]
+                  },
+                  "value": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 160
+                    },
+                    "minItems": 1,
+                    "maxItems": 50
+                  }
+                },
+                "required": [
+                  "fieldKey",
+                  "op",
+                  "value"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "labelAr",
+          "hintAr",
+          "type",
+          "isRequired",
+          "displayOrder",
+          "minSelections",
+          "maxSelections",
+          "maxLength",
+          "options",
+          "condition"
+        ]
+      },
+      "FormVersion": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PUBLISHED",
+              "ARCHIVED"
+            ]
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FormField"
+            }
+          }
+        },
+        "required": [
+          "id",
+          "version",
+          "status",
+          "publishedAt",
+          "fields"
+        ]
+      },
+      "FormSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "officeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "officeNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isAccepting": {
+            "type": "boolean"
+          },
+          "publishedVersion": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "draftFieldCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "nameAr",
+          "descriptionAr",
+          "officeId",
+          "officeNameAr",
+          "isAccepting",
+          "publishedVersion",
+          "draftFieldCount",
+          "createdAt"
+        ]
+      },
+      "FormDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "draft": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/FormVersion"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              },
+              "published": {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/FormVersion"
+                  },
+                  {
+                    "type": [
+                      "object",
+                      "null"
+                    ]
+                  }
+                ]
+              }
+            },
+            "required": [
+              "draft",
+              "published"
+            ]
+          }
+        ]
+      },
       "Area": {
         "type": "object",
         "properties": {
@@ -4166,6 +4494,1198 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/DashboardSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "قائمة الاستمارات",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الاستمارات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FormSummary"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.view",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "إنشاء استمارة",
+        "description": "تُنشأ معها مسوّدة الإصدار الأول فورًا — لا استمارة بلا مسوّدة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 80,
+                    "pattern": "^[a-z][a-z0-9-]*$"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "officeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "slug",
+                  "nameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُنشئت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المعرّف مستعمل",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "استمارة بمسوّدتها وإصدارها المنشور",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الاستمارة",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.view",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "تعديل بيانات الاستمارة",
+        "description": "`isAccepting` يفتح الاستقبال ويغلقه، ويحتاج إصدارًا منشورًا وقدرة forms.publish.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  },
+                  "officeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "isAccepting": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "حُدِّثت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة اللازمة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "لا إصدار منشور يمكن فتح الاستقبال عليه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}/publish": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "نشر المسوّدة",
+        "description": "يجمّد المسوّدة ويؤرشف المنشور السابق، ثم يفتح المسوّدة التالية بنسخة من الأسئلة. المنشور لا يُعدَّل بعدها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "نُشرت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.publish",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "لا مسوّدة، أو المسوّدة بلا أسئلة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}/fields": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "إضافة سؤال إلى المسوّدة",
+        "description": "المنشور مجمَّد؛ الأسئلة تُضاف إلى المسوّدة وحدها. شرط الظهور يجب أن يشير إلى سؤال يسبقه ترتيبًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "labelAr": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "hintAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TEXT",
+                      "LONG_TEXT",
+                      "NUMBER",
+                      "DATE",
+                      "BOOLEAN",
+                      "EMAIL",
+                      "PHONE",
+                      "URL",
+                      "SINGLE_SELECT",
+                      "MULTI_SELECT",
+                      "AREA_REF",
+                      "OFFICE_REF",
+                      "PROGRAM_REF"
+                    ]
+                  },
+                  "isRequired": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "minSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxLength": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 10000
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "labelAr": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "labelAr"
+                      ]
+                    },
+                    "maxItems": 100,
+                    "default": []
+                  },
+                  "condition": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fieldKey": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "op": {
+                            "type": "string",
+                            "enum": [
+                              "notEmpty"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "fieldKey",
+                          "op"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fieldKey": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "op": {
+                            "type": "string",
+                            "enum": [
+                              "eq"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 160
+                          }
+                        },
+                        "required": [
+                          "fieldKey",
+                          "op",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fieldKey": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "op": {
+                            "type": "string",
+                            "enum": [
+                              "in"
+                            ]
+                          },
+                          "value": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 160
+                            },
+                            "minItems": 1,
+                            "maxItems": 50
+                          }
+                        },
+                        "required": [
+                          "fieldKey",
+                          "op",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "labelAr",
+                  "type"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormField"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المفتاح مستعمل، أو الشرط يشير إلى سؤال لاحق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة — خيارات ناقصة على قائمة، أو خيارات على نوع لا يحملها",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}/fields/{fieldId}": {
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "تعديل سؤال في المسوّدة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "fieldId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "key": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 60,
+                    "pattern": "^[a-z][a-z0-9_]*$"
+                  },
+                  "labelAr": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "hintAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "TEXT",
+                      "LONG_TEXT",
+                      "NUMBER",
+                      "DATE",
+                      "BOOLEAN",
+                      "EMAIL",
+                      "PHONE",
+                      "URL",
+                      "SINGLE_SELECT",
+                      "MULTI_SELECT",
+                      "AREA_REF",
+                      "OFFICE_REF",
+                      "PROGRAM_REF"
+                    ]
+                  },
+                  "isRequired": {
+                    "type": "boolean",
+                    "default": false
+                  },
+                  "minSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxSelections": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 100
+                  },
+                  "maxLength": {
+                    "type": [
+                      "integer",
+                      "null"
+                    ],
+                    "minimum": 1,
+                    "maximum": 10000
+                  },
+                  "options": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 80
+                        },
+                        "labelAr": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 160
+                        }
+                      },
+                      "required": [
+                        "value",
+                        "labelAr"
+                      ]
+                    },
+                    "maxItems": 100,
+                    "default": []
+                  },
+                  "condition": {
+                    "oneOf": [
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fieldKey": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "op": {
+                            "type": "string",
+                            "enum": [
+                              "notEmpty"
+                            ]
+                          }
+                        },
+                        "required": [
+                          "fieldKey",
+                          "op"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fieldKey": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "op": {
+                            "type": "string",
+                            "enum": [
+                              "eq"
+                            ]
+                          },
+                          "value": {
+                            "type": "string",
+                            "maxLength": 160
+                          }
+                        },
+                        "required": [
+                          "fieldKey",
+                          "op",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "fieldKey": {
+                            "type": "string",
+                            "minLength": 2,
+                            "maxLength": 60,
+                            "pattern": "^[a-z][a-z0-9_]*$"
+                          },
+                          "op": {
+                            "type": "string",
+                            "enum": [
+                              "in"
+                            ]
+                          },
+                          "value": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "maxLength": 160
+                            },
+                            "minItems": 1,
+                            "maxItems": 50
+                          }
+                        },
+                        "required": [
+                          "fieldKey",
+                          "op",
+                          "value"
+                        ]
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": [
+                  "key",
+                  "labelAr",
+                  "type"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormField"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "السؤال غير موجود في المسوّدة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المفتاح مستعمل، أو الشرط يشير إلى سؤال لاحق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة — خيارات ناقصة على قائمة، أو خيارات على نوع لا يحملها",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "حذف سؤال من المسوّدة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "fieldId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "حُذف"
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "السؤال غير موجود في المسوّدة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "سؤال آخر يشترط عليه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}/fields/reorder": {
+      "post": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "إعادة ترتيب أسئلة المسوّدة",
+        "description": "ترتيب كامل بمفاتيح المسوّدة كلها. يُرفض إن كسر الترتيب الجديد شرطًا يشير إلى سؤال صار لاحقًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "keys": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 2,
+                      "maxLength": 60,
+                      "pattern": "^[a-z][a-z0-9_]*$"
+                    },
+                    "minItems": 1,
+                    "maxItems": 200
+                  }
+                },
+                "required": [
+                  "keys"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "رُتِّبت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FormField"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الترتيب ناقص أو يكسر شرطًا",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
                 }
               }
             }
