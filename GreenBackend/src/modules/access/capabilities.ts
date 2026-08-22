@@ -18,6 +18,7 @@ export type CapabilityGroup =
   | 'impact'
   | 'documents'
   | 'reports'
+  | 'forms'
   | 'system'
   | 'partnerPortal'
 
@@ -96,6 +97,15 @@ export const CAPABILITY_CATALOG = [
   { key: 'files.upload', nameAr: 'رفع الملفات', group: 'documents', scope: 'STAFF' },
   { key: 'files.manage', nameAr: 'إدارة مكتبة الملفات', group: 'documents', scope: 'STAFF' },
   { key: 'documents.confidential.view', nameAr: 'الاطلاع على المستندات والاتفاقيات', group: 'documents', scope: 'STAFF' },
+
+  // ── الاستمارات ───────────────────────────────────────────────────────
+  //
+  // مفهوم جديد لا مرادف له في الكتالوج، بخلاف دليل الفريق الذي استعمل
+  // `users.view` القائمة. وفصل `publish` عن `manage` مقصود: من يصوغ
+  // الأسئلة ليس بالضرورة من يفتح الاستمارة على العالم.
+  { key: 'forms.view', nameAr: 'عرض الاستمارات وأسئلتها', group: 'forms', scope: 'STAFF' },
+  { key: 'forms.manage', nameAr: 'إنشاء الاستمارات وتحرير أسئلتها', group: 'forms', scope: 'STAFF' },
+  { key: 'forms.publish', nameAr: 'نشر إصدار من الاستمارة وفتح الاستقبال', group: 'forms', scope: 'STAFF' },
 
   // ── التقارير والنظام ─────────────────────────────────────────────────
   { key: 'reports.view', nameAr: 'عرض التقارير', group: 'reports', scope: 'STAFF' },

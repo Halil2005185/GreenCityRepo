@@ -206,6 +206,9 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'users.manage',
       // مسؤول الفريق هو من يدعو المقبولين، فالدعوة أداته لا امتياز إضافي.
       'invitations.manage',
+      'forms.view',
+      'forms.manage',
+      'forms.publish',
       'work.view',
       'work.manage',
       'meetings.manage',
