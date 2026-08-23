@@ -198,7 +198,7 @@ export default function FormsPage() {
                     >
                       <td className="p-2">
                         <Link
-                          href={`/dashboard/forms/${form.id}/build`}
+                          href={`/dashboard/forms/${form.id}/edit`}
                           className="font-medium text-primary underline-offset-4 hover:underline"
                         >
                           {form.nameAr}
