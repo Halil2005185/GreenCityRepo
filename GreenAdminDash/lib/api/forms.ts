@@ -156,6 +156,12 @@ export function isFieldVisible(
       : allowed.includes(String(value));
   }
 
+  // `eq` على إجابة متعددة تعني «اختار هذا الخيار» لا «اختاره وحده».
+  // يطابق `isVisible` في الخادم حرفًا بحرف — وهو المرجع عند الاستقبال.
+  if (Array.isArray(value)) {
+    return value.map(String).includes(String(field.condition.value ?? ""));
+  }
+
   return String(value ?? "") === String(field.condition.value ?? "");
 }
 

@@ -142,3 +142,27 @@
   direction: rtl;
   text-align: right;
 }
+
+/*
+ * قناع ما خارج الحدود: لونه من متغيّرات السمة لا من خيارات Leaflet فيتبع
+ * الوضع الليلي، وقواعد CSS تسبق سمات SVG التي يكتبها Leaflet على المسار.
+ */
+.map-mask {
+  fill: var(--background);
+  fill-opacity: 1;
+  stroke: var(--primary);
+  stroke-opacity: 0.5;
+}
+
+/*
+ * تعبئة المحافظات تلخّص البلد وهي كلها في الشاشة، وتحجب الشوارع والأحياء
+ * عند الاقتراب — فتُطفأ بعد حدّ التقريب الذي تضع الخريطة عنده `map-detail`
+ * على حاويتها. الحدود واللون عند المرور يبقيان فلا يضيع تمييز المحافظة.
+ */
+.map-area {
+  transition: fill-opacity 200ms ease;
+}
+
+.map-detail .map-area {
+  fill-opacity: 0;
+}

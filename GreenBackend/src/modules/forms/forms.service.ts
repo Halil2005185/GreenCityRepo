@@ -422,6 +422,37 @@ function assertConditionOrder(
   }
 }
 
+/**
+ * القيمة المشروط عليها يجب أن تكون خيارًا فعليًا في السؤال المصدر.
+ *
+ * بدون هذا يُقبل شرط على قيمة لا وجود لها — حرف زائد أو خطأ مطبعي —
+ * فيختفي السؤال إلى الأبد ولا يشتكي شيء. وهو أسوأ من الرفض لأن الفشل
+ * صامت ويظهر بعد النشر على متقدّم حقيقي.
+ *
+ * يُفحص على القوائم وحدها: `eq` على سؤال نصي قيمتُه حرة بطبيعتها.
+ */
+function assertConditionValue(
+  condition: FieldCondition | null | undefined,
+  siblings: readonly FieldRow[],
+) {
+  if (!condition || condition.op === 'notEmpty') return
+
+  const target = siblings.find((field) => field.key === condition.fieldKey)
+
+  if (!target) return
+  if (target.type !== 'SINGLE_SELECT' && target.type !== 'MULTI_SELECT') return
+
+  const allowed = new Set(target.options.map((option) => option.value))
+  const wanted = condition.op === 'in' ? condition.value : [condition.value]
+  const missing = wanted.filter((value) => !allowed.has(value))
+
+  if (missing.length > 0) {
+    throw errors.conflict(
+      `قيمة الشرط غير موجودة في خيارات «${target.labelAr}»: ${missing.join('، ')}`,
+    )
+  }
+}
+
 export async function addField(formId: string, body: FieldBody) {
   const draft = await requireDraft(formId)
   const siblings = await fieldsOf(draft.id)
@@ -434,6 +465,7 @@ export async function addField(formId: string, body: FieldBody) {
     siblings.reduce((max, field) => Math.max(max, field.displayOrder), 0) + 1
 
   assertConditionOrder(body.condition, displayOrder, siblings)
+  assertConditionValue(body.condition, siblings)
 
   const [created] = await db
     .insert(formFields)
@@ -475,6 +507,7 @@ export async function updateField(
   }
 
   assertConditionOrder(body.condition, current.displayOrder, siblings)
+  assertConditionValue(body.condition, siblings)
 
   // تغيير المفتاح يكسر أي شرط يشير إليه بالاسم القديم.
   if (body.key !== current.key) {
