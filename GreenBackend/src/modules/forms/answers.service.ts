@@ -51,6 +51,17 @@ export function isVisible(
       : allowed.includes(String(value))
   }
 
+  /**
+   * `eq` على إجابة متعددة تعني «اختار هذا الخيار» لا «اختاره وحده».
+   *
+   * قبل هذا كانت المصفوفة تُحوَّل إلى نص فتُلصَق عناصرها بفواصل، فيصادف
+   * اختيارٌ واحد المطابقةَ وتسقط عند الثاني — والسؤال المشروط يختفي على
+   * من يستحقه. لم تكن تلك دلالة مقصودة بل أثرًا جانبيًا لـ`String(array)`.
+   */
+  if (Array.isArray(value)) {
+    return value.map(String).includes(String(field.conditionValue ?? ''))
+  }
+
   return String(value ?? '') === String(field.conditionValue ?? '')
 }
 
