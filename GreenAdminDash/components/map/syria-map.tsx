@@ -19,6 +19,7 @@ import {
   type MapArea,
   type MapPoint,
 } from "@/lib/api/map";
+import { buildOutline, type Ring } from "@/lib/map/outline";
 
 /** سورية كاملة — يمنع الانجراف بعيدًا عن نطاق العمل. */
 const SYRIA_BOUNDS: L.LatLngBoundsExpression = [
@@ -48,6 +49,42 @@ const AREA_SELECTED_STYLE = {
 };
 
 /**
+ * من هذا التقريب فصاعدًا تُطفأ تعبئة المحافظات: اللون يفيد وهو يلخّص البلد
+ * كلها في لمحة، ويحجب الشوارع والأحياء حين يقترب الناظر ليقرأ الخريطة نفسها.
+ */
+const DETAIL_ZOOM = 9;
+
+/**
+ * القناع خارج الحدود. الألوان هنا احتياط فقط: التلوين الفعلي في `.map-mask`
+ * ضمن globals.css كي يتبع متغيّرات السمة ويصحّ في الوضع الليلي.
+ *
+ * و`interactive: false` كي لا يبتلع القناع نقرات الخريطة وتمريرات الماوس.
+ */
+const MASK_STYLE: L.PolylineOptions = {
+  className: "map-mask",
+  interactive: false,
+  // بلا قصّ: قصّ Leaflet يغلق كل حلقة على حافة الرسم، وقاعدة even-odd تقلب
+  // ما تحصره تلك الإغلاقات — فينكشف عندها جزء من الجوار بدل أن يُغطّى.
+  noClip: true,
+  color: "#166534",
+  weight: 1.2,
+  fillColor: "#f8faf8",
+  fillOpacity: 1,
+};
+
+/**
+ * إطار القناع: مستطيل يتجاوز `SYRIA_BOUNDS` بأضعافها فلا تبلغه حافة الشاشة
+ * مهما اتّسعت عند أبعد تصغير، ولا يمتدّ إلى العالم كله فتصير إحداثيات المسار
+ * بالملايين عند أقصى تقريب.
+ */
+const MASK_FRAME: L.LatLngExpression[] = [
+  [12, 12],
+  [12, 68],
+  [56, 68],
+  [56, 12],
+];
+
+/**
  * دبّوس مرسوم بـSVG لا صورة: لا طلب شبكة إضافي، ولونه يتبع التصنيف
  * فيُقرأ نوع النقطة قبل النقر عليها.
  */
@@ -68,6 +105,37 @@ function pinFor(kind: MapPoint["kind"]) {
 }
 
 /**
+ * قناعٌ يغطي ما حول سورية: إطارٌ واسع وثقوبه حدود البلد، فتختفي تفاصيل الجوار.
+ *
+ * طبقة Leaflet مباشرةً لا `<GeoJSON/>`: القناع مضلّع بثقوب لا هندسة GeoJSON،
+ * ويحتاج `noClip` وهي ليست من خيارات `style` التي يمرّرها المكوّن.
+ */
+function OutsideMask({ outline }: { outline: Ring[] }) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!outline.length) return;
+
+    const mask = L.polygon(
+      [
+        MASK_FRAME,
+        ...outline.map((ring) => ring.map(([lng, lat]) => L.latLng(lat, lng))),
+      ],
+      MASK_STYLE,
+    ).addTo(map);
+
+    // خلف مضلّعات المحافظات كي لا يحجب تلوينها ولا حدودها.
+    mask.bringToBack();
+
+    return () => {
+      mask.remove();
+    };
+  }, [map, outline]);
+
+  return null;
+}
+
+/**
  * يقرّب على المحافظة المختارة.
  *
  * داخل `useEffect` لا في جسم التصيير: الطيران أثر جانبي، وتشغيله أثناء
@@ -85,6 +153,34 @@ function AreaFocus({ area }: { area: MapArea | null }) {
       map.flyToBounds(bounds, { padding: [32, 32], duration: 0.7 });
     }
   }, [area, map]);
+
+  return null;
+}
+
+/**
+ * يضع `map-detail` على حاوية الخريطة بعد حدّ التقريب، وإطفاء التعبئة يتم
+ * في CSS.
+ *
+ * صنفٌ لا حالة React: التقريب لا يغيّر الهندسة، ورفعه إلى الحالة يعيد تصيير
+ * الشجرة وربما بناء المضلّعات من جديد مع كل درجة.
+ */
+function DetailZoomClass() {
+  const map = useMap();
+
+  useEffect(() => {
+    const sync = () => {
+      map
+        .getContainer()
+        .classList.toggle("map-detail", map.getZoom() >= DETAIL_ZOOM);
+    };
+
+    sync();
+    map.on("zoomend", sync);
+
+    return () => {
+      map.off("zoomend", sync);
+    };
+  }, [map]);
 
   return null;
 }
@@ -129,6 +225,9 @@ export function SyriaMap({
   pendingPin,
 }: SyriaMapProps) {
   const selectedArea = areas.find((area) => area.id === selectedAreaId) ?? null;
+
+  /** الإذابة تمرّ على ثمانية وعشرين ألف رأس، فتُحسب مرة لكل تحميل لا مع كل تصيير. */
+  const outline = useMemo(() => buildOutline(areas), [areas]);
 
   const icons = useMemo(
     () => ({
@@ -194,6 +293,8 @@ export function SyriaMap({
             // فالنمط يُضبط داخل onEachFeature وهو لا يُستدعى إلا عند البناء.
             key={`${area.id}-${area.id === selectedAreaId}`}
             data={area.boundary as never}
+            // الصنف يصل عبر خيارات المسار: به يُطفئ CSS التعبئة عند التقريب.
+            style={{ className: "map-area" }}
             onEachFeature={onEachArea(area)}
           />
         ))}
@@ -235,6 +336,9 @@ export function SyriaMap({
         />
       ) : null}
 
+      {/* يحجب تفاصيل الدول المجاورة ويترك سورية وحدها مكشوفة. */}
+      <OutsideMask outline={outline} />
+      <DetailZoomClass />
       <ClickCapture enabled={picking} onPick={onPick} />
       <AreaFocus area={selectedArea} />
     </MapContainer>
