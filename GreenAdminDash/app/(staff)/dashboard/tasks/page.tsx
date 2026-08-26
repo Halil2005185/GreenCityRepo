@@ -1,22 +1,36 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Alert, Card, CardContent } from "@/components/ui/card";
+import {
+  Alert,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Field, Input, Label } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/client";
+import { listInitiatives } from "@/lib/api/initiatives";
+import { listOffices } from "@/lib/api/invitations";
+import { listPeople } from "@/lib/api/people";
 import {
   OPEN_STATUSES,
   PRIORITY_LABELS,
   WORK_STATUS_LABELS,
+  type WorkItemSummary,
+  type WorkPriority,
   type WorkStatus,
   assignTask,
   changeTaskStatus,
+  createTask,
   listTasks,
 } from "@/lib/api/work";
 import { useAuth } from "@/lib/auth/auth-context";
+import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { cn, formatDateTime } from "@/lib/utils";
 
 const STATUS_STYLES: Record<WorkStatus, string> = {
@@ -38,11 +52,70 @@ const NEXT_STATUSES: Record<WorkStatus, readonly WorkStatus[]> = {
   CANCELLED: ["TODO"],
 };
 
+/** لا مكوّن `Select` في المكتبة بعد، والصنف يتكرر في النموذج فيُسمّى مرة. */
+const SELECT_CLASS =
+  "h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
+type Assignable = { id: string; fullNameAr: string };
+
+/**
+ * المسؤول عن المهمة: قائمة تُبدَّل في مكانها لا نافذة تُفتح — الإسناد قرار
+ * من قائمة قصيرة، والنافذة تضيف خطوتين إلى نقرة واحدة.
+ *
+ * ومن أُسندت إليه المهمة يبقى في القائمة ولو خرج من الأعضاء النشطين، وإلا
+ * ظهرت المهمة بلا مسؤول وهي مسندة، فأُسندت مرتين.
+ */
+function AssigneeSelect({
+  task,
+  people,
+  pending,
+  onAssign,
+}: {
+  task: WorkItemSummary;
+  people: Assignable[];
+  pending: boolean;
+  onAssign: (assigneeUserId: string | null) => void;
+}) {
+  const options =
+    task.assigneeUserId && !people.some((one) => one.id === task.assigneeUserId)
+      ? [
+          {
+            id: task.assigneeUserId,
+            fullNameAr: task.assigneeNameAr ?? "المسؤول الحالي",
+          },
+          ...people,
+        ]
+      : people;
+
+  return (
+    <select
+      aria-label={`المسؤول عن «${task.titleAr}»`}
+      value={task.assigneeUserId ?? ""}
+      disabled={pending}
+      onChange={(event) => onAssign(event.target.value || null)}
+      className="h-8 rounded-md border border-input bg-background px-2 text-xs disabled:opacity-50"
+    >
+      <option value="">بلا مسؤول</option>
+      {options.map((person) => (
+        <option key={person.id} value={person.id}>
+          {person.fullNameAr}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export default function MyTasksPage() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [scopeKind, setScopeKind] = useState<"OFFICE" | "INITIATIVE">("OFFICE");
+  const [scopeId, setScopeId] = useState("");
+
+  const canManage = can(CAPABILITIES.workManage);
 
   const tasks = useQuery({
     queryKey: ["my-tasks", showDone],
@@ -75,8 +148,58 @@ export default function MyTasksPage() {
     enabled: Boolean(primaryOffice),
   });
 
-  const claim = useMutation({
-    mutationFn: (taskId: string) => assignTask(taskId, user!.id),
+  /** أعضاء الفريق النشطون. تحتاج `users.view`، فإن لم تصل لم تظهر قوائم الإسناد. */
+  const people = useQuery({
+    queryKey: ["people", "assignable"],
+    queryFn: () => listPeople({ status: "ACTIVE" }),
+    enabled: canManage,
+  });
+
+  const offices = useQuery({
+    queryKey: ["offices"],
+    queryFn: listOffices,
+    enabled: creating,
+  });
+
+  const initiatives = useQuery({
+    queryKey: ["initiatives", "assignable-scope"],
+    queryFn: () => listInitiatives(),
+    enabled: creating && scopeKind === "INITIATIVE",
+  });
+
+  const assignable = people.data ?? [];
+
+  const create = useMutation({
+    mutationFn: createTask,
+    onSuccess: (task) => {
+      void queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
+      void queryClient.invalidateQueries({ queryKey: ["claimable-tasks"] });
+      setCreating(false);
+      setError(null);
+
+      // مهمة أُسندت إلى غيرك لا تظهر في أيٍّ من القائمتين، فيُقال أين ذهبت
+      // بدل أن يبدو الإنشاء بلا أثر.
+      setNotice(
+        task.assigneeNameAr
+          ? `أُنشئت «${task.titleAr}» وأُسندت إلى ${task.assigneeNameAr}.`
+          : `أُنشئت «${task.titleAr}» بلا مسؤول — تنتظر في بركة جهتها.`,
+      );
+    },
+    onError: (caught) =>
+      setError(
+        caught instanceof ApiError
+          ? caught.message
+          : "تعذّر إنشاء المهمة. حاول مجددًا.",
+      ),
+  });
+
+  /**
+   * الإسناد والسحب والالتقاط طفرة واحدة: المسار واحد والإبطال واحد ورسالة
+   * الخطأ واحدة، و«أسندها لي» ليست إلا إسنادًا إلى نفسك.
+   */
+  const assign = useMutation({
+    mutationFn: (input: { id: string; assigneeUserId: string | null }) =>
+      assignTask(input.id, input.assigneeUserId),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["my-tasks"] });
       void queryClient.invalidateQueries({ queryKey: ["claimable-tasks"] });
@@ -134,16 +257,208 @@ export default function MyTasksPage() {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setShowDone((current) => !current)}
-        >
-          {showDone ? "إخفاء المنجزة" : "إظهار المنجزة"}
-        </Button>
+        <div className="flex flex-wrap gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setShowDone((current) => !current)}
+          >
+            {showDone ? "إخفاء المنجزة" : "إظهار المنجزة"}
+          </Button>
+
+          {canManage ? (
+            <Button
+              size="sm"
+              className="gap-1.5"
+              onClick={() => {
+                // المكتب الرئيس هو الافتراض: أكثر ما يُنشأ يدويًا عمل مكتبك.
+                setScopeKind("OFFICE");
+                setScopeId(primaryOffice?.officeId ?? "");
+                setNotice(null);
+                setCreating(true);
+              }}
+            >
+              <Plus className="size-4" />
+              مهمة جديدة
+            </Button>
+          ) : null}
+        </div>
       </header>
 
       {error ? <Alert>{error}</Alert> : null}
+
+      {notice ? <Alert variant="info">{notice}</Alert> : null}
+
+      {creating ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">مهمة جديدة</CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            <form
+              className="space-y-4"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const form = new FormData(event.currentTarget);
+                const assigneeUserId = String(form.get("assigneeUserId") ?? "");
+                const dueAt = String(form.get("dueAt") ?? "");
+                const descriptionAr = String(
+                  form.get("descriptionAr") ?? "",
+                ).trim();
+
+                create.mutate({
+                  ...(scopeKind === "OFFICE"
+                    ? { officeId: scopeId }
+                    : { initiativeId: scopeId }),
+                  titleAr: String(form.get("titleAr") ?? ""),
+                  priority: String(form.get("priority")) as WorkPriority,
+                  ...(assigneeUserId ? { assigneeUserId } : {}),
+                  // الحقل يعطي وقتًا محليًا بلا منطقة، والخادم يريد ISO.
+                  ...(dueAt ? { dueAt: new Date(dueAt).toISOString() } : {}),
+                  ...(descriptionAr ? { descriptionAr } : {}),
+                });
+              }}
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="scopeKind">جهة المهمة</Label>
+                  <select
+                    id="scopeKind"
+                    value={scopeKind}
+                    onChange={(event) => {
+                      setScopeKind(
+                        event.target.value as "OFFICE" | "INITIATIVE",
+                      );
+                      setScopeId("");
+                    }}
+                    className={SELECT_CLASS}
+                  >
+                    <option value="OFFICE">مكتب</option>
+                    <option value="INITIATIVE">مبادرة</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="scopeId">
+                    {scopeKind === "OFFICE" ? "المكتب" : "المبادرة"}
+                  </Label>
+                  <select
+                    id="scopeId"
+                    value={scopeId}
+                    onChange={(event) => setScopeId(event.target.value)}
+                    required
+                    className={SELECT_CLASS}
+                  >
+                    <option value="">
+                      {scopeKind === "OFFICE"
+                        ? "اختر المكتب…"
+                        : "اختر المبادرة…"}
+                    </option>
+                    {scopeKind === "OFFICE"
+                      ? offices.data?.map((office) => (
+                          <option key={office.id} value={office.id}>
+                            {office.nameAr}
+                          </option>
+                        ))
+                      : initiatives.data?.map((initiative) => (
+                          <option key={initiative.id} value={initiative.id}>
+                            {initiative.nameAr}
+                            {initiative.season ? ` — ${initiative.season}` : ""}
+                          </option>
+                        ))}
+                  </select>
+                </div>
+              </div>
+
+              <Field id="titleAr" label="عنوان المهمة">
+                {(props) => (
+                  <Input
+                    {...props}
+                    name="titleAr"
+                    required
+                    minLength={3}
+                    maxLength={300}
+                  />
+                )}
+              </Field>
+
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="assigneeUserId">المسؤول</Label>
+                  <select
+                    id="assigneeUserId"
+                    name="assigneeUserId"
+                    defaultValue=""
+                    className={SELECT_CLASS}
+                  >
+                    <option value="">بلا مسؤول — تنتظر في بركة الجهة</option>
+                    {assignable.map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.fullNameAr}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="priority">الأولوية</Label>
+                  <select
+                    id="priority"
+                    name="priority"
+                    defaultValue="NORMAL"
+                    className={SELECT_CLASS}
+                  >
+                    {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+                      <option key={value} value={value}>
+                        {label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <Field id="dueAt" label="الموعد" hint="اختياري.">
+                  {(props) => (
+                    <Input
+                      {...props}
+                      name="dueAt"
+                      type="datetime-local"
+                      dir="ltr"
+                      className="text-start"
+                    />
+                  )}
+                </Field>
+              </div>
+
+              <Field id="descriptionAr" label="التفاصيل">
+                {(props) => (
+                  <textarea
+                    {...props}
+                    name="descriptionAr"
+                    rows={3}
+                    maxLength={4000}
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                )}
+              </Field>
+
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" loading={create.isPending}>
+                  إنشاء المهمة
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => setCreating(false)}
+                >
+                  إلغاء
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {overdue.length > 0 ? (
         <Alert variant="info">
@@ -198,7 +513,20 @@ export default function MyTasksPage() {
                         ) : null}
                       </div>
 
-                      <div className="flex flex-wrap gap-1.5">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {canManage && assignable.length > 0 ? (
+                          <AssigneeSelect
+                            task={task}
+                            people={assignable}
+                            pending={
+                              assign.isPending && assign.variables?.id === task.id
+                            }
+                            onAssign={(assigneeUserId) =>
+                              assign.mutate({ id: task.id, assigneeUserId })
+                            }
+                          />
+                        ) : null}
+
                         {NEXT_STATUSES[task.status].map((next) => (
                           <Button
                             key={next}
@@ -240,14 +568,36 @@ export default function MyTasksPage() {
                       </p>
                     </div>
 
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      loading={claim.isPending && claim.variables === task.id}
-                      onClick={() => claim.mutate(task.id)}
-                    >
-                      أسندها لي
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {canManage && assignable.length > 0 ? (
+                        <AssigneeSelect
+                          task={task}
+                          people={assignable}
+                          pending={
+                            assign.isPending && assign.variables?.id === task.id
+                          }
+                          onAssign={(assigneeUserId) =>
+                            assign.mutate({ id: task.id, assigneeUserId })
+                          }
+                        />
+                      ) : null}
+
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        loading={
+                          assign.isPending && assign.variables?.id === task.id
+                        }
+                        onClick={() =>
+                          assign.mutate({
+                            id: task.id,
+                            assigneeUserId: user!.id,
+                          })
+                        }
+                      >
+                        أسندها لي
+                      </Button>
+                    </div>
                   </li>
                 ))}
               </ul>
