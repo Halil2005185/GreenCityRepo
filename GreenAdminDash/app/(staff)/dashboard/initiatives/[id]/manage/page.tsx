@@ -1,8 +1,8 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Circle, Rocket } from "lucide-react";
-import { useParams } from "next/navigation";
+import { Ban, Check, Circle, Rocket, Trash2 } from "lucide-react";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -24,6 +24,8 @@ import {
   WORK_STATUS_LABELS,
   type InitiativeDetail,
   addSite,
+  cancelInitiative,
+  deleteInitiative,
   getInitiative,
   launchInitiative,
   listMetrics,
@@ -105,6 +107,7 @@ export default function InitiativeDetailPage() {
   const params = useParams<{ id: string }>();
   const initiativeId = params.id;
   const queryClient = useQueryClient();
+  const router = useRouter();
   const { can } = useAuth();
 
   const [error, setError] = useState<string | null>(null);
@@ -173,6 +176,27 @@ export default function InitiativeDetailPage() {
     mutationFn: (input: { siteId: string; metricId: string; value: number }) =>
       setSiteTarget(initiativeId, input.siteId, input.metricId, input.value),
     ...shared,
+  });
+
+  /**
+   * الإلغاء يُبقي السجل ويُخرج المبادرة من الخريطة والمجاميع، والحذف يمحوها
+   * بمواقعها ومهامها. الأول لما جرى عليه عمل، والثاني لمسودة أُدخلت خطأً —
+   * والخادم هو من يفصل بينهما، فالزر يُخفى ولا يَحرس.
+   */
+  const cancel = useMutation({
+    mutationFn: () => cancelInitiative(initiativeId),
+    ...shared,
+  });
+
+  const remove = useMutation({
+    mutationFn: () => deleteInitiative(initiativeId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["initiatives"] });
+      queryClient.removeQueries({ queryKey: ["initiative", initiativeId] });
+      // الصفحة تخصّ ما حُذف، فالبقاء عليها يعرض خطأ تحميل لا نتيجة.
+      router.replace("/dashboard/initiatives");
+    },
+    onError: onFailed,
   });
 
   const launch = useMutation({
@@ -524,6 +548,56 @@ export default function InitiativeDetailPage() {
               </ul>
             )}
           </Section>
+
+          {canLaunch &&
+          data.status !== "CANCELLED" &&
+          data.status !== "COMPLETED" ? (
+            <Section
+              title="إنهاء المبادرة"
+              description="الإلغاء يُبقي سجلها ويُخرجها من الخريطة والمجاميع. الحذف للمسودة وحدها."
+            >
+              <div className="space-y-2">
+                <Button
+                  variant="outline"
+                  className="w-full gap-2"
+                  loading={cancel.isPending}
+                  onClick={() => {
+                    // التأكيد يحمل الاسم: سؤال عام يُنقر بلا قراءة.
+                    if (
+                      window.confirm(
+                        `إلغاء «${data.nameAr}»؟ تختفي من الخريطة ويبقى سجلها.`,
+                      )
+                    ) {
+                      cancel.mutate();
+                    }
+                  }}
+                >
+                  <Ban className="size-4" />
+                  إلغاء المبادرة
+                </Button>
+
+                {data.status === "DRAFT" ? (
+                  <Button
+                    variant="ghost"
+                    className="w-full gap-2 text-destructive hover:text-destructive"
+                    loading={remove.isPending}
+                    onClick={() => {
+                      if (
+                        window.confirm(
+                          `حذف مسودة «${data.nameAr}» نهائيًا؟ تُمحى مواقعها ومهامها ولا رجعة.`,
+                        )
+                      ) {
+                        remove.mutate();
+                      }
+                    }}
+                  >
+                    <Trash2 className="size-4" />
+                    حذف المسودة
+                  </Button>
+                ) : null}
+              </div>
+            </Section>
+          ) : null}
 
           <Section title="النطاق الجغرافي">
             {data.areas.length === 0 ? (

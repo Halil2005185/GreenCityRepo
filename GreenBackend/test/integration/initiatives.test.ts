@@ -409,3 +409,63 @@ describe.runIf(ready)('the dynamism criterion', () => {
     expect(progress.actual).toBeCloseTo(320.75, 2)
   })
 })
+
+describe.runIf(ready)('deleting an initiative', () => {
+  let director: string
+
+  beforeEach(async () => {
+    director = await bootstrap()
+  })
+
+  async function draft(nameAr: string) {
+    const program = await programIdBySlug('tree-planting')
+
+    return createInitiative(director, { programId: program.id, nameAr })
+  }
+
+  it('erases a draft nobody has touched', async () => {
+    const initiative = await draft('حملة أُدخلت خطأً')
+
+    await request(app)
+      .delete(`/api/admin/initiatives/${initiative.id}`)
+      .set('authorization', bearer(director))
+      .expect(204)
+
+    await getInitiative(director, initiative.id).expect(404)
+  })
+
+  it('refuses once a task has moved, and points to cancelling instead', async () => {
+    const initiative = await draft('حملة بدأ العمل عليها')
+
+    // مهام القوالب تولد `TODO`؛ تحريك واحدة يعني أن أحدًا عمل على الخطة.
+    const detail = await getInitiative(director, initiative.id).expect(200)
+    const task = (detail.body.work.workItems as Array<{ id: string }>)[0]
+
+    await request(app)
+      .post(`/api/admin/work/tasks/${task!.id}/status`)
+      .set('authorization', bearer(director))
+      .send({ status: 'IN_PROGRESS' })
+      .expect(200)
+
+    await request(app)
+      .delete(`/api/admin/initiatives/${initiative.id}`)
+      .set('authorization', bearer(director))
+      .expect(409)
+
+    await getInitiative(director, initiative.id).expect(200)
+  })
+
+  it('refuses a cancelled initiative: cancelling is what keeps the record', async () => {
+    const initiative = await draft('حملة أُلغيت')
+
+    await request(app)
+      .post(`/api/admin/initiatives/${initiative.id}/cancel`)
+      .set('authorization', bearer(director))
+      .expect(200)
+
+    await request(app)
+      .delete(`/api/admin/initiatives/${initiative.id}`)
+      .set('authorization', bearer(director))
+      .expect(409)
+  })
+})

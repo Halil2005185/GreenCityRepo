@@ -73,6 +73,16 @@ export const deleteArea: RequestHandler = async (request, response) => {
   response.status(200).json(detail)
 }
 
+export const deleteInitiative: RequestHandler = async (request, response) => {
+  await service.deleteInitiative(
+    readId(request),
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(204).end()
+}
+
 export const postSite: RequestHandler = async (request, response) => {
   const detail = await service.addSite(
     readId(request),

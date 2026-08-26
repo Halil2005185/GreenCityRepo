@@ -363,6 +363,22 @@ export const updateInitiativeBodySchema = z.object({
 })
 
 registry.registerPath({
+  method: 'delete',
+  path: path('/{id}'),
+  tags: ['Initiatives'],
+  summary: 'حذف مسودة مبادرة',
+  description:
+    'المسودة التي لم تُطلق ولا أثر لها ولا مهمة تحرّكت تُمحى بمواقعها ومهامها. وما جاوز ذلك يُلغى من مسار الإلغاء ولا يُمحى: الإلغاء يُبقي السجل ويُخرج المبادرة من الخريطة والمجاميع.',
+  security,
+  request: { params: initiativeIdParamsSchema },
+  responses: {
+    204: { description: 'حُذفت' },
+    404: problemResponse('المبادرة غير موجودة'),
+    409: problemResponse('المبادرة أُطلقت أو عليها أثر أو عمل — تُلغى ولا تُحذف'),
+  },
+})
+
+registry.registerPath({
   method: 'patch',
   path: path('/{id}'),
   tags: ['Initiatives'],

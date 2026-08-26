@@ -212,6 +212,9 @@ export type SyriaMapProps = {
   picking: boolean;
   onPick: (lat: number, lng: number) => void;
   pendingPin: { lat: number; lng: number } | null;
+  /** حذف نقطة خضراء. يُترك فارغًا لمن لا يملك الصلاحية فيختفي الزر. */
+  onPointDelete?: ((point: MapPoint) => void) | undefined;
+  deletingSiteId?: string | null | undefined;
 };
 
 export function SyriaMap({
@@ -223,6 +226,8 @@ export function SyriaMap({
   picking,
   onPick,
   pendingPin,
+  onPointDelete,
+  deletingSiteId,
 }: SyriaMapProps) {
   const selectedArea = areas.find((area) => area.id === selectedAreaId) ?? null;
 
@@ -324,6 +329,22 @@ export function SyriaMap({
               >
                 عرض التفاصيل ←
               </a>
+
+              {/*
+                الحذف من النافذة نفسها: النقطة الخاطئة تُكتشف وهي منظورة على
+                الخريطة، فيكون تصحيحها حيث رُئيت لا في شاشة أخرى تُبحث.
+                والحملات لا تُحذف — لها الإلغاء من صفحتها.
+              */}
+              {onPointDelete && point.kind === "GREEN_POINT" ? (
+                <button
+                  type="button"
+                  disabled={deletingSiteId === point.siteId}
+                  onClick={() => onPointDelete(point)}
+                  className="mt-2 block w-full rounded border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                >
+                  {deletingSiteId === point.siteId ? "…جارٍ الحذف" : "حذف النقطة"}
+                </button>
+              ) : null}
             </div>
           </Popup>
         </Marker>

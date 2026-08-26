@@ -56,6 +56,17 @@ initiativesRouter.patch(
   controller.patchInitiative,
 )
 
+/**
+ * الحذف بصلاحية الإطلاق لا الإدارة: من يملك أن يبدأ المبادرة يملك أن يمحو
+ * مسودتها، ومن يملك تحريرها لا يملك محوها.
+ */
+initiativesRouter.delete(
+  '/:id',
+  launch,
+  validate({ params: schemas.initiativeIdParamsSchema }),
+  controller.deleteInitiative,
+)
+
 initiativesRouter.post(
   '/:id/areas',
   manage,
