@@ -33,6 +33,16 @@ export function listMapPoints(filters: { kind?: string; areaId?: string } = {}) 
   ).then((response) => response.data);
 }
 
+/**
+ * حذف نقطة خضراء وُثّقت خطأً — تُمحى هي وموقعها وقيود أثرها.
+ * الحملات لا تُحذف من هنا؛ لها الإلغاء من صفحتها.
+ */
+export function deleteGreenPoint(siteId: string) {
+  return apiFetch<void>(`/admin/map/green-points/${siteId}`, {
+    method: "DELETE",
+  });
+}
+
 export function createGreenPoint(body: {
   nameAr: string;
   contributorNameAr: string;

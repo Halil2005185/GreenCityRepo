@@ -132,5 +132,24 @@ registry.registerPath({
   },
 })
 
+export const greenPointParamsSchema = z.object({ siteId: z.uuid() })
+
+registry.registerPath({
+  method: 'delete',
+  path: path('/green-points/{siteId}'),
+  tags: ['Map'],
+  summary: 'حذف نقطة خضراء',
+  description:
+    'محوٌ لا أرشفة: النقطة توثيق فعلٍ مضى، والتوثيق الخاطئ يُمحى كي لا يبقى رقمه في المجموع الوطني وعلامته على الخريطة. يُمحى معها موقعها وقيود أثرها، ويبقى ما مُحي في سجل التدقيق. الحملة لا تُحذف من هنا؛ تُلغى من مسارها.',
+  security,
+  request: { params: greenPointParamsSchema },
+  responses: {
+    204: { description: 'حُذفت' },
+    404: problemResponse('النقطة غير موجودة'),
+    422: problemResponse('الموقع يتبع حملة لا نقطة خضراء'),
+  },
+})
+
 export type ListPointsQuery = z.infer<typeof listPointsQuerySchema>
 export type CreateGreenPointBody = z.infer<typeof createGreenPointBodySchema>
+export type GreenPointParams = z.infer<typeof greenPointParamsSchema>

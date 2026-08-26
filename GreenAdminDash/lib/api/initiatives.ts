@@ -196,6 +196,24 @@ export function launchInitiative(id: string) {
   );
 }
 
+/**
+ * الإلغاء لا الحذف: يُبقي سجل المبادرة ويُخرجها من الخريطة والمجاميع.
+ * هو الباب الوحيد لما أُطلق أو تراكم عليه عمل.
+ */
+export function cancelInitiative(id: string) {
+  return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/cancel`, {
+    method: "POST",
+  });
+}
+
+/**
+ * الحذف للمسودة وحدها. الخادم يرفض ما أُطلق أو حمل أثرًا أو تحرّكت مهامه،
+ * فالشرط هنا لإخفاء الزر لا لحراسته.
+ */
+export function deleteInitiative(id: string) {
+  return apiFetch<void>(`/admin/initiatives/${id}`, { method: "DELETE" });
+}
+
 export function completeInitiative(id: string) {
   return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/complete`, {
     method: "POST",

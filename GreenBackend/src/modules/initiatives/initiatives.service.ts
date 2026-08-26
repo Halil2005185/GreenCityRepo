@@ -6,13 +6,18 @@ import { normalizeText } from '../../common/utils/text.js'
 import { db } from '../../db/client.js'
 import { areas } from '../../db/schema/geo.js'
 import { users } from '../../db/schema/identity.js'
-import { metricTargets, metrics } from '../../db/schema/metrics.js'
+import {
+  impactEntries,
+  metricTargets,
+  metrics,
+} from '../../db/schema/metrics.js'
 import {
   initiativeAreas,
   initiativeSites,
   initiatives,
   programs,
 } from '../../db/schema/programs.js'
+import { workItems } from '../../db/schema/work.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { loadInitiativeProgress } from '../impact/impact.service.js'
@@ -1173,6 +1178,100 @@ export async function completeInitiative(
   })
 
   return loadInitiativeDetail(initiativeId, actor)
+}
+
+/**
+ * حذف مبادرة لم تبدأ بعد.
+ *
+ * المسودة التي لم تُطلق ولا أثر لها ولا مهمة تحرّكت ليست تاريخًا يُحفظ بل
+ * خطأ إدخال، وأرشفتها تملأ القوائم بما لا يعني أحدًا. وما جاوز ذلك يُلغى
+ * ولا يُمحى: خلفه مهامٌ عُمل عليها وأرقامٌ دخلت المجاميع، ومحوه يمحو أثر
+ * من عملوا لا خطأ من أدخل.
+ *
+ * والفحوص داخل المعاملة وعلى الصف مقفلًا: بينها وبين الحذف يتّسع الوقت
+ * لإطلاق المبادرة من نافذة أخرى، فيُمحى ما صار حيًّا.
+ *
+ * وصفٌّ واحد يكفي: المخطط يتتالى من المبادرة إلى مناطقها ومواقعها
+ * وأهدافها ومراحلها ومهامها وقيود أثرها.
+ */
+export async function deleteInitiative(
+  initiativeId: string,
+  actor: AuthContext,
+  trace: RequestTrace,
+) {
+  await db.transaction(async (tx) => {
+    const initiative = await lockInitiative(tx, initiativeId)
+
+    if (initiative.status !== 'DRAFT' || initiative.launchedAt) {
+      throw errors.conflict(
+        'المبادرة خرجت من المسودة — تُلغى ولا تُحذف، فالإلغاء يبقي سجلها.',
+      )
+    }
+
+    const [impact] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(impactEntries)
+      .leftJoin(initiativeSites, eq(impactEntries.siteId, initiativeSites.id))
+      .where(
+        or(
+          eq(impactEntries.initiativeId, initiativeId),
+          eq(initiativeSites.initiativeId, initiativeId),
+        ),
+      )
+
+    if ((impact?.total ?? 0) > 0) {
+      throw errors.conflict(
+        'على المبادرة أثر موثّق — تُلغى ولا تُحذف، فالأرقام دخلت المجاميع.',
+      )
+    }
+
+    const [started] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(workItems)
+      .leftJoin(initiativeSites, eq(workItems.siteId, initiativeSites.id))
+      .where(
+        and(
+          or(
+            eq(workItems.initiativeId, initiativeId),
+            eq(initiativeSites.initiativeId, initiativeId),
+          ),
+          // المهام تولد `TODO` من القوالب، فتحرّك واحدة يعني أن أحدًا عمل.
+          ne(workItems.status, 'TODO'),
+        ),
+      )
+
+    if ((started?.total ?? 0) > 0) {
+      throw errors.conflict(
+        'بدأ العمل على مهام المبادرة — تُلغى ولا تُحذف.',
+      )
+    }
+
+    const [sites] = await tx
+      .select({ total: sql<number>`count(*)::int` })
+      .from(initiativeSites)
+      .where(eq(initiativeSites.initiativeId, initiativeId))
+
+    await tx.delete(initiatives).where(eq(initiatives.id, initiativeId))
+
+    await recordAudit(
+      {
+        action: 'initiative.deleted',
+        severity: 'WARNING',
+        actorUserId: actor.userId,
+        entityType: 'initiative',
+        entityId: initiativeId,
+        entityLabel: initiative.nameAr,
+        summaryAr: 'حذف مسودة مبادرة',
+        metadata: {
+          programId: initiative.programId,
+          kind: initiative.kind,
+          siteCount: sites?.total ?? 0,
+        },
+        ...trace,
+      },
+      tx,
+    )
+  })
 }
 
 export async function cancelInitiative(

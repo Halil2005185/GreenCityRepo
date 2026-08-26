@@ -1148,6 +1148,8 @@ export interface paths {
                         minSelections?: number | null;
                         maxSelections?: number | null;
                         maxLength?: number | null;
+                        /** @enum {string|null} */
+                        contactRole?: "NAME" | "EMAIL" | "PHONE" | null;
                         /** @default [] */
                         options?: {
                             value: string;
@@ -1330,6 +1332,8 @@ export interface paths {
                         minSelections?: number | null;
                         maxSelections?: number | null;
                         maxLength?: number | null;
+                        /** @enum {string|null} */
+                        contactRole?: "NAME" | "EMAIL" | "PHONE" | null;
                         /** @default [] */
                         options?: {
                             value: string;
@@ -1484,6 +1488,150 @@ export interface paths {
                 };
                 /** @description الترتيب ناقص أو يكسر شرطًا */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/forms/{slug}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * الاستمارة المنشورة
+         * @description بلا مصادقة. تعيد الإصدار المنشور وحده؛ غير المنشور وغير الموجود يعطيان 404 نفسه.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الاستمارة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["PublicForm"];
+                        };
+                    };
+                };
+                /** @description غير متاحة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description تجاوز حد الطلبات */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/forms/{slug}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تقديم طلب
+         * @description بلا مصادقة. يعيد 202 بلا جسم ولا معرّف. التحقق كامل على الخادم: الإلزام والشرطية والأنواع والحدود والانتماء إلى الخيارات.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    slug: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        answers: {
+                            [key: string]: unknown;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description وصل الطلب */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description غير متاحة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة مغلقة ولا تستقبل طلبات */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description إجابات غير صالحة — التفاصيل تحمل مواضع الأخطاء */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description تجاوز حد الطلبات */
+                429: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -2849,7 +2997,48 @@ export interface paths {
         };
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * حذف مسودة مبادرة
+         * @description المسودة التي لم تُطلق ولا أثر لها ولا مهمة تحرّكت تُمحى بمواقعها ومهامها. وما جاوز ذلك يُلغى من مسار الإلغاء ولا يُمحى: الإلغاء يُبقي السجل ويُخرج المبادرة من الخريطة والمجاميع.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذفت */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة أُطلقت أو عليها أثر أو عمل — تُلغى ولا تُحذف */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         /**
@@ -3783,6 +3972,63 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/map/green-points/{siteId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * حذف نقطة خضراء
+         * @description محوٌ لا أرشفة: النقطة توثيق فعلٍ مضى، والتوثيق الخاطئ يُمحى كي لا يبقى رقمه في المجموع الوطني وعلامته على الخريطة. يُمحى معها موقعها وقيود أثرها، ويبقى ما مُحي في سجل التدقيق. الحملة لا تُحذف من هنا؛ تُلغى من مسارها.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    siteId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذفت */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description النقطة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الموقع يتبع حملة لا نقطة خضراء */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -5133,6 +5379,8 @@ export interface components {
             minSelections: number | null;
             maxSelections: number | null;
             maxLength: number | null;
+            /** @enum {string|null} */
+            contactRole: "NAME" | "EMAIL" | "PHONE" | null;
             options: {
                 value: string;
                 labelAr: string;
@@ -5181,6 +5429,34 @@ export interface components {
         FormDetail: components["schemas"]["FormSummary"] & {
             draft: components["schemas"]["FormVersion"] & (Record<string, never> | null);
             published: components["schemas"]["FormVersion"] & (Record<string, never> | null);
+        };
+        PublicFormField: {
+            key: string;
+            labelAr: string;
+            hintAr: string | null;
+            type: string;
+            isRequired: boolean;
+            minSelections: number | null;
+            maxSelections: number | null;
+            maxLength: number | null;
+            options: {
+                value: string;
+                labelAr: string;
+            }[];
+            condition: {
+                fieldKey: string;
+                /** @enum {string} */
+                op: "eq" | "in" | "notEmpty";
+                value?: unknown;
+            } | null;
+        };
+        PublicForm: {
+            slug: string;
+            nameAr: string;
+            descriptionAr: string | null;
+            isAccepting: boolean;
+            version: number;
+            fields: components["schemas"]["PublicFormField"][];
         };
         Area: {
             /** Format: uuid */

@@ -1,4 +1,4 @@
-import { and, asc, eq, isNotNull, sql } from 'drizzle-orm'
+import { and, asc, eq, isNotNull, ne, sql } from 'drizzle-orm'
 import { Router } from 'express'
 import type { RequestHandler } from 'express'
 
@@ -21,8 +21,10 @@ import {
 import { recordAudit, requestTrace } from '../audit/audit.service.js'
 import {
   type CreateGreenPointBody,
+  type GreenPointParams,
   type ListPointsQuery,
   createGreenPointBodySchema,
+  greenPointParamsSchema,
   listPointsQuerySchema,
 } from './map.schemas.js'
 
@@ -31,6 +33,18 @@ const ATTRIBUTION = 'حدود المحافظات: geoBoundaries عن UN OCHA —
 
 const toNumber = (value: string | null) =>
   value === null ? null : Number(value)
+
+/**
+ * الملغى لا يُرسم ولا يُعدّ.
+ *
+ * الإلغاء هو ما يقابل الحذف حين يكون العمل قد وقع فعلًا: السجل يبقى في
+ * القاعدة لمن يقرأ التاريخ، وتختفي علامته من الخريطة لمن يقرأ الواقع.
+ * والشرط مشترك بين العدّادات والنقاط كي لا تعد المحافظة ما لا تُظهره.
+ */
+const LIVE_ONLY = [
+  ne(initiatives.status, 'CANCELLED'),
+  ne(initiativeSites.status, 'CANCELLED'),
+]
 
 const getAreas: RequestHandler = async (_request, response) => {
   const rows = await db
@@ -61,7 +75,7 @@ const getAreas: RequestHandler = async (_request, response) => {
     })
     .from(initiativeSites)
     .innerJoin(initiatives, eq(initiativeSites.initiativeId, initiatives.id))
-    .where(isNotNull(initiativeSites.areaId))
+    .where(and(isNotNull(initiativeSites.areaId), ...LIVE_ONLY))
     .groupBy(initiativeSites.areaId, initiatives.kind)
 
   const byArea = new Map<string, { campaign: number; greenPoint: number }>()
@@ -95,6 +109,7 @@ const getPoints: RequestHandler = async (request, response) => {
   const conditions = [
     // موقع بلا إحداثيات لا يُرسم، فلا يُرسَل أصلًا.
     isNotNull(initiativeSites.lat),
+    ...LIVE_ONLY,
     query.kind ? eq(initiatives.kind, query.kind) : undefined,
     query.areaId ? eq(initiativeSites.areaId, query.areaId) : undefined,
   ].filter(Boolean)
@@ -266,6 +281,82 @@ const postGreenPoint: RequestHandler = async (request, response) => {
     .json({ ...created, lat: Number(created.lat), lng: Number(created.lng) })
 }
 
+/**
+ * حذف نقطة خضراء توثّقت خطأً.
+ *
+ * محوٌ لا أرشفة: النقطة ليست عملًا جرى بل شهادةً بأنه جرى، وبقاء الشهادة
+ * الخاطئة يعني علامةً على الخريطة بلا سند ورقمًا زائفًا في المجموع الوطني.
+ * أما الحملة فتُلغى ولا تُمحى — لأن حولها مهامًا وناسًا وتاريخًا.
+ *
+ * والحذف يقع على المبادرة لا على الموقع: المخطط يتتالى منها إلى الموقع
+ * وقيوده وقيود الأثر، فصفٌّ واحد يمحو الشجرة كلها بلا ترتيبٍ يدوي يُنسى
+ * أحد فروعه. ويبقى في سجل التدقيق ما مُحي بإحداثياته وقيمه: المحو من
+ * الخريطة لا من الذاكرة.
+ */
+const deleteGreenPoint: RequestHandler = async (request, response) => {
+  const { siteId } = request.validatedParams as GreenPointParams
+  const actor = request.auth!
+  const trace = requestTrace(request)
+
+  const [point] = await db
+    .select({
+      siteId: initiativeSites.id,
+      initiativeId: initiatives.id,
+      kind: initiatives.kind,
+      nameAr: initiatives.nameAr,
+      contributorNameAr: initiatives.contributorNameAr,
+      lat: initiativeSites.lat,
+      lng: initiativeSites.lng,
+    })
+    .from(initiativeSites)
+    .innerJoin(initiatives, eq(initiativeSites.initiativeId, initiatives.id))
+    .where(eq(initiativeSites.id, siteId))
+    .limit(1)
+
+  if (!point) throw errors.notFound('النقطة غير موجودة.')
+
+  if (point.kind !== 'GREEN_POINT') {
+    throw errors.unprocessable(
+      'هذا موقع حملة لا نقطة خضراء. الحملة تُلغى من صفحتها.',
+    )
+  }
+
+  // ما سيُمحى مع النقطة يُقرأ قبل محوه، وإلا سُجّل الحذف بلا ما حُذف.
+  const removedImpact = await db
+    .select({ metricNameAr: metrics.nameAr, value: impactEntries.value })
+    .from(impactEntries)
+    .innerJoin(metrics, eq(impactEntries.metricId, metrics.id))
+    .where(eq(impactEntries.siteId, siteId))
+
+  await db.transaction(async (tx) => {
+    await tx.delete(initiatives).where(eq(initiatives.id, point.initiativeId))
+
+    await recordAudit(
+      {
+        action: 'map.green_point_deleted',
+        severity: 'WARNING',
+        actorUserId: actor.userId,
+        entityType: 'initiative',
+        entityId: point.initiativeId,
+        entityLabel: point.nameAr,
+        summaryAr: `حذف نقطة خضراء نفّذها ${point.contributorNameAr ?? 'غير محدّد'}`,
+        metadata: {
+          lat: toNumber(point.lat),
+          lng: toNumber(point.lng),
+          removedImpact: removedImpact.map((entry) => ({
+            metricNameAr: entry.metricNameAr,
+            value: Number(entry.value),
+          })),
+        },
+        ...trace,
+      },
+      tx,
+    )
+  })
+
+  response.status(204).end()
+}
+
 export const mapRouter = Router()
 
 mapRouter.use(requireAuth, requireStaff, requireCapability('initiatives.view'))
@@ -283,4 +374,11 @@ mapRouter.post(
   requireCapability('initiatives.manage'),
   validate({ body: createGreenPointBodySchema }),
   postGreenPoint,
+)
+
+mapRouter.delete(
+  '/green-points/:siteId',
+  requireCapability('initiatives.manage'),
+  validate({ params: greenPointParamsSchema }),
+  deleteGreenPoint,
 )

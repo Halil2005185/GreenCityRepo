@@ -15,7 +15,9 @@ import {
   CONTRIBUTOR_KIND_LABELS,
   POINT_KIND_LABELS,
   type MapArea,
+  type MapPoint,
   createGreenPoint,
+  deleteGreenPoint,
   listMapAreas,
   listMapPoints,
 } from "@/lib/api/map";
@@ -57,6 +59,23 @@ export default function MapPage() {
         caught instanceof ApiError
           ? caught.message
           : "تعذّر توثيق النقطة. حاول مجددًا.",
+      ),
+  });
+
+  /**
+   * الحذف محوٌ لا تراجع عنه، والتأكيد يحمل اسم النقطة لا سؤالًا عامًّا:
+   * «هل أنت متأكد؟» تُنقر بلا قراءة، والاسم يوقف اليد على النقطة الخطأ.
+   */
+  const remove = useMutation({
+    mutationFn: (point: MapPoint) => deleteGreenPoint(point.siteId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["map-points"] });
+      void queryClient.invalidateQueries({ queryKey: ["map-areas"] });
+      setError(null);
+    },
+    onError: (caught) =>
+      setError(
+        caught instanceof ApiError ? caught.message : "تعذّر حذف النقطة.",
       ),
   });
 
@@ -131,6 +150,20 @@ export default function MapPage() {
               picking={picking}
               onPick={(lat, lng) => setPin({ lat, lng })}
               pendingPin={pin}
+              onPointDelete={
+                canManage
+                  ? (point) => {
+                      if (
+                        window.confirm(
+                          `حذف «${point.initiativeNameAr}» نهائيًا؟ يُمحى معها ما وُثّق من أثرها.`,
+                        )
+                      ) {
+                        remove.mutate(point);
+                      }
+                    }
+                  : undefined
+              }
+              deletingSiteId={remove.isPending ? remove.variables.siteId : null}
             />
           )}
         </div>

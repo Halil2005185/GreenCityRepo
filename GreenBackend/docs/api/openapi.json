@@ -7999,6 +7999,54 @@
           }
         }
       },
+      "delete": {
+        "tags": [
+          "Initiatives"
+        ],
+        "summary": "حذف مسودة مبادرة",
+        "description": "المسودة التي لم تُطلق ولا أثر لها ولا مهمة تحرّكت تُمحى بمواقعها ومهامها. وما جاوز ذلك يُلغى من مسار الإلغاء ولا يُمحى: الإلغاء يُبقي السجل ويُخرج المبادرة من الخريطة والمجاميع.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "حُذفت"
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة أُطلقت أو عليها أثر أو عمل — تُلغى ولا تُحذف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
       "patch": {
         "tags": [
           "Initiatives"
@@ -9262,6 +9310,56 @@
           },
           "422": {
             "description": "بيانات غير صالحة أو لا يوجد برنامج تشجير",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/map/green-points/{siteId}": {
+      "delete": {
+        "tags": [
+          "Map"
+        ],
+        "summary": "حذف نقطة خضراء",
+        "description": "محوٌ لا أرشفة: النقطة توثيق فعلٍ مضى، والتوثيق الخاطئ يُمحى كي لا يبقى رقمه في المجموع الوطني وعلامته على الخريطة. يُمحى معها موقعها وقيود أثرها، ويبقى ما مُحي في سجل التدقيق. الحملة لا تُحذف من هنا؛ تُلغى من مسارها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "siteId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "حُذفت"
+          },
+          "404": {
+            "description": "النقطة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "الموقع يتبع حملة لا نقطة خضراء",
             "content": {
               "application/problem+json": {
                 "schema": {
