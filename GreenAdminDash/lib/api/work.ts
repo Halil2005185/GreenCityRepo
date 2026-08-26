@@ -2,6 +2,7 @@ import { apiFetch } from "./client";
 import type { components } from "./types.gen";
 
 export type WorkItemSummary = components["schemas"]["WorkItemSummary"];
+export type WorkItemDetail = components["schemas"]["WorkItemDetail"];
 export type AuditEntry = components["schemas"]["AuditEntry"];
 
 export type WorkStatus = WorkItemSummary["status"];
@@ -59,8 +60,33 @@ export function listTasks(
   ).then((response) => response.data);
 }
 
-/** التقاط مهمة بلا مُسنَد إليه — يستعمل مسار التعديل نفسه. */
-export function assignTask(taskId: string, assigneeUserId: string) {
+/**
+ * جهة المهمة. الخادم يطلب واحدة بالضبط، والنموذج يعرض المكتب والمبادرة —
+ * وعليهما يُنشأ العمل يدويًا. البرنامج والموقع والشريك تصلها المهام من
+ * القوالب لا من نموذج.
+ */
+export type TaskScope = { officeId: string } | { initiativeId: string };
+
+export function createTask(
+  body: TaskScope & {
+    titleAr: string;
+    descriptionAr?: string;
+    priority?: WorkPriority;
+    assigneeUserId?: string;
+    dueAt?: string;
+  },
+) {
+  return apiFetch<WorkItemDetail>("/admin/work/tasks", {
+    method: "POST",
+    body,
+  });
+}
+
+/**
+ * إسناد المهمة وسحبها بمسار واحد: `null` يعيدها إلى بركة مكتبها بلا مسؤول،
+ * والتقاطها لنفسك إسنادٌ إليك لا حالة ثالثة.
+ */
+export function assignTask(taskId: string, assigneeUserId: string | null) {
   return apiFetch(`/admin/work/tasks/${taskId}`, {
     method: "PATCH",
     body: { assigneeUserId },
