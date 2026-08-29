@@ -80,6 +80,33 @@ const envSchema = z.object({
   MAIL_FROM: z.string().default('Green Cities <no-reply@localhost>'),
   MAIL_REPLY_TO: z.string().optional(),
 
+  // ──────────────────────── تخزين الملفات (R2) ────────────────────────
+  //
+  // كلها اختيارية: بدونها يعمل النظام كاملًا ويردّ مسار الرفع وحده بأن
+  // التخزين غير مهيّأ. جهاز تطوير بلا مفاتيح سحابة يجب أن يُقلع.
+  //
+  // والمفاتيح أسرار: تُوضع في `.env` على الخادم ولا تُودَع في Git.
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_BUCKET: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+
+  /**
+   * الأصل الذي تُقرأ منه الملفات علنًا — نطاق مربوط بالسطل.
+   *
+   * منفصل عن عنوان الرفع لأن الرفع يوقَّع على نقطة S3 والقراءة تمرّ بشبكة
+   * Cloudflare: خلطهما يعني ملفات تُقرأ من نقطة API بلا تخزين مؤقت.
+   */
+  R2_PUBLIC_BASE_URL: z.string().url().optional(),
+
+  /** عمر رابط الرفع الموقّع: يكفي لرفع صورة ولا يبقى مفتاحًا معلّقًا. */
+  R2_SIGNED_URL_TTL_SECONDS: z.coerce
+    .number()
+    .int()
+    .min(30)
+    .max(3600)
+    .default(300),
+
   OUTBOX_POLL_MS: z.coerce.number().int().min(500).max(600_000).default(5000),
   OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(100).default(20),
   OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(20).default(5),

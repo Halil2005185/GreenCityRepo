@@ -21,6 +21,7 @@ import { metricsRouter } from '../modules/metrics/metrics.routes.js'
 import { partnersRouter } from '../modules/partners/partners.routes.js'
 import { peopleRouter } from '../modules/people/people.routes.js'
 import { programsRouter } from '../modules/programs/programs.routes.js'
+import { uploadsRouter } from '../modules/uploads/uploads.routes.js'
 import { workRouter } from '../modules/work/work.routes.js'
 import { buildOpenApiDocument } from '../openapi/openapi.service.js'
 
@@ -42,6 +43,7 @@ apiRouter.use('/admin/invitations', invitationsRouter)
 apiRouter.use('/admin/partners', partnersRouter)
 apiRouter.use('/admin/people', peopleRouter)
 apiRouter.use('/admin/forms', formsRouter)
+apiRouter.use('/admin/uploads', uploadsRouter)
 
 // المرجعيات: قوائم قابلة للتحرير لا ثوابت واجهة.
 apiRouter.use('/admin/areas', geoRouter)

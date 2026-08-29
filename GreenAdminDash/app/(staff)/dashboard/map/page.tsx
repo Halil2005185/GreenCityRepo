@@ -9,6 +9,7 @@ import { MapClient } from "@/components/map/map-client";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Field, Input, Label } from "@/components/ui/field";
+import { ImageField } from "@/components/ui/image-field";
 import { ApiError } from "@/lib/api/client";
 import { listMetrics } from "@/lib/api/initiatives";
 import {
@@ -32,6 +33,7 @@ export default function MapPage() {
   const [selected, setSelected] = useState<MapArea | null>(null);
   const [picking, setPicking] = useState(false);
   const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
+  const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [kindFilter, setKindFilter] = useState("");
 
@@ -51,6 +53,7 @@ export default function MapPage() {
       void queryClient.invalidateQueries({ queryKey: ["map-points"] });
       void queryClient.invalidateQueries({ queryKey: ["map-areas"] });
       setPin(null);
+      setImage(null);
       setPicking(false);
       setError(null);
     },
@@ -247,9 +250,7 @@ export default function MapPage() {
                       ...(form.get("story")
                         ? { storyAr: String(form.get("story")) }
                         : {}),
-                      ...(form.get("image")
-                        ? { coverImageUrl: String(form.get("image")) }
-                        : {}),
+                      ...(image ? { coverImageUrl: image } : {}),
                       ...(treeMetric && trees > 0
                         ? { metricId: treeMetric.id, metricValue: trees }
                         : {}),
@@ -295,17 +296,12 @@ export default function MapPage() {
                     )}
                   </Field>
 
-                  <Field id="image" label="رابط صورة" hint="مؤقت حتى يُبنى رفع الملفات.">
-                    {(props) => (
-                      <Input
-                        {...props}
-                        name="image"
-                        type="url"
-                        dir="ltr"
-                        className="text-start"
-                      />
-                    )}
-                  </Field>
+                  <ImageField
+                    label="صورة النقطة"
+                    value={image}
+                    purpose="GREEN_POINT_COVER"
+                    onChange={setImage}
+                  />
 
                   <Field id="story" label="تفاصيل">
                     {(props) => (

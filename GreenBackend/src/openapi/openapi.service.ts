@@ -24,6 +24,7 @@ import '../modules/partner-portal/portal.schemas.js'
 import '../modules/partners/partners.schemas.js'
 import '../modules/people/people.schemas.js'
 import '../modules/programs/programs.schemas.js'
+import '../modules/uploads/uploads.schemas.js'
 import '../modules/work/work.schemas.js'
 
 let cachedDocument: Record<string, unknown> | null = null
