@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Field, Input, Label } from "@/components/ui/field";
 import {
   CONDITION_OP_LABELS,
+  CONTACT_ROLE_LABELS,
+  CONTACT_ROLE_TYPES,
   FIELD_TYPE_LABELS,
+  type ContactRole,
   type FieldCondition,
   type FieldInput,
   type FieldType,
@@ -50,6 +53,9 @@ export function FieldEditor({
   const [minSelections, setMinSelections] = useState(num(field?.minSelections));
   const [maxSelections, setMaxSelections] = useState(num(field?.maxSelections));
   const [maxLength, setMaxLength] = useState(num(field?.maxLength));
+  const [contactRole, setContactRole] = useState<ContactRole | "">(
+    field?.contactRole ?? "",
+  );
 
   const [conditionKey, setConditionKey] = useState(
     field?.condition?.fieldKey ?? "",
@@ -66,6 +72,16 @@ export function FieldEditor({
   );
 
   const needsOptions = SELECT_TYPES.includes(type);
+
+  /**
+   * الأدوار المتاحة لهذا النوع وحدها.
+   *
+   * الخادم يرفض «بريد المتقدّم» على سؤال نصّي — ونسخُ نصّ حر إلى عمود بريد
+   * يعني ملفًا لا يُراسَل صاحبه. وحصر القائمة أوضح من رسالة رفض بعد الحفظ.
+   */
+  const roleFor = Object.fromEntries(
+    Object.entries(CONTACT_ROLE_TYPES).filter(([, allowed]) => allowed === type),
+  ) as Partial<Record<ContactRole, FieldType>>;
   const conditionSource = earlierFields.find(
     (item) => item.key === conditionKey,
   );
@@ -110,6 +126,8 @@ export function FieldEditor({
       maxLength:
         TEXT_TYPES.includes(type) && maxLength ? Number(maxLength) : null,
       options: needsOptions ? options : [],
+      // الدور يسقط مع نوعه: بريدٌ صار نصًّا حرًّا لا يُنسخ إلى عمود البريد.
+      contactRole: contactRole && contactRole in roleFor ? contactRole : null,
       condition: buildCondition(),
     });
   };
@@ -121,6 +139,8 @@ export function FieldEditor({
           {(props) => (
             <Input
               {...props}
+              // التركيز عند فتح المحرّر: النقر على «تعديل» يجب أن يُرى أثره.
+              autoFocus
               value={labelAr}
               onChange={(event) => setLabelAr(event.target.value)}
               placeholder="ما اسمك الكامل؟"
@@ -371,6 +391,33 @@ export function FieldEditor({
           </p>
         ) : null}
       </div>
+
+      {Object.keys(roleFor).length > 0 ? (
+        <div className="space-y-1.5">
+          <Label htmlFor="field-contact-role">دور السؤال في ملف المتقدّم</Label>
+
+          <select
+            id="field-contact-role"
+            className={selectClass}
+            value={contactRole}
+            onChange={(event) =>
+              setContactRole(event.target.value as ContactRole | "")
+            }
+          >
+            <option value="">لا دور — سؤال عادي</option>
+            {Object.keys(roleFor).map((role) => (
+              <option key={role} value={role}>
+                {CONTACT_ROLE_LABELS[role as ContactRole]}
+              </option>
+            ))}
+          </select>
+
+          <p className="text-xs text-muted-foreground">
+            يُستخرج إلى عمود مستقل فيصير الطلب قابلًا للفرز، ودور البريد هو
+            الذي تصله نسخة الطلب.
+          </p>
+        </div>
+      ) : null}
 
       <Button
         type="button"

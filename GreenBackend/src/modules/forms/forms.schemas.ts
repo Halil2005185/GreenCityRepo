@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js'
+import { introDocSchema } from './intro.schemas.js'
 import { bearerAuth, problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
 
@@ -93,6 +94,9 @@ export const formSummarySchema = registry.register(
     slug: z.string(),
     nameAr: z.string(),
     descriptionAr: z.string().nullable(),
+    /** مقدّمة تظهر فوق الاستمارة للزائر — مستند مهيكل لا HTML. */
+    introJson: introDocSchema.nullable(),
+    coverImageUrl: z.url().nullable(),
     officeId: z.uuid().nullable(),
     officeNameAr: z.string().nullable(),
     isAccepting: z.boolean(),
@@ -129,6 +133,8 @@ export const updateFormBodySchema = z
   .object({
     nameAr: z.string().trim().min(2).max(160).optional(),
     descriptionAr: z.string().trim().max(1000).nullable().optional(),
+    introJson: introDocSchema.nullable().optional(),
+    coverImageUrl: z.url().max(500).nullable().optional(),
     officeId: z.uuid().nullable().optional(),
     isAccepting: z.boolean().optional(),
   })

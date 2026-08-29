@@ -2,6 +2,22 @@ import { apiFetch } from "./client";
 import type { components } from "./types.gen";
 
 export type FormSummary = components["schemas"]["FormSummary"];
+export type ContactRole = NonNullable<
+  components["schemas"]["FormField"]["contactRole"]
+>;
+
+export const CONTACT_ROLE_LABELS: Record<ContactRole, string> = {
+  NAME: "اسم المتقدّم",
+  EMAIL: "بريد المتقدّم",
+  PHONE: "هاتف المتقدّم",
+};
+
+/** الدور ونوعه: الخادم يفرض هذا الاقتران، والواجهة تعرض ما يقبله. */
+export const CONTACT_ROLE_TYPES: Record<ContactRole, string> = {
+  NAME: "TEXT",
+  EMAIL: "EMAIL",
+  PHONE: "PHONE",
+};
 export type FormDetail = components["schemas"]["FormDetail"];
 export type FormVersion = components["schemas"]["FormVersion"];
 export type FormField = components["schemas"]["FormField"];
@@ -54,6 +70,8 @@ export type FieldInput = {
   minSelections?: number | null;
   maxSelections?: number | null;
   maxLength?: number | null;
+  /** يربط السؤال بعمود في ملف المتقدّم — الاسم أو البريد أو الهاتف. */
+  contactRole?: ContactRole | null;
   options: Array<{ value: string; labelAr: string }>;
   condition?: FieldCondition | null;
 };
@@ -87,6 +105,8 @@ export function updateForm(
   input: {
     nameAr?: string;
     descriptionAr?: string | null;
+    introJson?: FormDetail["introJson"];
+    coverImageUrl?: string | null;
     officeId?: string | null;
     isAccepting?: boolean;
   },

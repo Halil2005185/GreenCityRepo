@@ -527,3 +527,93 @@ describe.runIf(ready)('field limits', () => {
     })
   })
 })
+
+describe.runIf(ready)('editing a question', () => {
+  let token = ''
+  let formId = ''
+
+  beforeEach(async () => {
+    await resetDatabase()
+    await runSeed({ quiet: true })
+
+    await createStaffUser({
+      email: 'lead@greencities.test',
+      roleSlug: 'PEOPLE',
+      officeSlug: 'people',
+    })
+
+    token = (await login('lead@greencities.test')).accessToken
+
+    const created = await request(app)
+      .post('/api/admin/forms')
+      .set('authorization', bearer(token))
+      .send({ slug: 'join', nameAr: 'استمارة الانضمام' })
+      .expect(201)
+
+    formId = created.body.data.id
+  })
+
+  const addField = (body: Record<string, unknown>) =>
+    request(app)
+      .post(`/api/admin/forms/${formId}/fields`)
+      .set('authorization', bearer(token))
+      .send({ isRequired: false, options: [], ...body })
+
+  it('changes the contact role of a question that already exists', async () => {
+    const created = await addField({
+      key: 'email',
+      labelAr: 'البريد',
+      type: 'EMAIL',
+    }).expect(201)
+
+    expect(created.body.data.contactRole).toBeNull()
+
+    const updated = await request(app)
+      .patch(`/api/admin/forms/${formId}/fields/${created.body.data.id}`)
+      .set('authorization', bearer(token))
+      .send({
+        key: 'email',
+        labelAr: 'البريد الإلكتروني',
+        type: 'EMAIL',
+        isRequired: true,
+        options: [],
+        contactRole: 'EMAIL',
+      })
+      .expect(200)
+
+    // الدور كان يسقط من التعديل، فلا يُضبط إلا عند الإنشاء.
+    expect(updated.body.data.contactRole).toBe('EMAIL')
+
+    const cleared = await request(app)
+      .patch(`/api/admin/forms/${formId}/fields/${created.body.data.id}`)
+      .set('authorization', bearer(token))
+      .send({
+        key: 'email',
+        labelAr: 'البريد الإلكتروني',
+        type: 'EMAIL',
+        isRequired: true,
+        options: [],
+      })
+      .expect(200)
+
+    expect(cleared.body.data.contactRole).toBeNull()
+  })
+
+  it('refuses to hand one role to two questions, and names the holder', async () => {
+    await addField({
+      key: 'email',
+      labelAr: 'البريد',
+      type: 'EMAIL',
+      contactRole: 'EMAIL',
+    }).expect(201)
+
+    const second = await addField({
+      key: 'work_email',
+      labelAr: 'بريد العمل',
+      type: 'EMAIL',
+      contactRole: 'EMAIL',
+    }).expect(409)
+
+    expect(second.body.detail).toContain('البريد')
+  })
+})

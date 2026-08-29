@@ -1,8 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { IBM_Plex_Sans_Arabic } from "next/font/google";
 
-import { SiteFooter } from "@/components/layout/site-footer";
-import { SiteHeader } from "@/components/layout/site-header";
 import { siteConfig } from "@/lib/site";
 
 import "./globals.css";
@@ -56,20 +54,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="ar" dir="rtl" className={plexArabic.variable}>
-      <body className="flex min-h-dvh flex-col font-sans">
-        {/* أول ما يصله التركيز: تخطّي شريط التنقل إلى المحتوى. */}
-        <a
-          href="#main"
-          className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:start-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
-        >
-          تخطَّ إلى المحتوى
-        </a>
-        <SiteHeader />
-        <main id="main" className="flex-1">
-          {children}
-        </main>
-        <SiteFooter />
-      </body>
+      {/*
+        الجذر يحمل اللغة والاتجاه والخط فقط. القشرة — الشريط والتذييل —
+        في `(site)`، وصفحة الاستمارة في `(form)` بلا قشرة.
+      */}
+      <body className="font-sans">{children}</body>
     </html>
   );
 }

@@ -107,6 +107,8 @@ async function requireForm(formId: string) {
       slug: forms.slug,
       nameAr: forms.nameAr,
       descriptionAr: forms.descriptionAr,
+      introJson: forms.introJson,
+      coverImageUrl: forms.coverImageUrl,
       officeId: forms.officeId,
       officeNameAr: offices.nameAr,
       isAccepting: forms.isAccepting,
@@ -193,6 +195,8 @@ export async function listForms() {
       slug: forms.slug,
       nameAr: forms.nameAr,
       descriptionAr: forms.descriptionAr,
+      introJson: forms.introJson,
+      coverImageUrl: forms.coverImageUrl,
       officeId: forms.officeId,
       officeNameAr: offices.nameAr,
       isAccepting: forms.isAccepting,
@@ -314,6 +318,10 @@ export async function updateForm(
       ...(body.descriptionAr === undefined
         ? {}
         : { descriptionAr: body.descriptionAr }),
+      ...(body.introJson === undefined ? {} : { introJson: body.introJson }),
+      ...(body.coverImageUrl === undefined
+        ? {}
+        : { coverImageUrl: body.coverImageUrl }),
       ...(body.officeId === undefined ? {} : { officeId: body.officeId }),
       ...(body.isAccepting === undefined
         ? {}
@@ -453,6 +461,36 @@ function assertConditionValue(
   }
 }
 
+const CONTACT_ROLE_LABELS = {
+  NAME: 'اسم المتقدّم',
+  EMAIL: 'بريد المتقدّم',
+  PHONE: 'هاتف المتقدّم',
+} as const
+
+/**
+ * الدور واحد لكل إصدار — فهرس فريد يفرضه في القاعدة.
+ *
+ * الفحص هنا ليس تكرارًا للفهرس بل ترجمةً له: بدونه يصل الموظف خطأ قاعدة
+ * خامًا لا يقول أي سؤال يحمل الدور أصلًا.
+ */
+function assertContactRoleFree(
+  role: FieldBody['contactRole'],
+  siblings: Array<{ id: string; labelAr: string; contactRole: string | null }>,
+  exceptId?: string,
+) {
+  if (!role) return
+
+  const taken = siblings.find(
+    (field) => field.contactRole === role && field.id !== exceptId,
+  )
+
+  if (taken) {
+    throw errors.conflict(
+      `دور «${CONTACT_ROLE_LABELS[role]}» مأخوذ في السؤال «${taken.labelAr}». اسحبه منه أولًا.`,
+    )
+  }
+}
+
 export async function addField(formId: string, body: FieldBody) {
   const draft = await requireDraft(formId)
   const siblings = await fieldsOf(draft.id)
@@ -466,6 +504,7 @@ export async function addField(formId: string, body: FieldBody) {
 
   assertConditionOrder(body.condition, displayOrder, siblings)
   assertConditionValue(body.condition, siblings)
+  assertContactRoleFree(body.contactRole, siblings)
 
   const [created] = await db
     .insert(formFields)
@@ -508,6 +547,7 @@ export async function updateField(
 
   assertConditionOrder(body.condition, current.displayOrder, siblings)
   assertConditionValue(body.condition, siblings)
+  assertContactRoleFree(body.contactRole, siblings, fieldId)
 
   // تغيير المفتاح يكسر أي شرط يشير إليه بالاسم القديم.
   if (body.key !== current.key) {
@@ -533,6 +573,8 @@ export async function updateField(
       minSelections: body.minSelections ?? null,
       maxSelections: body.maxSelections ?? null,
       maxLength: body.maxLength ?? null,
+      // كان الدور يسقط من التعديل فلا يُغيَّر ولا يُسحب بعد الإنشاء.
+      contactRole: body.contactRole ?? null,
       options: body.options,
       ...conditionColumns(body.condition),
     })

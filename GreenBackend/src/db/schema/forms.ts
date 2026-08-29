@@ -36,6 +36,18 @@ export const forms = pgTable(
     nameAr: varchar('name_ar', { length: 160 }).notNull(),
     descriptionAr: text('description_ar'),
 
+    /**
+     * مقدّمة الاستمارة كما تظهر فوقها للزائر — مستند ProseMirror لا HTML.
+     *
+     * تخزين HTML من محرّر يعني أن نصًّا يكتبه موظف يصل متصفّح زائر كما هو،
+     * فيصير تعقيمه شرطًا لا يُنسى مرة واحدة. والمستند المهيكل يُتحقّق من
+     * شكله عقدةً عقدة ويُصيَّر عناصرَ React، فلا يوجد سطح حقن أصلًا.
+     */
+    introJson: jsonb('intro_json'),
+
+    /** صورة عرضية فوق المقدّمة. رابط لا رفع — رفع الملفات لم يُبنَ بعد. */
+    coverImageUrl: varchar('cover_image_url', { length: 500 }),
+
     /** المكتب المسؤول عن فرز طلبات هذه الاستمارة. */
     officeId: uuidColumn('office_id').references(() => offices.id, {
       onDelete: 'restrict',
