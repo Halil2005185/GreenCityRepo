@@ -4675,6 +4675,25 @@
           "createdAt",
           "memberships"
         ]
+      },
+      "SignedUpload": {
+        "type": "object",
+        "properties": {
+          "uploadUrl": {
+            "type": "string"
+          },
+          "publicUrl": {
+            "type": "string"
+          },
+          "expiresInSeconds": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "uploadUrl",
+          "publicUrl",
+          "expiresInSeconds"
+        ]
       }
     },
     "parameters": {}
@@ -12185,6 +12204,93 @@
           },
           "404": {
             "description": "لا يوجد عضو فريق بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/uploads/sign": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "رابط رفع موقّع",
+        "description": "يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "purpose": {
+                    "type": "string",
+                    "enum": [
+                      "FORM_COVER",
+                      "INITIATIVE_COVER",
+                      "GREEN_POINT_COVER"
+                    ]
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 100
+                  },
+                  "size": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "purpose",
+                  "contentType",
+                  "size"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "وُقِّع",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SignedUpload"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة التي يتطلبها الغرض",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "نوع أو حجم غير مسموح، أو التخزين غير مهيّأ",
             "content": {
               "application/problem+json": {
                 "schema": {

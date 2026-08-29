@@ -127,6 +127,50 @@ openssl rand -base64 32   # JWT_ACCESS_SECRET
 
 استعمل فرع Neon مخصصًا للإنتاج لا الفرع الذي تطوّر عليه. واقرأ تعليقات الملف قبل تغيير `AUTH_COOKIE_DOMAIN` أو `TRUST_PROXY`.
 
+### 6. تخزين الملفات — Cloudflare R2
+
+الرفع يذهب من متصفح الموظف إلى R2 مباشرة، والخادم يوقّعه فقط: الملف لا يمرّ
+بالـVPS، فلا يستهلك ذاكرته ولا نطاقه. أربع خطوات في لوحة Cloudflare:
+
+**١. أنشئ السطل**: R2 → Create bucket. المستعمل اليوم `greencities-media`،
+والموقع تلقائي. لا تجعله عامًا من هنا.
+
+**٢. أنشئ مفتاح API**: R2 → Manage R2 API Tokens → Create API token، بصلاحية
+**Object Read & Write** — لا Read only، فالرفع كتابة — ومقصورة على هذا السطل
+وحده لا على كل سطول الحساب. تظهر لك قيمتان: `Access Key ID`
+و`Secret Access Key` — **السرّ يظهر مرة واحدة**، انسخه فورًا إلى `.env` على
+الخادم ولا تودعه في Git ولا ترسله في محادثة.
+
+**٣. اربط نطاقًا للقراءة**: السطل → Settings → Public access → Connect Domain،
+المستعمل اليوم `media.evavolunteer.com` (يجب أن يكون النطاق على الحساب نفسه).
+هذا وحده ما يُقرأ منه علنًا، وقيمة `R2_PUBLIC_BASE_URL` هي
+`https://media.evavolunteer.com`. القراءة تمرّ بشبكة Cloudflare
+فتُخزَّن مؤقتًا، والمفاتيح تحمل معرّفًا عشوائيًا فلا يتغيّر محتواها أبدًا.
+
+**٤. اسمح للوحة بالرفع (CORS)**: السطل → Settings → CORS Policy:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://gc-admin.evavolunteer.com",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": ["PUT"],
+    "AllowedHeaders": ["content-type"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+بدونها يرفض المتصفح الرفع قبل أن يبدأ. و`PUT` وحدها تكفي: القراءة تمرّ
+بالنطاق المربوط لا بنقطة S3. وأصل اللوحة وحده — الموقع العام لا يرفع شيئًا
+اليوم، ويوم يرفع (سؤال يطلب ملفًا) يُضاف أصله هنا بحدوده الخاصة.
+
+ثم املأ في `.env`: `R2_ACCOUNT_ID` و`R2_BUCKET` و`R2_ACCESS_KEY_ID`
+و`R2_SECRET_ACCESS_KEY` و`R2_PUBLIC_BASE_URL`، وأعد تشغيل الحاوية. وقبل ذلك
+يعمل النظام كاملًا، ويردّ مسار الرفع وحده بأن التخزين غير مهيّأ.
+
 ## النشر
 
 ```bash

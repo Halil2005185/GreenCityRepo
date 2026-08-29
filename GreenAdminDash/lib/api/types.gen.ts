@@ -5312,6 +5312,74 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/uploads/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * رابط رفع موقّع
+         * @description يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        purpose: "FORM_COVER" | "INITIATIVE_COVER" | "GREEN_POINT_COVER";
+                        contentType: string;
+                        size: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description وُقِّع */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SignedUpload"];
+                        };
+                    };
+                };
+                /** @description لا يملك القدرة التي يتطلبها الغرض */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description نوع أو حجم غير مسموح، أو التخزين غير مهيّأ */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6375,6 +6443,11 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             memberships: components["schemas"]["TeamMembership"][];
+        };
+        SignedUpload: {
+            uploadUrl: string;
+            publicUrl: string;
+            expiresInSeconds: number;
         };
     };
     responses: never;

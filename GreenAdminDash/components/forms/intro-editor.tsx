@@ -14,7 +14,7 @@ import {
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { Field, Input } from "@/components/ui/field";
+import { ImageField } from "@/components/ui/image-field";
 import type { FormDetail } from "@/lib/api/forms";
 import { cn } from "@/lib/utils";
 
@@ -117,33 +117,13 @@ export function IntroEditor({
 
   return (
     <div className="space-y-4">
-      <Field
-        id="coverImageUrl"
+      <ImageField
         label="صورة عرضية"
-        hint="رابط صورة تظهر فوق المقدّمة. مؤقت حتى يُبنى رفع الملفات."
-      >
-        {(props) => (
-          <Input
-            {...props}
-            type="url"
-            dir="ltr"
-            className="text-start"
-            placeholder="https://…"
-            value={cover}
-            onChange={(event) => setCover(event.target.value)}
-          />
-        )}
-      </Field>
-
-      {cover ? (
-        // معاينة الرابط قبل النشر: رابط مكسور يُكتشف هنا لا على صفحة عامة.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={cover}
-          alt=""
-          className="h-40 w-full rounded-lg border border-border object-cover"
-        />
-      ) : null}
+        hint="تظهر في رأس الاستمارة. JPEG أو PNG أو WebP، حتى خمسة ميغابايت."
+        value={cover || null}
+        purpose="FORM_COVER"
+        onChange={(url) => setCover(url ?? "")}
+      />
 
       <div className="space-y-1.5">
         <p className="text-sm font-medium">المقدّمة</p>
