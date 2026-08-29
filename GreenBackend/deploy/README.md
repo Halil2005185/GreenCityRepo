@@ -132,17 +132,19 @@ openssl rand -base64 32   # JWT_ACCESS_SECRET
 الرفع يذهب من متصفح الموظف إلى R2 مباشرة، والخادم يوقّعه فقط: الملف لا يمرّ
 بالـVPS، فلا يستهلك ذاكرته ولا نطاقه. أربع خطوات في لوحة Cloudflare:
 
-**١. أنشئ السطل**: R2 → Create bucket → اسم مثل `greencities-media`. الموقع
-تلقائي. لا تجعله عامًا من هنا.
+**١. أنشئ السطل**: R2 → Create bucket. المستعمل اليوم `greencities-media`،
+والموقع تلقائي. لا تجعله عامًا من هنا.
 
 **٢. أنشئ مفتاح API**: R2 → Manage R2 API Tokens → Create API token، بصلاحية
-**Object Read & Write** مقصورة على هذا السطل. تظهر لك قيمتان: `Access Key ID`
+**Object Read & Write** — لا Read only، فالرفع كتابة — ومقصورة على هذا السطل
+وحده لا على كل سطول الحساب. تظهر لك قيمتان: `Access Key ID`
 و`Secret Access Key` — **السرّ يظهر مرة واحدة**، انسخه فورًا إلى `.env` على
 الخادم ولا تودعه في Git ولا ترسله في محادثة.
 
 **٣. اربط نطاقًا للقراءة**: السطل → Settings → Public access → Connect Domain،
-مثل `media.evavolunteer.com` (يجب أن يكون النطاق على الحساب نفسه). هذا وحده ما
-يُقرأ منه علنًا، وهو قيمة `R2_PUBLIC_BASE_URL`. القراءة تمرّ بشبكة Cloudflare
+المستعمل اليوم `media.evavolunteer.com` (يجب أن يكون النطاق على الحساب نفسه).
+هذا وحده ما يُقرأ منه علنًا، وقيمة `R2_PUBLIC_BASE_URL` هي
+`https://media.evavolunteer.com`. القراءة تمرّ بشبكة Cloudflare
 فتُخزَّن مؤقتًا، والمفاتيح تحمل معرّفًا عشوائيًا فلا يتغيّر محتواها أبدًا.
 
 **٤. اسمح للوحة بالرفع (CORS)**: السطل → Settings → CORS Policy:
