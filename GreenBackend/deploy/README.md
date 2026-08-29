@@ -152,7 +152,10 @@ openssl rand -base64 32   # JWT_ACCESS_SECRET
 ```json
 [
   {
-    "AllowedOrigins": ["https://<أصل-اللوحة>", "http://localhost:3000"],
+    "AllowedOrigins": [
+      "https://gc-admin.evavolunteer.com",
+      "http://localhost:3000"
+    ],
     "AllowedMethods": ["PUT"],
     "AllowedHeaders": ["content-type"],
     "MaxAgeSeconds": 3600
@@ -161,7 +164,8 @@ openssl rand -base64 32   # JWT_ACCESS_SECRET
 ```
 
 بدونها يرفض المتصفح الرفع قبل أن يبدأ. و`PUT` وحدها تكفي: القراءة تمرّ
-بالنطاق المربوط لا بنقطة S3.
+بالنطاق المربوط لا بنقطة S3. وأصل اللوحة وحده — الموقع العام لا يرفع شيئًا
+اليوم، ويوم يرفع (سؤال يطلب ملفًا) يُضاف أصله هنا بحدوده الخاصة.
 
 ثم املأ في `.env`: `R2_ACCOUNT_ID` و`R2_BUCKET` و`R2_ACCESS_KEY_ID`
 و`R2_SECRET_ACCESS_KEY` و`R2_PUBLIC_BASE_URL`، وأعد تشغيل الحاوية. وقبل ذلك
