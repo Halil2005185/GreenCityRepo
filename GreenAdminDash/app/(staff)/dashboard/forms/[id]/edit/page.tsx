@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, ChevronDown, ChevronUp, Pencil, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { FieldEditor } from "@/components/forms/field-editor";
 import { FormPreview } from "@/components/forms/form-preview";
+import { IntroEditor } from "@/components/forms/intro-editor";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -22,6 +23,7 @@ import {
   CONDITION_OP_LABELS,
   FIELD_TYPE_LABELS,
   type FieldInput,
+  type FormDetail,
   type FormField,
   addField,
   deleteField,
@@ -38,9 +40,20 @@ export default function FormBuilderPage() {
 
   const [editing, setEditing] = useState<FormField | null>(null);
   const [adding, setAdding] = useState(false);
+  const editorRef = useRef<HTMLDivElement | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const form = useQuery({ queryKey: ["forms", id], queryFn: () => getForm(id) });
+
+  /**
+   * محرّر السؤال يفتح أسفل القائمة، فالنقر على «تعديل» في استمارة طويلة
+   * كان لا يُحدث شيئًا مرئيًا — الاستمارة تُقرأ فلا تُنشأ إلا طويلة.
+   */
+  useEffect(() => {
+    if (!editing && !adding) return;
+
+    editorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [editing, adding]);
 
   const refresh = () => {
     void queryClient.invalidateQueries({ queryKey: ["forms", id] });
@@ -81,6 +94,20 @@ export default function FormBuilderPage() {
       setError(null);
       refresh();
     },
+    onError: report,
+  });
+
+  /**
+   * المقدّمة والصورة على الاستمارة لا على الإصدار: تصحيح جملة في الشرح لا
+   * يستحق إصدارًا جديدًا ولا يغيّر ما وقّع عليه من قدّم من قبل — الأسئلة
+   * وحدها هي العقد المجمَّد.
+   */
+  const intro = useMutation({
+    mutationFn: (input: {
+      introJson: FormDetail["introJson"];
+      coverImageUrl: string | null;
+    }) => updateForm(id, input),
+    onSuccess: refresh,
     onError: report,
   });
 
@@ -199,8 +226,28 @@ export default function FormBuilderPage() {
 
       {error ? <Alert>{error}</Alert> : null}
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+      <div className="grid items-start gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>رأس الاستمارة</CardTitle>
+              <CardDescription>
+                الصورة والمقدّمة تعلوان الأسئلة في صفحة الاستمارة. تُحفظ
+                فورًا ولا تنتظر نشر إصدار.
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent>
+              <IntroEditor
+                intro={form.data.introJson}
+                coverImageUrl={form.data.coverImageUrl}
+                saving={intro.isPending}
+                onSave={(input) => intro.mutate(input)}
+              />
+            </CardContent>
+          </Card>
+
+          <Card>
           <CardHeader>
             <CardTitle>{form.data.nameAr}</CardTitle>
             <CardDescription>
@@ -307,10 +354,13 @@ export default function FormBuilderPage() {
             )}
 
             {adding || editing ? (
-              <div className="rounded-md border border-primary/40 bg-muted/30 p-3">
+              <div
+                ref={editorRef}
+                className="rounded-md border border-primary/40 bg-muted/30 p-3"
+              >
                 <div className="mb-3 flex items-center justify-between">
                   <p className="text-sm font-medium">
-                    {editing ? "تعديل سؤال" : "سؤال جديد"}
+                    {editing ? `تعديل: ${editing.labelAr}` : "سؤال جديد"}
                   </p>
 
                   <Button
@@ -350,6 +400,8 @@ export default function FormBuilderPage() {
           </CardContent>
         </Card>
 
+        </div>
+
         <Card>
           <CardHeader>
             <CardTitle>المعاينة</CardTitle>
@@ -358,7 +410,32 @@ export default function FormBuilderPage() {
             </CardDescription>
           </CardHeader>
 
-          <CardContent>
+          <CardContent className="space-y-5">
+            <div className="space-y-3 rounded-xl border border-border p-4">
+              {form.data.coverImageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={form.data.coverImageUrl}
+                  alt=""
+                  className="aspect-[16/7] w-full rounded-lg object-cover"
+                />
+              ) : null}
+
+              <h2 className="text-lg font-bold">{form.data.nameAr}</h2>
+
+              {form.data.descriptionAr ? (
+                <p className="text-sm text-muted-foreground">
+                  {form.data.descriptionAr}
+                </p>
+              ) : null}
+
+              {form.data.introJson ? (
+                <p className="text-xs text-muted-foreground">
+                  المقدّمة تظهر هنا كما حُرِّرت أعلاه.
+                </p>
+              ) : null}
+            </div>
+
             <FormPreview fields={fields} />
           </CardContent>
         </Card>

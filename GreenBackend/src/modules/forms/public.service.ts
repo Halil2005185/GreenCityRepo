@@ -29,6 +29,8 @@ export async function getPublicForm(slug: string) {
       slug: forms.slug,
       nameAr: forms.nameAr,
       descriptionAr: forms.descriptionAr,
+      introJson: forms.introJson,
+      coverImageUrl: forms.coverImageUrl,
       isAccepting: forms.isAccepting,
       versionId: formVersions.id,
       version: formVersions.version,
@@ -60,6 +62,8 @@ export async function getPublicForm(slug: string) {
     slug: form.slug,
     nameAr: form.nameAr,
     descriptionAr: form.descriptionAr,
+    introJson: form.introJson,
+    coverImageUrl: form.coverImageUrl,
     isAccepting: form.isAccepting,
     version: form.version,
     fields: fields.map((field) => ({

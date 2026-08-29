@@ -976,6 +976,91 @@ export interface paths {
                     "application/json": {
                         nameAr?: string;
                         descriptionAr?: string | null;
+                        introJson?: {
+                            /** @enum {string} */
+                            type: "doc";
+                            content: ({
+                                /** @enum {string} */
+                                type: "paragraph";
+                                content?: ({
+                                    /** @enum {string} */
+                                    type: "text";
+                                    text: string;
+                                    marks?: ({
+                                        /** @enum {string} */
+                                        type: "bold" | "italic";
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "link";
+                                        attrs: {
+                                            /** Format: uri */
+                                            href: string;
+                                        };
+                                    })[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "hardBreak";
+                                })[];
+                            } | {
+                                /** @enum {string} */
+                                type: "heading";
+                                attrs: {
+                                    /** @enum {number} */
+                                    level: 3;
+                                };
+                                content?: ({
+                                    /** @enum {string} */
+                                    type: "text";
+                                    text: string;
+                                    marks?: ({
+                                        /** @enum {string} */
+                                        type: "bold" | "italic";
+                                    } | {
+                                        /** @enum {string} */
+                                        type: "link";
+                                        attrs: {
+                                            /** Format: uri */
+                                            href: string;
+                                        };
+                                    })[];
+                                } | {
+                                    /** @enum {string} */
+                                    type: "hardBreak";
+                                })[];
+                            } | {
+                                /** @enum {string} */
+                                type: "bulletList" | "orderedList";
+                                content: {
+                                    /** @enum {string} */
+                                    type: "listItem";
+                                    content: {
+                                        /** @enum {string} */
+                                        type: "paragraph";
+                                        content?: ({
+                                            /** @enum {string} */
+                                            type: "text";
+                                            text: string;
+                                            marks?: ({
+                                                /** @enum {string} */
+                                                type: "bold" | "italic";
+                                            } | {
+                                                /** @enum {string} */
+                                                type: "link";
+                                                attrs: {
+                                                    /** Format: uri */
+                                                    href: string;
+                                                };
+                                            })[];
+                                        } | {
+                                            /** @enum {string} */
+                                            type: "hardBreak";
+                                        })[];
+                                    }[];
+                                }[];
+                            })[];
+                        } | null;
+                        /** Format: uri */
+                        coverImageUrl?: string | null;
                         /** Format: uuid */
                         officeId?: string | null;
                         isAccepting?: boolean;
@@ -5418,6 +5503,91 @@ export interface components {
             slug: string;
             nameAr: string;
             descriptionAr: string | null;
+            introJson: {
+                /** @enum {string} */
+                type: "doc";
+                content: ({
+                    /** @enum {string} */
+                    type: "paragraph";
+                    content?: ({
+                        /** @enum {string} */
+                        type: "text";
+                        text: string;
+                        marks?: ({
+                            /** @enum {string} */
+                            type: "bold" | "italic";
+                        } | {
+                            /** @enum {string} */
+                            type: "link";
+                            attrs: {
+                                /** Format: uri */
+                                href: string;
+                            };
+                        })[];
+                    } | {
+                        /** @enum {string} */
+                        type: "hardBreak";
+                    })[];
+                } | {
+                    /** @enum {string} */
+                    type: "heading";
+                    attrs: {
+                        /** @enum {number} */
+                        level: 3;
+                    };
+                    content?: ({
+                        /** @enum {string} */
+                        type: "text";
+                        text: string;
+                        marks?: ({
+                            /** @enum {string} */
+                            type: "bold" | "italic";
+                        } | {
+                            /** @enum {string} */
+                            type: "link";
+                            attrs: {
+                                /** Format: uri */
+                                href: string;
+                            };
+                        })[];
+                    } | {
+                        /** @enum {string} */
+                        type: "hardBreak";
+                    })[];
+                } | {
+                    /** @enum {string} */
+                    type: "bulletList" | "orderedList";
+                    content: {
+                        /** @enum {string} */
+                        type: "listItem";
+                        content: {
+                            /** @enum {string} */
+                            type: "paragraph";
+                            content?: ({
+                                /** @enum {string} */
+                                type: "text";
+                                text: string;
+                                marks?: ({
+                                    /** @enum {string} */
+                                    type: "bold" | "italic";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "link";
+                                    attrs: {
+                                        /** Format: uri */
+                                        href: string;
+                                    };
+                                })[];
+                            } | {
+                                /** @enum {string} */
+                                type: "hardBreak";
+                            })[];
+                        }[];
+                    }[];
+                })[];
+            } | null;
+            /** Format: uri */
+            coverImageUrl: string | null;
             /** Format: uuid */
             officeId: string | null;
             officeNameAr: string | null;
@@ -5456,6 +5626,91 @@ export interface components {
             slug: string;
             nameAr: string;
             descriptionAr: string | null;
+            introJson: {
+                /** @enum {string} */
+                type: "doc";
+                content: ({
+                    /** @enum {string} */
+                    type: "paragraph";
+                    content?: ({
+                        /** @enum {string} */
+                        type: "text";
+                        text: string;
+                        marks?: ({
+                            /** @enum {string} */
+                            type: "bold" | "italic";
+                        } | {
+                            /** @enum {string} */
+                            type: "link";
+                            attrs: {
+                                /** Format: uri */
+                                href: string;
+                            };
+                        })[];
+                    } | {
+                        /** @enum {string} */
+                        type: "hardBreak";
+                    })[];
+                } | {
+                    /** @enum {string} */
+                    type: "heading";
+                    attrs: {
+                        /** @enum {number} */
+                        level: 3;
+                    };
+                    content?: ({
+                        /** @enum {string} */
+                        type: "text";
+                        text: string;
+                        marks?: ({
+                            /** @enum {string} */
+                            type: "bold" | "italic";
+                        } | {
+                            /** @enum {string} */
+                            type: "link";
+                            attrs: {
+                                /** Format: uri */
+                                href: string;
+                            };
+                        })[];
+                    } | {
+                        /** @enum {string} */
+                        type: "hardBreak";
+                    })[];
+                } | {
+                    /** @enum {string} */
+                    type: "bulletList" | "orderedList";
+                    content: {
+                        /** @enum {string} */
+                        type: "listItem";
+                        content: {
+                            /** @enum {string} */
+                            type: "paragraph";
+                            content?: ({
+                                /** @enum {string} */
+                                type: "text";
+                                text: string;
+                                marks?: ({
+                                    /** @enum {string} */
+                                    type: "bold" | "italic";
+                                } | {
+                                    /** @enum {string} */
+                                    type: "link";
+                                    attrs: {
+                                        /** Format: uri */
+                                        href: string;
+                                    };
+                                })[];
+                            } | {
+                                /** @enum {string} */
+                                type: "hardBreak";
+                            })[];
+                        }[];
+                    }[];
+                })[];
+            } | null;
+            /** Format: uri */
+            coverImageUrl: string | null;
             isAccepting: boolean;
             version: number;
             fields: components["schemas"]["PublicFormField"][];

@@ -127,10 +127,39 @@ export type PublicFormField = {
   } | null;
 };
 
+/**
+ * مقدّمة الاستمارة: مستند ProseMirror بقائمة سماح صريحة، مرآةٌ لما يقبله
+ * الخادم في `intro.schemas.ts`. لا HTML هنا ولا في القاعدة.
+ */
+export type PublicIntroMark =
+  | { type: "bold" | "italic" }
+  | { type: "link"; attrs: { href: string } };
+
+export type PublicIntroInline =
+  | { type: "text"; text: string; marks?: PublicIntroMark[] }
+  | { type: "hardBreak"; text?: undefined; marks?: undefined };
+
+export type PublicIntroParagraph = {
+  type: "paragraph";
+  content?: PublicIntroInline[];
+};
+
+export type PublicIntroNode =
+  | PublicIntroParagraph
+  | { type: "heading"; attrs: { level: 3 }; content?: PublicIntroInline[] }
+  | {
+      type: "bulletList" | "orderedList";
+      content: Array<{ type: "listItem"; content: PublicIntroParagraph[] }>;
+    };
+
+export type PublicIntroDoc = { type: "doc"; content: PublicIntroNode[] };
+
 export type PublicForm = {
   slug: string;
   nameAr: string;
   descriptionAr: string | null;
+  introJson: PublicIntroDoc | null;
+  coverImageUrl: string | null;
   isAccepting: boolean;
   version: number;
   fields: PublicFormField[];

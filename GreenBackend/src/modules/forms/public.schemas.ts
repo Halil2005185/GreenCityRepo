@@ -1,4 +1,5 @@
 import { env } from '../../config/env.js'
+import { introDocSchema } from './intro.schemas.js'
 import { problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
 
@@ -34,6 +35,9 @@ export const publicFormSchema = registry.register(
     slug: z.string(),
     nameAr: z.string(),
     descriptionAr: z.string().nullable(),
+    /** المقدّمة والصورة — ما يُصيَّر فوق الأسئلة. */
+    introJson: introDocSchema.nullable(),
+    coverImageUrl: z.url().nullable(),
     isAccepting: z.boolean(),
     version: z.number().int(),
     fields: z.array(publicFieldSchema),
