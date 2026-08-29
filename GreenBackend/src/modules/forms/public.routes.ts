@@ -28,11 +28,15 @@ const getForm: RequestHandler = async (request, response) => {
 }
 
 const postSubmission: RequestHandler = async (request, response) => {
-  const body = request.body as { answers: Record<string, unknown> }
+  const body = request.body as {
+    answers: Record<string, unknown>
+    sendCopy?: boolean
+  }
 
   await service.submitForm({
     slug: readSlug(request.params['slug']),
     answers: body.answers,
+    sendCopy: body.sendCopy,
     ip: request.ip,
     salt: env.JWT_ACCESS_SECRET,
   })

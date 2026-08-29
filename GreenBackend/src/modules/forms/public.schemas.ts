@@ -12,6 +12,8 @@ export const publicFieldSchema = registry.register(
     hintAr: z.string().nullable(),
     type: z.string(),
     isRequired: z.boolean(),
+    /** هذا هو حقل البريد الذي تصله نسخة الطلب، فتعرف الواجهة متى تعرض الخيار. */
+    isContactEmail: z.boolean(),
     minSelections: z.number().int().nullable(),
     maxSelections: z.number().int().nullable(),
     maxLength: z.number().int().nullable(),
@@ -45,6 +47,12 @@ export const publicFormSchema = registry.register(
  */
 export const submitBodySchema = z.object({
   answers: z.record(z.string(), z.unknown()),
+  /**
+   * نسخة إلى بريد المتقدّم نفسه. تُهمَل بلا خطأ إن لم تحمل الاستمارة حقل
+   * بريد أو تُرك فارغًا: المتقدّم طلب نسخة ولم يعطِ عنوانًا، وردّ الطلب
+   * كله لأجل هذا يخسر البيانات لأجل خدمة جانبية.
+   */
+  sendCopy: z.boolean().optional(),
 })
 
 registry.registerPath({
@@ -73,7 +81,7 @@ registry.registerPath({
   tags: ['Public'],
   summary: 'تقديم طلب',
   description:
-    'بلا مصادقة. يعيد 202 بلا جسم ولا معرّف. التحقق كامل على الخادم: الإلزام والشرطية والأنواع والحدود والانتماء إلى الخيارات.',
+    'بلا مصادقة. يعيد 202 بلا جسم ولا معرّف. التحقق كامل على الخادم: الإلزام والشرطية والأنواع والحدود والانتماء إلى الخيارات. وعلم sendCopy يُدرج نسخة من الإجابات في صندوق البريد الصادر إلى عنوان المتقدّم نفسه.',
   request: {
     params: z.object({ slug: z.string() }),
     body: { content: { 'application/json': { schema: submitBodySchema } } },

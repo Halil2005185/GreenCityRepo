@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Check, Copy } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -21,6 +22,55 @@ import { ApiError } from "@/lib/api/client";
 import { createForm, listForms } from "@/lib/api/forms";
 import { listOffices } from "@/lib/api/invitations";
 import { formatDate } from "@/lib/utils";
+
+/**
+ * أصل الموقع العام — منه يُبنى رابط التسجيل الذي يُنشر للناس.
+ *
+ * يُقرأ من البيئة لا يُكتب في الكود: اللوحة تعمل محليًا وعلى الإنتاج
+ * بنفس الحزمة، ورابط `localhost` يُنسخ ويُرسل فلا يفتح عند أحد.
+ */
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+
+/**
+ * الرابط العام لاستمارة منشورة، أو `null` إن لم تُنشر بعد أو لم يُضبط
+ * عنوان الموقع — رابطٌ إلى استمارة غير منشورة يعطي 404 لمن يفتحه.
+ */
+function publicUrlOf(form: { slug: string; publishedVersion: number | null }) {
+  if (!SITE_URL || !form.publishedVersion) return null;
+
+  return `${SITE_URL.replace(/\/$/, "")}/join/${form.slug}`;
+}
+
+/** ينسخ الرابط ويقول إنه نُسخ: زرٌّ لا يجيب لا يُصدَّق فيُنقر مرتين. */
+function CopyLinkButton({ url }: { url: string }) {
+  const [copied, setCopied] = useState(false);
+
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="gap-1.5"
+      title={url}
+      onClick={async () => {
+        try {
+          await navigator.clipboard.writeText(url);
+        } catch {
+          // متصفح يمنع الحافظة: يُعرض الرابط ليُنسخ يدويًا، فزرٌّ لا يفعل شيئًا
+          // أسوأ من نافذة نسخ.
+          window.prompt("انسخ رابط التسجيل:", url);
+          return;
+        }
+
+        setCopied(true);
+        window.setTimeout(() => setCopied(false), 2000);
+      }}
+    >
+      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
+      {copied ? "نُسخ" : "نسخ رابط التسجيل"}
+    </Button>
+  );
+}
 
 const createSchema = z.object({
   nameAr: z.string().trim().min(2, "اسم الاستمارة مطلوب."),
@@ -186,6 +236,7 @@ export default function FormsPage() {
                     <th className="p-2 text-start font-medium">المنشور</th>
                     <th className="p-2 text-start font-medium">أسئلة المسوّدة</th>
                     <th className="p-2 text-start font-medium">الاستقبال</th>
+                    <th className="p-2 text-start font-medium">رابط التسجيل</th>
                     <th className="p-2 text-start font-medium">أُنشئت</th>
                   </tr>
                 </thead>
@@ -228,6 +279,18 @@ export default function FormsPage() {
                           {form.isAccepting ? "مفتوح" : "مغلق"}
                         </span>
                       </td>
+                      <td className="p-2">
+                        {publicUrlOf(form) ? (
+                          <CopyLinkButton url={publicUrlOf(form)!} />
+                        ) : (
+                          <span className="text-xs text-muted-foreground">
+                            {form.publishedVersion
+                              ? "اضبط عنوان الموقع"
+                              : "بعد النشر"}
+                          </span>
+                        )}
+                      </td>
+
                       <td className="p-2 text-xs text-muted-foreground">
                         {formatDate(form.createdAt)}
                       </td>

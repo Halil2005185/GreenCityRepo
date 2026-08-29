@@ -2,6 +2,8 @@ import request from 'supertest'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { app } from '../../src/app.js'
+import { db } from '../../src/db/client.js'
+import { outboxJobs } from '../../src/db/schema/outbox.js'
 import { runSeed } from '../../src/db/seed.js'
 import { bearer, createStaffUser, login } from '../helpers/auth.js'
 import {
@@ -97,6 +99,17 @@ describe.runIf(ready)('public intake', () => {
       .post('/api/public/forms/join/submissions')
       .send({ answers })
       .expect(expected)
+
+  const submitAsking = (answers: Record<string, unknown>) =>
+    request(app)
+      .post('/api/public/forms/join/submissions')
+      .send({ answers, sendCopy: true })
+      .expect(202)
+
+  const copies = () =>
+    db.select().from(outboxJobs).then((rows) =>
+      rows.filter((row) => row.templateKey === 'form-copy'),
+    )
 
   const valid = {
     full_name: 'سارة المتطوعة',
@@ -207,5 +220,53 @@ describe.runIf(ready)('public intake', () => {
     await open()
 
     await submit({ ...valid, email: 'not-an-email' }, 422)
+  })
+
+  it('marks the contact email so the page knows a copy is possible', async () => {
+    await publish()
+
+    const response = await request(app)
+      .get('/api/public/forms/join')
+      .expect(200)
+
+    const fields = response.body.data.fields as Array<{
+      type: string
+      isContactEmail: boolean
+    }>
+
+    expect(fields.find((one) => one.type === 'EMAIL')?.isContactEmail).toBe(true)
+    expect(fields.filter((one) => one.isContactEmail)).toHaveLength(1)
+  })
+
+  it('queues a copy to the applicant when asked, with readable answers', async () => {
+    await publish()
+    await open()
+    await submitAsking(valid)
+
+    const queued = await copies()
+
+    expect(queued).toHaveLength(1)
+    // العنوان المطبَّع لا ما كُتب: النسخة تذهب إلى ما حُفظ في الطلب.
+    expect(queued[0]!.recipient).toBe('sara@example.com')
+
+    const payload = queued[0]!.payload as {
+      formNameAr: string
+      items: Array<{ labelAr: string; valueAr: string }>
+    }
+
+    expect(payload.formNameAr).toBe('استمارة الانضمام')
+    // نص السؤال ونص الخيار لا مفتاحيهما: الرسالة تُقرأ لا تُفكّك.
+    expect(payload.items).toContainEqual({
+      labelAr: 'الاسم الكامل',
+      valueAr: 'سارة المتطوعة',
+    })
+  })
+
+  it('queues nothing when the applicant did not ask for a copy', async () => {
+    await publish()
+    await open()
+    await submit(valid, 202)
+
+    expect(await copies()).toHaveLength(0)
   })
 })

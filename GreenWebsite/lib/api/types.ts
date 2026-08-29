@@ -91,3 +91,47 @@ export type PublicImpactSummary = {
   metrics: PublicMetricProgress[];
   updatedAt: string | null;
 };
+
+/** أنواع الأسئلة كما يعرّفها الخادم — الترتيب نفسه في `form_field_type`. */
+export type PublicFormFieldType =
+  | "TEXT"
+  | "LONG_TEXT"
+  | "NUMBER"
+  | "DATE"
+  | "BOOLEAN"
+  | "EMAIL"
+  | "PHONE"
+  | "URL"
+  | "SINGLE_SELECT"
+  | "MULTI_SELECT"
+  | "AREA_REF"
+  | "OFFICE_REF"
+  | "PROGRAM_REF";
+
+export type PublicFormField = {
+  key: string;
+  labelAr: string;
+  hintAr: string | null;
+  type: PublicFormFieldType;
+  isRequired: boolean;
+  /** حقل البريد الذي تصله نسخة الطلب — به تعرف الصفحة متى تعرض خيار النسخة. */
+  isContactEmail: boolean;
+  minSelections: number | null;
+  maxSelections: number | null;
+  maxLength: number | null;
+  options: Array<{ value: string; labelAr: string }>;
+  condition: {
+    fieldKey: string;
+    op: "eq" | "in" | "notEmpty";
+    value?: unknown;
+  } | null;
+};
+
+export type PublicForm = {
+  slug: string;
+  nameAr: string;
+  descriptionAr: string | null;
+  isAccepting: boolean;
+  version: number;
+  fields: PublicFormField[];
+};

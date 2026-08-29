@@ -9,7 +9,7 @@
  * البريد يرفضون معظم CSS الحديث أصلًا فتبقى الأنماط سطرية مهما فعلنا.
  */
 
-export type TemplateKey = 'invitation' | 'password-reset'
+export type TemplateKey = 'invitation' | 'password-reset' | 'form-copy'
 
 export type RenderedMail = {
   subject: string
@@ -61,6 +61,24 @@ function button(href: string, label: string) {
 
 type Renderer = (data: Record<string, unknown>) => RenderedMail
 
+/** جدول سؤال/جواب — الأزواج تصل جاهزة من الخدمة، فالقالب لا يقرأ قاعدة. */
+function answerTable(items: Array<{ labelAr: string; valueAr: string }>) {
+  if (items.length === 0) {
+    return '<p style="margin:0;color:#6b7280">لا إجابات مسجّلة.</p>'
+  }
+
+  const rows = items
+    .map(
+      (item) => `<tr>
+        <td style="padding:8px 0;color:#6b7280;font-size:13px;vertical-align:top;width:40%">${escape(item.labelAr)}</td>
+        <td style="padding:8px 0;color:#111827;font-size:14px;vertical-align:top;white-space:pre-wrap">${escape(item.valueAr)}</td>
+      </tr>`,
+    )
+    .join('')
+
+  return `<table role="presentation" style="width:100%;border-collapse:collapse">${rows}</table>`
+}
+
 const templates: Record<TemplateKey, Renderer> = {
   invitation: (data) => {
     const inviteUrl = String(data['inviteUrl'] ?? '')
@@ -87,6 +105,48 @@ const templates: Record<TemplateKey, Renderer> = {
          </p>`,
       ),
       text: `دعوة للانضمام إلى نظام المدن الخضراء بدور ${roleNameAr}${where}.\n\n${inviteUrl}\n\nتنتهي خلال ${expiresInDays} أيام.`,
+    }
+  },
+
+  /**
+   * نسخة الطلب إلى المتقدّم نفسه، بطلبه.
+   *
+   * بلا رابط ولا زر: الرسالة إيصالٌ لا دعوة إلى فعل، وزرٌّ فيها يعلّم
+   * المتقدّم أن يضغط ما يصله باسمنا. وتقول صراحةً إنها لا تعني القبول،
+   * فالصمت بعدها لا يُقرأ وعدًا.
+   */
+  'form-copy': (data) => {
+    const formNameAr = String(data['formNameAr'] ?? '')
+    const items = Array.isArray(data['items'])
+      ? (data['items'] as Array<{ labelAr?: unknown; valueAr?: unknown }>).map(
+          (item) => ({
+            labelAr: String(item.labelAr ?? ''),
+            valueAr: String(item.valueAr ?? ''),
+          }),
+        )
+      : []
+
+    return {
+      subject: `نسخة من طلبك — ${formNameAr}`,
+      html: layout(
+        'نسخة من طلبك',
+        `<p style="line-height:1.9;margin:0 0 18px">
+           وصلنا طلبك في <strong>${escape(formNameAr)}</strong>، وهذه نسخة مما
+           أرسلته كما طلبت.
+         </p>
+         ${answerTable(items)}
+         <p style="font-size:12px;color:#6b7280;margin:20px 0 0">
+           هذه نسخة للحفظ لا إشعار قبول. إن لم تكن أنت من أرسل الطلب فتجاهل
+           الرسالة، ولم يُنشأ لك حساب ولا اشتراك.
+         </p>`,
+      ),
+      text: [
+        `نسخة من طلبك في ${formNameAr}:`,
+        '',
+        ...items.map((item) => `${item.labelAr}: ${item.valueAr}`),
+        '',
+        'هذه نسخة للحفظ لا إشعار قبول.',
+      ].join('\n'),
     }
   },
 
