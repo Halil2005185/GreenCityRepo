@@ -10,6 +10,7 @@ import {
   formVersions,
   forms,
 } from '../../db/schema/forms.js'
+import { enqueueEmail } from '../mail/outbox.service.js'
 import { validateAnswers } from './answers.service.js'
 
 /** سقف على حجم ما يُحفظ، مستقل عن حد جسم الطلب في Express. */
@@ -67,6 +68,7 @@ export async function getPublicForm(slug: string) {
       hintAr: field.hintAr,
       type: field.type,
       isRequired: field.isRequired,
+      isContactEmail: field.contactRole === 'EMAIL',
       minSelections: field.minSelections,
       maxSelections: field.maxSelections,
       maxLength: field.maxLength,
@@ -92,14 +94,56 @@ function hashIp(ip: string | undefined, salt: string) {
   return createHash('sha256').update(`${salt}:${ip}`).digest('hex')
 }
 
+/**
+ * الإجابات كما تُقرأ لا كما تُخزَّن: النسخة التي تصل المتقدّم تحمل نص السؤال
+ * ونص الخيار، لا مفاتيحهما. والقالب يُصيَّر وقت الإرسال ولا يصل إلى القاعدة،
+ * فتُبنى الأزواج هنا وتُحفظ في حمولة الرسالة.
+ */
+function readableAnswers(
+  fields: Array<{
+    key: string
+    labelAr: string
+    type: string
+    options: Array<{ value: string; labelAr: string }>
+  }>,
+  answers: Record<string, unknown>,
+) {
+  const items: Array<{ labelAr: string; valueAr: string }> = []
+
+  for (const field of fields) {
+    const value = answers[field.key]
+
+    if (value === undefined || value === null || value === '') continue
+
+    const labelOf = (option: string) =>
+      field.options.find((one) => one.value === option)?.labelAr ?? option
+
+    const valueAr = Array.isArray(value)
+      ? value.map((one) => labelOf(String(one))).join('، ')
+      : typeof value === 'boolean'
+        ? value
+          ? 'نعم'
+          : 'لا'
+        : field.type === 'SINGLE_SELECT'
+          ? labelOf(String(value))
+          : String(value)
+
+    items.push({ labelAr: field.labelAr, valueAr })
+  }
+
+  return items
+}
+
 export async function submitForm(options: {
   slug: string
   answers: Record<string, unknown>
+  sendCopy?: boolean | undefined
   ip: string | undefined
   salt: string
 }) {
   const [form] = await db
     .select({
+      nameAr: forms.nameAr,
       isAccepting: forms.isAccepting,
       versionId: formVersions.id,
     })
@@ -138,12 +182,29 @@ export async function submitForm(options: {
     throw errors.unprocessable('بعض الإجابات غير صالحة.', result.issues)
   }
 
-  await db.insert(formSubmissions).values({
-    formVersionId: form.versionId,
-    answers: result.answers,
-    applicantNameAr: result.contact.nameAr,
-    applicantEmail: result.contact.email,
-    applicantPhone: result.contact.phone,
-    sourceIpHash: hashIp(options.ip, options.salt),
+  /**
+   * الحفظ والنسخة في معاملة واحدة: رسالة تخرج لطلب لم يُحفظ تعِد بما لا
+   * أثر له، وطلبٌ يُحفظ بلا رسالة يكسر وعدًا صريحًا للمتقدّم.
+   */
+  await db.transaction(async (tx) => {
+    await tx.insert(formSubmissions).values({
+      formVersionId: form.versionId,
+      answers: result.answers,
+      applicantNameAr: result.contact.nameAr,
+      applicantEmail: result.contact.email,
+      applicantPhone: result.contact.phone,
+      sourceIpHash: hashIp(options.ip, options.salt),
+    })
+
+    if (!options.sendCopy || !result.contact.email) return
+
+    await enqueueEmail(tx, {
+      templateKey: 'form-copy',
+      recipient: result.contact.email,
+      payload: {
+        formNameAr: form.nameAr,
+        items: readableAnswers(fields, result.answers),
+      },
+    })
   })
 }

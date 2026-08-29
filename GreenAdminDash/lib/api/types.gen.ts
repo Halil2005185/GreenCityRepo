@@ -1575,7 +1575,7 @@ export interface paths {
         put?: never;
         /**
          * تقديم طلب
-         * @description بلا مصادقة. يعيد 202 بلا جسم ولا معرّف. التحقق كامل على الخادم: الإلزام والشرطية والأنواع والحدود والانتماء إلى الخيارات.
+         * @description بلا مصادقة. يعيد 202 بلا جسم ولا معرّف. التحقق كامل على الخادم: الإلزام والشرطية والأنواع والحدود والانتماء إلى الخيارات. وعلم sendCopy يُدرج نسخة من الإجابات في صندوق البريد الصادر إلى عنوان المتقدّم نفسه.
          */
         post: {
             parameters: {
@@ -1592,6 +1592,7 @@ export interface paths {
                         answers: {
                             [key: string]: unknown;
                         };
+                        sendCopy?: boolean;
                     };
                 };
             };
@@ -5436,6 +5437,7 @@ export interface components {
             hintAr: string | null;
             type: string;
             isRequired: boolean;
+            isContactEmail: boolean;
             minSelections: number | null;
             maxSelections: number | null;
             maxLength: number | null;

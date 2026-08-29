@@ -1,4 +1,5 @@
 import type {
+  PublicForm,
   PublicImpactSummary,
   PublicInitiative,
   PublicInitiativeSummary,
@@ -20,13 +21,16 @@ const API_ORIGIN = process.env.API_ORIGIN ?? "http://127.0.0.1:4000";
 /** المحتوى العام لا يتغير كل ثانية، ولا يجوز أن يتأخر يومًا عن الواقع. */
 const REVALIDATE_SECONDS = 300;
 
-async function getJson<T>(path: string): Promise<T | null> {
+async function getJson<T>(
+  path: string,
+  revalidate = REVALIDATE_SECONDS,
+): Promise<T | null> {
   const url = `${API_ORIGIN}/api/public${path}`;
 
   try {
     const response = await fetch(url, {
       headers: { accept: "application/json" },
-      next: { revalidate: REVALIDATE_SECONDS },
+      next: { revalidate },
     });
 
     if (response.status === 404) return null;
@@ -82,4 +86,16 @@ export async function getImpactSummary(): Promise<PublicImpactSummary | null> {
 /** الشركاء الذين وافقوا صراحة على إظهار الاسم والشعار وحدهم. */
 export async function listPartners(): Promise<PublicPartner[]> {
   return (await getJson<PublicPartner[]>("/partners")) ?? [];
+}
+
+/**
+ * الاستمارة المنشورة كما يراها الزائر — غير المنشورة تعطي 404 كغير الموجودة.
+ *
+ * تحديثها أسرع من بقية المحتوى: إغلاق الاستمارة قرار تشغيلي يجب أن يظهر
+ * خلال دقيقة لا خمس. ويبقى الطلب من خادم الموقع لا من المتصفح، فحدّ
+ * القراءة على الـAPI ستون طلبًا لكل ربع ساعة للعنوان الواحد — وزحمة
+ * زوّار على استمارة واحدة كانت ستستهلكه.
+ */
+export async function getPublicForm(slug: string): Promise<PublicForm | null> {
+  return getJson<PublicForm>(`/forms/${encodeURIComponent(slug)}`, 60);
 }

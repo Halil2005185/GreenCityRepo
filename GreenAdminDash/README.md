@@ -19,6 +19,7 @@ npm run dev   # http://localhost:3000 — يمرّر /api إلى الـAPI عل�
 | `wrangler.jsonc` | اسم الـWorker وأعلام التوافق، و`build.command` الذي يبني التطبيق قبل الرفع |
 | `open-next.config.ts` | إعداد المحوّل — بلا cache لأن لا ISR في اللوحة |
 | `.env.production` | `API_ORIGIN` العلني الذي يُبنى عليه تمرير `/api` — قيم علنية فقط، مُودَع عمدًا |
+| `.env.production` | `NEXT_PUBLIC_SITE_URL` — عنوان الموقع العام، منه يُبنى رابط التسجيل الذي تنسخه صفحة الاستمارات. معطّل حتى يُنشر الموقع |
 | `public/_headers` | تخزين `/_next/static` سنة كاملة على حافة Cloudflare |
 | `middleware.ts` | الحارس — على الـedge لا على Node.js (انظر أدناه) |
 
