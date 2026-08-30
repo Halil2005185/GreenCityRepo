@@ -18,6 +18,11 @@ export const publicFieldSchema = registry.register(
     minSelections: z.number().int().nullable(),
     maxSelections: z.number().int().nullable(),
     maxLength: z.number().int().nullable(),
+    /**
+     * خيارات القوائم كما عُرِّفت في السؤال. وللمراجع — منطقة أو مكتب أو
+     * برنامج — تأتي من كتالوج النظام وقت العرض، فتظهر قائمةً للزائر لا
+     * حقل نصّ، وتتبع الكتالوج دون إصدار جديد.
+     */
     options: z.array(z.object({ value: z.string(), labelAr: z.string() })),
     condition: z
       .object({

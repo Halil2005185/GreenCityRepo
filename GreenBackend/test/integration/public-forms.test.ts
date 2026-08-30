@@ -222,6 +222,36 @@ describe.runIf(ready)('public intake', () => {
     await submit({ ...valid, email: 'not-an-email' }, 422)
   })
 
+  it('sends catalog options with reference questions', async () => {
+    await field({
+      key: 'governorate',
+      labelAr: 'المحافظة',
+      type: 'AREA_REF',
+    })
+    await publish()
+
+    const response = await request(app)
+      .get('/api/public/forms/join')
+      .expect(200)
+
+    const reference = (
+      response.body.data.fields as Array<{
+        key: string
+        type: string
+        options: Array<{ value: string; labelAr: string }>
+      }>
+    ).find((one) => one.key === 'governorate')
+
+    /**
+     * بلا هذه الخيارات يصير سؤال المحافظة حقل نصّ حرّ أمام الزائر بينما هو
+     * قائمة في معاينة اللوحة — وهو ما كان يحدث.
+     */
+    expect(reference?.type).toBe('AREA_REF')
+    expect(reference!.options.length).toBeGreaterThan(0)
+    expect(reference!.options[0]!.value).toMatch(/^[0-9a-f-]{36}$/)
+    expect(reference!.options.map((one) => one.labelAr)).toContain('دمشق')
+  })
+
   it('marks the contact email so the page knows a copy is possible', async () => {
     await publish()
 

@@ -4,6 +4,9 @@ import { and, asc, eq } from 'drizzle-orm'
 
 import { errors } from '../../common/errors/app-error.js'
 import { db } from '../../db/client.js'
+import { areas } from '../../db/schema/geo.js'
+import { offices } from '../../db/schema/org.js'
+import { programs } from '../../db/schema/programs.js'
 import {
   formFields,
   formSubmissions,
@@ -12,6 +15,59 @@ import {
 } from '../../db/schema/forms.js'
 import { enqueueEmail } from '../mail/outbox.service.js'
 import { validateAnswers } from './answers.service.js'
+
+/** الأنواع التي تقرأ خياراتها من كتالوجات النظام لا من السؤال. */
+const REF_TYPES = ['AREA_REF', 'OFFICE_REF', 'PROGRAM_REF'] as const
+
+type RefType = (typeof REF_TYPES)[number]
+type Option = { value: string; labelAr: string }
+
+const isRefType = (type: string): type is RefType =>
+  (REF_TYPES as readonly string[]).includes(type)
+
+/**
+ * خيارات المراجع تُرسل مع الاستمارة، وإلا صار «أي محافظة تسكن؟» حقل نصّ حرّ
+ * أمام الزائر بينما هو قائمة في المعاينة.
+ *
+ * الكتالوج لا يُخزَّن في السؤال: إضافة محافظة إلى `areas` تظهر في كل استمارة
+ * منشورة دون لمسها ودون إصدار جديد. ولذلك تُقرأ هنا وقت العرض.
+ *
+ * ولا يُستعلم إلا عمّا تستعمله الاستمارة فعلًا: استمارة بلا مراجع لا تدفع ثمن
+ * ثلاثة استعلامات على مسار عام.
+ */
+async function loadRefOptions(types: Set<RefType>) {
+  const catalogs: Record<RefType, Option[]> = {
+    AREA_REF: [],
+    OFFICE_REF: [],
+    PROGRAM_REF: [],
+  }
+
+  if (types.has('AREA_REF')) {
+    catalogs.AREA_REF = await db
+      .select({ value: areas.id, labelAr: areas.nameAr })
+      .from(areas)
+      .where(eq(areas.level, 'GOVERNORATE'))
+      .orderBy(asc(areas.displayOrder), asc(areas.nameAr))
+  }
+
+  if (types.has('OFFICE_REF')) {
+    catalogs.OFFICE_REF = await db
+      .select({ value: offices.id, labelAr: offices.nameAr })
+      .from(offices)
+      .where(eq(offices.isActive, true))
+      .orderBy(asc(offices.displayOrder), asc(offices.nameAr))
+  }
+
+  if (types.has('PROGRAM_REF')) {
+    catalogs.PROGRAM_REF = await db
+      .select({ value: programs.id, labelAr: programs.nameAr })
+      .from(programs)
+      .where(eq(programs.isActive, true))
+      .orderBy(asc(programs.displayOrder), asc(programs.nameAr))
+  }
+
+  return catalogs
+}
 
 /** سقف على حجم ما يُحفظ، مستقل عن حد جسم الطلب في Express. */
 const MAX_ANSWER_BYTES = 64 * 1024
@@ -58,6 +114,10 @@ export async function getPublicForm(slug: string) {
     .where(eq(formFields.versionId, form.versionId))
     .orderBy(asc(formFields.displayOrder))
 
+  const catalogs = await loadRefOptions(
+    new Set(fields.map((field) => field.type).filter(isRefType)),
+  )
+
   return {
     slug: form.slug,
     nameAr: form.nameAr,
@@ -76,7 +136,7 @@ export async function getPublicForm(slug: string) {
       minSelections: field.minSelections,
       maxSelections: field.maxSelections,
       maxLength: field.maxLength,
-      options: field.options,
+      options: isRefType(field.type) ? catalogs[field.type] : field.options,
       condition:
         field.conditionFieldKey && field.conditionOp
           ? {
