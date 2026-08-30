@@ -22,3 +22,14 @@ process.env.AUTH_COOKIE_SECURE = 'false'
 
 // القفل بعد ثلاث محاولات يجعل اختبار القفل أسرع دون إضعاف الافتراض الحقيقي.
 process.env.AUTH_MAX_FAILED_LOGINS = '3'
+
+/**
+ * مفاتيح تخزين وهمية: التوقيع يجري محليًا بلا شبكة، فيصير شكل الرابط
+ * الموقّع قابلًا للفحص في الاختبارات — وهو ما كسره مجموع التحقّق التلقائي
+ * مرة، ولا يُكتشف إلا برفع حقيقي لولا ذلك.
+ */
+process.env.R2_ACCOUNT_ID = 'test-account'
+process.env.R2_BUCKET = 'test-bucket'
+process.env.R2_ACCESS_KEY_ID = 'test-access-key'
+process.env.R2_SECRET_ACCESS_KEY = 'test-secret-key'
+process.env.R2_PUBLIC_BASE_URL = 'https://media.test'

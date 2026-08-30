@@ -70,6 +70,15 @@ function requireStorage(): Storage {
       region: 'auto',
       endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
       credentials: { accessKeyId, secretAccessKey },
+
+      /**
+       * بلا مجموع تحقّق تلقائي.
+       *
+       * الإعداد الافتراضي يحسب CRC32 وقت التوقيع ويضعه في الرابط — ووقت
+       * التوقيع لا جسم للطلب، فيخرج مجموع الفراغ `AAAAAA==`. ثم يرفع
+       * المتصفح الملف الحقيقي فلا يطابق ما وُقّع عليه، فيُردّ الرفع.
+       */
+      requestChecksumCalculation: 'WHEN_REQUIRED',
     }),
   }
 
@@ -133,7 +142,16 @@ export async function signUpload(input: {
       // المحتوى لا يتغيّر تحت مفتاحه أبدًا، فالتخزين المؤقت الأبدي صحيح.
       CacheControl: 'public, max-age=31536000, immutable',
     }),
-    { expiresIn: env.R2_SIGNED_URL_TTL_SECONDS },
+    {
+      expiresIn: env.R2_SIGNED_URL_TTL_SECONDS,
+      /**
+       * نوع المحتوى داخل التوقيع لا خارجه.
+       *
+       * الموقِّع لا يضمّه من تلقائه، فكان الرابط يقيّد المفتاح والحجم وحدهما
+       * ويقبل أي نوع — ومن يمسك الرابط يرفع به HTML على مفتاح `.jpg`.
+       */
+      signableHeaders: new Set(['content-type']),
+    },
   )
 
   return {
