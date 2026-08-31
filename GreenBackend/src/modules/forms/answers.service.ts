@@ -292,3 +292,43 @@ export function validateAnswers(
 
   return { issues, answers, contact }
 }
+
+/**
+ * الإجابات كما تُقرأ لا كما تُخزَّن: النسخة التي تصل المتقدّم تحمل نص السؤال
+ * ونص الخيار، لا مفاتيحهما. والقالب يُصيَّر وقت الإرسال ولا يصل إلى القاعدة،
+ * فتُبنى الأزواج هنا وتُحفظ في حمولة الرسالة.
+ */
+export function readableAnswers(
+  fields: Array<{
+    key: string
+    labelAr: string
+    type: string
+    options: Array<{ value: string; labelAr: string }>
+  }>,
+  answers: Record<string, unknown>,
+) {
+  const items: Array<{ labelAr: string; valueAr: string }> = []
+
+  for (const field of fields) {
+    const value = answers[field.key]
+
+    if (value === undefined || value === null || value === '') continue
+
+    const labelOf = (option: string) =>
+      field.options.find((one) => one.value === option)?.labelAr ?? option
+
+    const valueAr = Array.isArray(value)
+      ? value.map((one) => labelOf(String(one))).join('، ')
+      : typeof value === 'boolean'
+        ? value
+          ? 'نعم'
+          : 'لا'
+        : field.type === 'SINGLE_SELECT'
+          ? labelOf(String(value))
+          : String(value)
+
+    items.push({ labelAr: field.labelAr, valueAr })
+  }
+
+  return items
+}

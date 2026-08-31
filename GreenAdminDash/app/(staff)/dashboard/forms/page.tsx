@@ -236,6 +236,7 @@ export default function FormsPage() {
                     <th className="p-2 text-start font-medium">المنشور</th>
                     <th className="p-2 text-start font-medium">أسئلة المسوّدة</th>
                     <th className="p-2 text-start font-medium">الاستقبال</th>
+                    <th className="p-2 text-start font-medium">الطلبات</th>
                     <th className="p-2 text-start font-medium">رابط التسجيل</th>
                     <th className="p-2 text-start font-medium">أُنشئت</th>
                   </tr>
@@ -279,6 +280,15 @@ export default function FormsPage() {
                           {form.isAccepting ? "مفتوح" : "مغلق"}
                         </span>
                       </td>
+                      <td className="p-2">
+                        <Link
+                          href={`/dashboard/forms/${form.id}/submissions`}
+                          className="text-xs text-primary underline-offset-4 hover:underline"
+                        >
+                          عرض الطلبات
+                        </Link>
+                      </td>
+
                       <td className="p-2">
                         {publicUrlOf(form) ? (
                           <CopyLinkButton url={publicUrlOf(form)!} />

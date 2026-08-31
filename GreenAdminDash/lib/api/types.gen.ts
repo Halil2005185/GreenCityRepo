@@ -1733,6 +1733,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/forms/{id}/submissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * طلبات الاستمارة
+         * @description الأحدث أولًا، بترشيح على الحالة وبحث في الاسم والبريد والهاتف. المؤشّر وقتٌ لا رقم صفحة، فلا تتزحزح الصفحة حين تصل طلبات جديدة أثناء القراءة.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    status?: "NEW" | "IN_REVIEW" | "ACCEPTED" | "REJECTED";
+                    q?: string;
+                    before?: string;
+                    limit?: number;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلبات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormSubmissionSummary"][];
+                            /** Format: date-time */
+                            nextBefore: string | null;
+                        };
+                    };
+                };
+                /** @description لا يملك القدرة forms.view */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/forms/{id}/submissions/{submissionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * طلب واحد بإجاباته
+         * @description الإجابات مقروءةً بأسئلة الإصدار الذي أُرسل معه لا بأسئلة المسوّدة الحالية — قراءة إجابة قديمة بسؤال جديد تنسب إلى المتقدّم ما لم يُسأل عنه.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    submissionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلب */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormSubmissionDetail"];
+                        };
+                    };
+                };
+                /** @description الطلب غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * نقل حالة الطلب
+         * @description بلا رسم انتقالات: الفارز يقرأ ثم يقرّر وقد يعيد النظر، ومنع العودة من «مرفوض» يدفن طلبًا بنقرة خاطئة. التغيير يُسجَّل في التدقيق.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    submissionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "NEW" | "IN_REVIEW" | "ACCEPTED" | "REJECTED";
+                    };
+                };
+            };
+            responses: {
+                /** @description نُقلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FormSubmissionDetail"];
+                        };
+                    };
+                };
+                /** @description لا يملك القدرة forms.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الطلب غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/admin/areas": {
         parameters: {
             query?: never;
@@ -5782,6 +5956,25 @@ export interface components {
             isAccepting: boolean;
             version: number;
             fields: components["schemas"]["PublicFormField"][];
+        };
+        FormSubmissionSummary: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "NEW" | "IN_REVIEW" | "ACCEPTED" | "REJECTED";
+            applicantNameAr: string | null;
+            applicantEmail: string | null;
+            applicantPhone: string | null;
+            formVersion: number;
+            /** Format: date-time */
+            submittedAt: string;
+        };
+        FormSubmissionDetail: components["schemas"]["FormSubmissionSummary"] & {
+            formNameAr: string;
+            answers: {
+                labelAr: string;
+                valueAr: string;
+            }[];
         };
         Area: {
             /** Format: uuid */
