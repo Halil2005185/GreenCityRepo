@@ -14,7 +14,7 @@ import {
   forms,
 } from '../../db/schema/forms.js'
 import { enqueueEmail } from '../mail/outbox.service.js'
-import { validateAnswers } from './answers.service.js'
+import { readableAnswers, validateAnswers } from './answers.service.js'
 
 /** الأنواع التي تقرأ خياراتها من كتالوجات النظام لا من السؤال. */
 const REF_TYPES = ['AREA_REF', 'OFFICE_REF', 'PROGRAM_REF'] as const
@@ -156,46 +156,6 @@ function hashIp(ip: string | undefined, salt: string) {
   if (!ip) return null
 
   return createHash('sha256').update(`${salt}:${ip}`).digest('hex')
-}
-
-/**
- * الإجابات كما تُقرأ لا كما تُخزَّن: النسخة التي تصل المتقدّم تحمل نص السؤال
- * ونص الخيار، لا مفاتيحهما. والقالب يُصيَّر وقت الإرسال ولا يصل إلى القاعدة،
- * فتُبنى الأزواج هنا وتُحفظ في حمولة الرسالة.
- */
-function readableAnswers(
-  fields: Array<{
-    key: string
-    labelAr: string
-    type: string
-    options: Array<{ value: string; labelAr: string }>
-  }>,
-  answers: Record<string, unknown>,
-) {
-  const items: Array<{ labelAr: string; valueAr: string }> = []
-
-  for (const field of fields) {
-    const value = answers[field.key]
-
-    if (value === undefined || value === null || value === '') continue
-
-    const labelOf = (option: string) =>
-      field.options.find((one) => one.value === option)?.labelAr ?? option
-
-    const valueAr = Array.isArray(value)
-      ? value.map((one) => labelOf(String(one))).join('، ')
-      : typeof value === 'boolean'
-        ? value
-          ? 'نعم'
-          : 'لا'
-        : field.type === 'SINGLE_SELECT'
-          ? labelOf(String(value))
-          : String(value)
-
-    items.push({ labelAr: field.labelAr, valueAr })
-  }
-
-  return items
 }
 
 export async function submitForm(options: {

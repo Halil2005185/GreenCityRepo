@@ -182,6 +182,13 @@ export default function FormBuilderPage() {
         </Link>
 
         <div className="flex flex-wrap items-center gap-3">
+          <Link
+            href={`/dashboard/forms/${id}/submissions`}
+            className="text-sm text-primary underline-offset-4 hover:underline"
+          >
+            الطلبات ←
+          </Link>
+
           <span className="text-xs text-muted-foreground">
             المسوّدة — الإصدار {form.data.draft.version}
             {form.data.publishedVersion

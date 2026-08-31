@@ -1,7 +1,10 @@
 import type { Request, RequestHandler } from 'express'
 
 import { errors } from '../../common/errors/app-error.js'
+import { requestTrace } from '../audit/audit.service.js'
 import * as service from './forms.service.js'
+import type * as submissionDto from './submissions.schemas.js'
+import * as submissions from './submissions.service.js'
 import type * as dto from './forms.schemas.js'
 
 function readId(request: Request, key = 'id') {
@@ -80,6 +83,37 @@ export const postReorder: RequestHandler = async (request, response) => {
 
 export const postPublish: RequestHandler = async (request, response) => {
   const data = await service.publishDraft(readId(request), request.auth!.userId)
+
+  response.status(200).json({ data })
+}
+
+// ── الطلبات ────────────────────────────────────────────────────────────
+
+export const getSubmissions: RequestHandler = async (request, response) => {
+  const query = request.validatedQuery as submissionDto.ListSubmissionsQuery
+
+  response.status(200).json(await submissions.listSubmissions(readId(request), query))
+}
+
+export const getSubmission: RequestHandler = async (request, response) => {
+  const data = await submissions.getSubmission(
+    readId(request),
+    readId(request, 'submissionId'),
+  )
+
+  response.status(200).json({ data })
+}
+
+export const patchSubmission: RequestHandler = async (request, response) => {
+  const body = request.body as submissionDto.UpdateSubmissionBody
+
+  const data = await submissions.setSubmissionStatus(
+    readId(request),
+    readId(request, 'submissionId'),
+    body.status,
+    request.auth!,
+    requestTrace(request),
+  )
 
   response.status(200).json({ data })
 }

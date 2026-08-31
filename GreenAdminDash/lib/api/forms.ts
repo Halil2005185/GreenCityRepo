@@ -191,3 +191,55 @@ export function publishForm(id: string) {
     method: "POST",
   }).then((response) => response.data);
 }
+
+// ── الطلبات ────────────────────────────────────────────────────────────
+
+export type SubmissionSummary = components["schemas"]["FormSubmissionSummary"];
+export type SubmissionDetail = components["schemas"]["FormSubmissionDetail"];
+export type SubmissionStatus = SubmissionSummary["status"];
+
+export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
+  NEW: "جديد",
+  IN_REVIEW: "قيد المراجعة",
+  ACCEPTED: "مقبول",
+  REJECTED: "مرفوض",
+};
+
+export function listSubmissions(
+  formId: string,
+  filters: {
+    status?: SubmissionStatus | undefined;
+    q?: string | undefined;
+    before?: string | undefined;
+  } = {},
+) {
+  const query = new URLSearchParams();
+
+  if (filters.status) query.set("status", filters.status);
+  if (filters.q) query.set("q", filters.q);
+  if (filters.before) query.set("before", filters.before);
+
+  const suffix = query.size > 0 ? `?${query}` : "";
+
+  return apiFetch<{ data: SubmissionSummary[]; nextBefore: string | null }>(
+    `/admin/forms/${formId}/submissions${suffix}`,
+  );
+}
+
+export function getSubmission(formId: string, submissionId: string) {
+  return apiFetch<{ data: SubmissionDetail }>(
+    `/admin/forms/${formId}/submissions/${submissionId}`,
+  ).then((response) => response.data);
+}
+
+/** نقل الحالة يعيد الطلب كاملًا، فتُحدَّث الشاشة بما حفظه الخادم لا بما افترضته. */
+export function setSubmissionStatus(
+  formId: string,
+  submissionId: string,
+  status: SubmissionStatus,
+) {
+  return apiFetch<{ data: SubmissionDetail }>(
+    `/admin/forms/${formId}/submissions/${submissionId}`,
+    { method: "PATCH", body: { status } },
+  ).then((response) => response.data);
+}

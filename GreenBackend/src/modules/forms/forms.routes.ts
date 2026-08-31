@@ -7,6 +7,7 @@ import {
 } from '../../common/middleware/authorize.js'
 import { validate } from '../../common/middleware/validate.js'
 import * as controller from './forms.controller.js'
+import * as submissionSchemas from './submissions.schemas.js'
 import {
   createFormBodySchema,
   fieldBodySchema,
@@ -46,6 +47,32 @@ formsRouter.post(
   '/:id/publish',
   requireCapability('forms.publish'),
   controller.postPublish,
+)
+
+/**
+ * الطلبات تُقرأ بقدرة العرض وتُنقل حالتها بقدرة الإدارة: قراءة ملف متقدّم
+ * حقُّ من يفرز، وتغيير مصيره قرار من يدير الاستمارة.
+ */
+formsRouter.get(
+  '/:id/submissions',
+  validate({ query: submissionSchemas.listSubmissionsQuerySchema }),
+  controller.getSubmissions,
+)
+
+formsRouter.get(
+  '/:id/submissions/:submissionId',
+  validate({ params: submissionSchemas.submissionIdParamsSchema }),
+  controller.getSubmission,
+)
+
+formsRouter.patch(
+  '/:id/submissions/:submissionId',
+  manage,
+  validate({
+    params: submissionSchemas.submissionIdParamsSchema,
+    body: submissionSchemas.updateSubmissionBodySchema,
+  }),
+  controller.patchSubmission,
 )
 
 formsRouter.post(

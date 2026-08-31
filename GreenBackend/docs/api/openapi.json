@@ -1931,6 +1931,95 @@
           "fields"
         ]
       },
+      "FormSubmissionSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "IN_REVIEW",
+              "ACCEPTED",
+              "REJECTED"
+            ]
+          },
+          "applicantNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "applicantEmail": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "applicantPhone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "formVersion": {
+            "type": "integer"
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "applicantNameAr",
+          "applicantEmail",
+          "applicantPhone",
+          "formVersion",
+          "submittedAt"
+        ]
+      },
+      "FormSubmissionDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FormSubmissionSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "formNameAr": {
+                "type": "string"
+              },
+              "answers": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "labelAr": {
+                      "type": "string"
+                    },
+                    "valueAr": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "labelAr",
+                    "valueAr"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "formNameAr",
+              "answers"
+            ]
+          }
+        ]
+      },
       "Area": {
         "type": "object",
         "properties": {
@@ -7253,6 +7342,285 @@
           },
           "429": {
             "description": "تجاوز حد الطلبات",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}/submissions": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "طلبات الاستمارة",
+        "description": "الأحدث أولًا، بترشيح على الحالة وبحث في الاسم والبريد والهاتف. المؤشّر وقتٌ لا رقم صفحة، فلا تتزحزح الصفحة حين تصل طلبات جديدة أثناء القراءة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "IN_REVIEW",
+                "ACCEPTED",
+                "REJECTED"
+              ]
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "required": false,
+            "name": "before",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            },
+            "required": false,
+            "name": "limit",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الطلبات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FormSubmissionSummary"
+                      }
+                    },
+                    "nextBefore": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "nextBefore"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.view",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/forms/{id}/submissions/{submissionId}": {
+      "get": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "طلب واحد بإجاباته",
+        "description": "الإجابات مقروءةً بأسئلة الإصدار الذي أُرسل معه لا بأسئلة المسوّدة الحالية — قراءة إجابة قديمة بسؤال جديد تنسب إلى المتقدّم ما لم يُسأل عنه.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "submissionId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الطلب",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormSubmissionDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الطلب غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Forms"
+        ],
+        "summary": "نقل حالة الطلب",
+        "description": "بلا رسم انتقالات: الفارز يقرأ ثم يقرّر وقد يعيد النظر، ومنع العودة من «مرفوض» يدفن طلبًا بنقرة خاطئة. التغيير يُسجَّل في التدقيق.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "submissionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "NEW",
+                      "IN_REVIEW",
+                      "ACCEPTED",
+                      "REJECTED"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "نُقلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/FormSubmissionDetail"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة forms.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الطلب غير موجود",
             "content": {
               "application/problem+json": {
                 "schema": {
