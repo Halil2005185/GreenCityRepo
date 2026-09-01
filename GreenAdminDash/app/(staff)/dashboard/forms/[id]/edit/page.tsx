@@ -233,6 +233,18 @@ export default function FormBuilderPage() {
 
       {error ? <Alert>{error}</Alert> : null}
 
+      {/*
+        سؤال بلا دور يعني طلبًا بلا اسم في القائمة، ونسخةً لا تصل بريد
+        المتقدّم — والعطل لا يظهر إلا بعد أن يتقدّم أول متطوع.
+      */}
+      {fields.length > 0 && !fields.some((field) => field.contactRole) ? (
+        <Alert variant="info">
+          لا سؤال موسوم باسم المتقدّم أو بريده. الطلبات ستصل بلا اسم في
+          القائمة، ولن تصل نسخة إلى بريد من يقدّم. حدّد الدور من «تعديل» على
+          سؤال الاسم وسؤال البريد.
+        </Alert>
+      ) : null}
+
       <div className="grid items-start gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <Card>

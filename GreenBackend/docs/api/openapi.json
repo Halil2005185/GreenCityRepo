@@ -7401,6 +7401,29 @@
           },
           {
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 300
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "maxItems": 10
+                }
+              ]
+            },
+            "required": false,
+            "name": "answer",
+            "in": "query"
+          },
+          {
+            "schema": {
               "type": "string",
               "format": "date-time"
             },

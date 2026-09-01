@@ -1749,6 +1749,7 @@ export interface paths {
                 query?: {
                     status?: "NEW" | "IN_REVIEW" | "ACCEPTED" | "REJECTED";
                     q?: string;
+                    answer?: string | string[];
                     before?: string;
                     limit?: number;
                 };
