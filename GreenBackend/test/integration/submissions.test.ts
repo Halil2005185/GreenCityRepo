@@ -206,6 +206,137 @@ describe.runIf(ready)('reading submissions', () => {
     expect(empty.body.data).toHaveLength(0)
   })
 
+  /**
+   * الدور طريقة قراءة لا جزء من العقد المجمَّد: من نسي وسم سؤال الاسم ثم
+   * وسمه، يجب أن تُقرأ الطلبات القديمة باسمها لا أن تبقى «بلا اسم» أبدًا.
+   */
+  it('reads the name from the answers after the role is marked late', async () => {
+    const nameless = await request(app)
+      .post('/api/admin/forms')
+      .set('authorization', bearer(token))
+      .send({ slug: 'late', nameAr: 'استمارة بلا دور' })
+      .expect(201)
+
+    const lateId = nameless.body.data.id
+
+    const created = await request(app)
+      .post(`/api/admin/forms/${lateId}/fields`)
+      .set('authorization', bearer(token))
+      .send({
+        key: 'full_name',
+        labelAr: 'الاسم الكامل',
+        type: 'TEXT',
+        isRequired: true,
+        options: [],
+      })
+      .expect(201)
+
+    await request(app)
+      .post(`/api/admin/forms/${lateId}/publish`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    await request(app)
+      .patch(`/api/admin/forms/${lateId}`)
+      .set('authorization', bearer(token))
+      .send({ isAccepting: true })
+      .expect(200)
+
+    await request(app)
+      .post('/api/public/forms/late/submissions')
+      .send({ answers: { full_name: 'هيا الشامي' } })
+      .expect(202)
+
+    const before = await request(app)
+      .get(`/api/admin/forms/${lateId}/submissions`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    // وصل بلا اسم لأن السؤال لم يكن موسومًا وقت التقديم.
+    expect(before.body.data[0].applicantNameAr).toBeNull()
+
+    const draft = await request(app)
+      .get(`/api/admin/forms/${lateId}`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    const draftField = (
+      draft.body.data.draft.fields as Array<{ id: string; key: string }>
+    ).find((one) => one.key === 'full_name')!
+
+    await request(app)
+      .patch(`/api/admin/forms/${lateId}/fields/${draftField.id}`)
+      .set('authorization', bearer(token))
+      .send({
+        key: 'full_name',
+        labelAr: 'الاسم الكامل',
+        type: 'TEXT',
+        isRequired: true,
+        options: [],
+        contactRole: 'NAME',
+      })
+      .expect(200)
+
+    const after = await request(app)
+      .get(`/api/admin/forms/${lateId}/submissions`)
+      .set('authorization', bearer(token))
+      .expect(200)
+
+    expect(after.body.data[0].applicantNameAr).toBe('هيا الشامي')
+    expect(created.body.data.contactRole).toBeNull()
+  })
+
+  it('filters by an answer, and combines filters with AND', async () => {
+    await field({
+      key: 'skills',
+      labelAr: 'المهارات',
+      type: 'MULTI_SELECT',
+      options: [
+        { value: 'planting', labelAr: 'زراعة' },
+        { value: 'media', labelAr: 'توثيق' },
+      ],
+    })
+    await field({ key: 'city', labelAr: 'المدينة', type: 'TEXT' })
+    await publish()
+    await open()
+
+    await submit({
+      full_name: 'سارة',
+      email: 'sara@example.com',
+      skills: ['media'],
+      city: 'دمشق',
+    })
+    await submit({
+      full_name: 'ليان',
+      email: 'lian@example.com',
+      skills: ['planting'],
+      city: 'دمشق',
+    })
+    await submit({
+      full_name: 'هيا',
+      email: 'haya@example.com',
+      skills: ['media'],
+      city: 'حلب',
+    })
+
+    // احتواء داخل قائمة متعددة
+    expect((await list('?answer=skills:media')).body.data).toHaveLength(2)
+    // مساواة على إجابة مفردة
+    expect((await list('?answer=city:دمشق')).body.data).toHaveLength(2)
+    // مرشّحان يضيّقان لا يوسّعان
+    expect(
+      (await list('?answer=skills:media&answer=city:حلب')).body.data,
+    ).toHaveLength(1)
+    expect((await list('?answer=city:حمص')).body.data).toHaveLength(0)
+  })
+
+  it('rejects a filter that is not written as key:value', async () => {
+    await request(app)
+      .get(`/api/admin/forms/${formId}/submissions?answer=skills`)
+      .set('authorization', bearer(token))
+      .expect(422)
+  })
+
   it('turns away anonymous readers', async () => {
     await request(app)
       .get(`/api/admin/forms/${formId}/submissions`)

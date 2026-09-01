@@ -1,53 +1,19 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { useRefOptions } from "@/components/forms/use-ref-options";
 import { Field, Input, Label } from "@/components/ui/field";
 import {
   type FormField,
   REF_TYPES,
   isFieldVisible,
 } from "@/lib/api/forms";
-import { listAreas, listPrograms } from "@/lib/api/initiatives";
-import { listOffices } from "@/lib/api/invitations";
 
 type Answers = Record<string, unknown>;
 
 const selectClass =
   "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm";
-
-/**
- * خيارات المراجع تأتي من كتالوجات النظام لا من السؤال.
- *
- * هذا ما يجعل «أي محافظة تسكن؟» بيانات قابلة للفرز بدل نص حر — وما يعني
- * أن إضافة محافظة إلى `areas` تظهر في كل استمارة دون لمس أي سؤال.
- */
-function useRefOptions(enabled: boolean) {
-  const areas = useQuery({
-    queryKey: ["areas", "GOVERNORATE"],
-    queryFn: () => listAreas("GOVERNORATE"),
-    enabled,
-  });
-  const offices = useQuery({
-    queryKey: ["offices"],
-    queryFn: listOffices,
-    enabled,
-  });
-  const programs = useQuery({
-    queryKey: ["programs"],
-    queryFn: listPrograms,
-    enabled,
-  });
-
-  return {
-    AREA_REF: areas.data?.map((a) => ({ value: a.id, labelAr: a.nameAr })) ?? [],
-    OFFICE_REF:
-      offices.data?.map((o) => ({ value: o.id, labelAr: o.nameAr })) ?? [],
-    PROGRAM_REF:
-      programs.data?.map((p) => ({ value: p.id, labelAr: p.nameAr })) ?? [],
-  };
-}
 
 function PreviewField({
   field,

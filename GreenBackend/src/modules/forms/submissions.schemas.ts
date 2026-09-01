@@ -34,10 +34,34 @@ export const submissionDetailSchema = registry.register(
   }),
 )
 
+/**
+ * مرشّح على إجابة سؤال: `مفتاح:قيمة`.
+ *
+ * الفصل عند أول نقطتين لا عند كلٍّ منها، فالقيم قد تحملها — «الدوام: صباحي»
+ * قيمةٌ مشروعة لا مرشّحان.
+ */
+export const answerFilterSchema = z
+  .string()
+  .min(3)
+  .max(300)
+  .refine((value) => value.indexOf(':') > 0, {
+    message: 'المرشّح يُكتب «مفتاح:قيمة».',
+  })
+
 export const listSubmissionsQuerySchema = z.object({
   status: submissionStatusEnum.optional(),
   /** بحث في الاسم والبريد والهاتف — الأعمدة المستخرجة لا داخل الإجابات. */
   q: z.string().trim().min(1).max(120).optional(),
+  /**
+   * مرشّحات على الإجابات نفسها. تتكرّر في العنوان: `?answer=a:1&answer=b:2`،
+   * وتُجمع بـ«و» لا بـ«أو» — الفارز يضيّق لا يوسّع.
+   */
+  answer: z
+    .union([answerFilterSchema, z.array(answerFilterSchema).max(10)])
+    .optional()
+    .transform((value) =>
+      value === undefined ? [] : Array.isArray(value) ? value : [value],
+    ),
   before: z.iso.datetime().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50),
 })

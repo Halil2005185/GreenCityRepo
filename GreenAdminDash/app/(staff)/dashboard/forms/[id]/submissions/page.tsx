@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Plus, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+import { useRefOptions } from "@/components/forms/use-ref-options";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -15,9 +16,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
+import { Input, Label } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/client";
 import {
+  type AnswerFilter,
+  type FormField,
+  REF_TYPES,
   SUBMISSION_STATUS_LABELS,
   type SubmissionStatus,
   type SubmissionSummary,
@@ -30,12 +34,28 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { cn, formatDateTime } from "@/lib/utils";
 
+const SELECT_CLASS =
+  "h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+
 const STATUS_STYLES: Record<SubmissionStatus, string> = {
   NEW: "bg-primary/10 text-primary",
   IN_REVIEW: "bg-warning/15 text-warning",
   ACCEPTED: "bg-success/15 text-success",
   REJECTED: "bg-destructive/10 text-destructive",
 };
+
+/**
+ * ما يصلح للترشيح: أسئلة قيمها من مجموعة معروفة.
+ *
+ * النصّ الحرّ لا يُرشَّح بالمطابقة التامة — من يكتب «دمشق - المزة» لا يطابق
+ * «دمشق»، فيبدو المرشّح معطّلًا. وللبحث في النصّ صندوق البحث أعلاه.
+ */
+const FILTERABLE = ["SINGLE_SELECT", "MULTI_SELECT", "BOOLEAN", ...REF_TYPES];
+
+const BOOLEAN_OPTIONS = [
+  { value: "true", labelAr: "نعم" },
+  { value: "false", labelAr: "لا" },
+];
 
 const FILTERS: Array<{ value: SubmissionStatus | ""; label: string }> = [
   { value: "", label: "الكل" },
@@ -61,12 +81,44 @@ export default function SubmissionsPage() {
    * ما تحته. والصفحات المحمَّلة تُجمع هنا لأن كل نداء يعيد دفعةً واحدة.
    */
   const [pages, setPages] = useState<string[]>([]);
+  const [answers, setAnswers] = useState<AnswerFilter[]>([]);
+  const [draftKey, setDraftKey] = useState("");
+  const [draftValue, setDraftValue] = useState("");
 
   const canManage = can(CAPABILITIES.formsManage);
 
   const form = useQuery({ queryKey: ["forms", id], queryFn: () => getForm(id) });
 
-  const listKey = ["submissions", id, status, search] as const;
+  /**
+   * الترشيح على أسئلة **الإصدار المنشور**: هو ما أجاب عنه المتقدّمون.
+   * أسئلة المسوّدة قد لا يقابلها في الطلبات شيء.
+   */
+  const fields: FormField[] = form.data?.published?.fields ?? [];
+  const filterable = fields.filter((field) => FILTERABLE.includes(field.type));
+  const refOptions = useRefOptions(
+    filterable.some((field) => REF_TYPES.includes(field.type)),
+  );
+
+  const chosen = filterable.find((field) => field.key === draftKey) ?? null;
+
+  const valuesFor = (field: FormField) =>
+    field.type === "BOOLEAN"
+      ? BOOLEAN_OPTIONS
+      : REF_TYPES.includes(field.type)
+        ? (refOptions[field.type as keyof typeof refOptions] ?? [])
+        : field.options;
+
+  const labelOf = (filter: AnswerFilter) => {
+    const field = fields.find((one) => one.key === filter.key);
+
+    if (!field) return `${filter.key}: ${filter.value}`;
+
+    const option = valuesFor(field).find((one) => one.value === filter.value);
+
+    return `${field.labelAr}: ${option?.labelAr ?? filter.value}`;
+  };
+
+  const listKey = ["submissions", id, status, search, answers] as const;
 
   const first = useQuery({
     queryKey: listKey,
@@ -74,6 +126,7 @@ export default function SubmissionsPage() {
       listSubmissions(id, {
         ...(status ? { status } : {}),
         ...(search ? { q: search } : {}),
+        answers,
       }),
   });
 
@@ -87,6 +140,7 @@ export default function SubmissionsPage() {
         const page = await listSubmissions(id, {
           ...(status ? { status } : {}),
           ...(search ? { q: search } : {}),
+          answers,
           before,
         });
 
@@ -198,6 +252,110 @@ export default function SubmissionsPage() {
         </form>
       </div>
 
+      {filterable.length > 0 ? (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="filter-field" className="text-xs">
+                ترشيح بإجابة
+              </Label>
+
+              <select
+                id="filter-field"
+                className={SELECT_CLASS}
+                value={draftKey}
+                onChange={(event) => {
+                  setDraftKey(event.target.value);
+                  setDraftValue("");
+                }}
+              >
+                <option value="">اختر سؤالًا…</option>
+                {filterable.map((field) => (
+                  <option key={field.key} value={field.key}>
+                    {field.labelAr}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-1">
+              <Label htmlFor="filter-value" className="text-xs">
+                القيمة
+              </Label>
+
+              <select
+                id="filter-value"
+                className={SELECT_CLASS}
+                value={draftValue}
+                disabled={!chosen}
+                onChange={(event) => setDraftValue(event.target.value)}
+              >
+                <option value="">اختر…</option>
+                {chosen
+                  ? valuesFor(chosen).map((option) => (
+                      <option key={option.value} value={option.value}>
+                        {option.labelAr}
+                      </option>
+                    ))
+                  : null}
+              </select>
+            </div>
+
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              disabled={!draftKey || !draftValue}
+              onClick={() => {
+                setPages([]);
+                setAnswers((current) =>
+                  current.some(
+                    (one) => one.key === draftKey && one.value === draftValue,
+                  )
+                    ? current
+                    : [...current, { key: draftKey, value: draftValue }],
+                );
+                setDraftValue("");
+              }}
+            >
+              <Plus className="size-4" />
+              أضف
+            </Button>
+          </div>
+
+          {answers.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {answers.map((filter) => (
+                <button
+                  key={`${filter.key}:${filter.value}`}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs text-primary"
+                  onClick={() => {
+                    setPages([]);
+                    setAnswers((current) =>
+                      current.filter(
+                        (one) =>
+                          !(one.key === filter.key && one.value === filter.value),
+                      ),
+                    );
+                  }}
+                >
+                  {labelOf(filter)}
+                  <X className="size-3" aria-hidden />
+                  <span className="sr-only">إزالة المرشّح</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              المرشّحات تُجمع بـ«و»: كل واحد يضيّق النتيجة. والنصّ الحرّ يُبحث
+              من صندوق البحث لا من هنا.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="p-0">
@@ -209,8 +367,8 @@ export default function SubmissionsPage() {
               </div>
             ) : rows.length === 0 ? (
               <p className="p-6 text-sm text-muted-foreground">
-                {search || status
-                  ? "لا طلبات تطابق البحث."
+                {search || status || answers.length > 0
+                  ? "لا طلبات تطابق الترشيح."
                   : "لا طلبات بعد. سيظهر هنا كل من يرسل الاستمارة."}
               </p>
             ) : (
