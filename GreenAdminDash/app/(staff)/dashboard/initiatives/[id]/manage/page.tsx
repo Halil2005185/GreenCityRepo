@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Ban, Check, Circle, Rocket, Trash2 } from "lucide-react";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -325,13 +326,31 @@ export default function InitiativeDetailPage() {
                     {canManage ? (
                       <form
                         className="mt-2 flex flex-wrap gap-2"
+                        noValidate
                         onSubmit={(event) => {
                           event.preventDefault();
+                          setError(null);
                           const form = new FormData(event.currentTarget);
+                          const metricId = String(form.get("metricId") ?? "");
+                          const numVal = Number(form.get("value") ?? 0);
+                          const result = z
+                            .number()
+                            .positive("قيمة الهدف يجب أن تكون أكبر من الصفر.")
+                            .max(999_999_999, "القيمة كبيرة جدًا.")
+                            .safeParse(numVal);
+
+                          if (!result.success) {
+                            setError(
+                              result.error.issues[0]?.message ??
+                                "قيمة غير صالحة.",
+                            );
+                            return;
+                          }
+
                           siteTargetMutation.mutate({
                             siteId: site.id,
-                            metricId: String(form.get("metricId") ?? ""),
-                            value: Number(form.get("value") ?? 0),
+                            metricId,
+                            value: result.data,
                           });
                           event.currentTarget.reset();
                         }}
@@ -370,10 +389,28 @@ export default function InitiativeDetailPage() {
             {canManage ? (
               <form
                 className="flex gap-2 border-t border-border pt-3"
+                noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
+                  setError(null);
                   const form = new FormData(event.currentTarget);
-                  siteMutation.mutate(String(form.get("nameAr") ?? ""));
+                  const rawName = String(form.get("nameAr") ?? "");
+                  const result = z
+                    .string()
+                    .trim()
+                    .min(2, "اسم الموقع يجب ألا يقل عن حرفين.")
+                    .max(200, "اسم الموقع طويل جدًا.")
+                    .safeParse(rawName);
+
+                  if (!result.success) {
+                    setError(
+                      result.error.issues[0]?.message ??
+                        "اسم الموقع غير صالح.",
+                    );
+                    return;
+                  }
+
+                  siteMutation.mutate(result.data);
                   event.currentTarget.reset();
                 }}
               >
@@ -474,12 +511,30 @@ export default function InitiativeDetailPage() {
             {canManage ? (
               <form
                 className="space-y-2 border-t border-border pt-3"
+                noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
+                  setError(null);
                   const form = new FormData(event.currentTarget);
+                  const metricId = String(form.get("metricId") ?? "");
+                  const numVal = Number(form.get("value") ?? 0);
+                  const result = z
+                    .number()
+                    .positive("قيمة الهدف يجب أن تكون أكبر من الصفر.")
+                    .max(999_999_999, "القيمة كبيرة جدًا.")
+                    .safeParse(numVal);
+
+                  if (!result.success) {
+                    setError(
+                      result.error.issues[0]?.message ??
+                        "قيمة غير صالحة.",
+                    );
+                    return;
+                  }
+
                   initiativeTargetMutation.mutate({
-                    metricId: String(form.get("metricId") ?? ""),
-                    value: Number(form.get("value") ?? 0),
+                    metricId,
+                    value: result.data,
                   });
                   event.currentTarget.reset();
                 }}

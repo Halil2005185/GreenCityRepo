@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -29,9 +30,35 @@ function linesOf(value: FormDataEntryValue | null) {
     .filter(Boolean);
 }
 
+const charterFormSchema = z.object({
+  version: z
+    .string()
+    .trim()
+    .min(1, "رقم الإصدار مطلوب.")
+    .max(20, "رقم الإصدار طويل جدًا."),
+  titleAr: z
+    .string()
+    .trim()
+    .min(3, "العنوان يجب ألا يقل عن 3 أحرف.")
+    .max(200, "العنوان طويل جدًا."),
+  bodyAr: z
+    .string()
+    .trim()
+    .min(20, "نص الميثاق يجب ألا يقل عن 20 حرفًا."),
+  principlesAr: z.array(z.string()).refine(
+    (lines) => lines.every((l) => l.trim().length >= 3),
+    "كل مبدأ يجب ألا يقل عن 3 أحرف.",
+  ),
+  commitmentsAr: z.array(z.string()).refine(
+    (lines) => lines.every((l) => l.trim().length >= 3),
+    "كل التزام يجب ألا يقل عن 3 أحرف.",
+  ),
+});
+
 export default function CharterPage() {
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
+  const [charterErrors, setCharterErrors] = useState<Record<string, string>>({});
 
   const versions = useQuery({
     queryKey: ["charter-versions"],
@@ -41,6 +68,7 @@ export default function CharterPage() {
   function invalidate() {
     void queryClient.invalidateQueries({ queryKey: ["charter-versions"] });
     setError(null);
+    setCharterErrors({});
   }
 
   function onFailed(caught: unknown) {
@@ -146,21 +174,37 @@ export default function CharterPage() {
         <CardContent>
           <form
             className="space-y-4"
+            noValidate
             onSubmit={(event) => {
               event.preventDefault();
+              setError(null);
+              setCharterErrors({});
               const form = new FormData(event.currentTarget);
 
-              create.mutate({
+              const raw = {
                 version: String(form.get("version") ?? ""),
                 titleAr: String(form.get("titleAr") ?? ""),
                 bodyAr: String(form.get("bodyAr") ?? ""),
                 principlesAr: linesOf(form.get("principlesAr")),
                 commitmentsAr: linesOf(form.get("commitmentsAr")),
-              });
+              };
+
+              const parsed = charterFormSchema.safeParse(raw);
+              if (!parsed.success) {
+                const issues: Record<string, string> = {};
+                for (const issue of parsed.error.issues) {
+                  const key = String(issue.path[0] ?? "");
+                  if (key && !issues[key]) issues[key] = issue.message;
+                }
+                setCharterErrors(issues);
+                return;
+              }
+
+              create.mutate(parsed.data);
             }}
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field id="version" label="رقم الإصدار">
+              <Field id="version" label="رقم الإصدار" error={charterErrors.version}>
                 {(props) => (
                   <Input
                     {...props}
@@ -173,7 +217,7 @@ export default function CharterPage() {
                 )}
               </Field>
 
-              <Field id="titleAr" label="العنوان">
+              <Field id="titleAr" label="العنوان" error={charterErrors.titleAr}>
                 {(props) => (
                   <Input
                     {...props}
@@ -185,7 +229,7 @@ export default function CharterPage() {
               </Field>
             </div>
 
-            <Field id="bodyAr" label="نص الميثاق">
+            <Field id="bodyAr" label="نص الميثاق" error={charterErrors.bodyAr}>
               {(props) => (
                 <textarea
                   {...props}
@@ -197,7 +241,12 @@ export default function CharterPage() {
               )}
             </Field>
 
-            <Field id="principlesAr" label="المبادئ" hint="مبدأ في كل سطر.">
+            <Field
+              id="principlesAr"
+              label="المبادئ"
+              hint="مبدأ في كل سطر."
+              error={charterErrors.principlesAr}
+            >
               {(props) => (
                 <textarea
                   {...props}
@@ -208,7 +257,12 @@ export default function CharterPage() {
               )}
             </Field>
 
-            <Field id="commitmentsAr" label="التزامات الشركاء" hint="التزام في كل سطر.">
+            <Field
+              id="commitmentsAr"
+              label="التزامات الشركاء"
+              hint="التزام في كل سطر."
+              error={charterErrors.commitmentsAr}
+            >
               {(props) => (
                 <textarea
                   {...props}

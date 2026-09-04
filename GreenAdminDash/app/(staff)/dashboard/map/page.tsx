@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MapPin, Sprout } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
+import { z } from "zod";
 
 import { MapClient } from "@/components/map/map-client";
 import { Button, buttonVariants } from "@/components/ui/button";
@@ -26,6 +27,29 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { cn } from "@/lib/utils";
 
+const greenPointFormSchema = z.object({
+  nameAr: z
+    .string()
+    .trim()
+    .min(3, "عنوان النقطة يجب ألا يقل عن 3 أحرف.")
+    .max(200, "عنوان النقطة طويل جدًا."),
+  contributorNameAr: z
+    .string()
+    .trim()
+    .min(2, "اسم المنفّذ يجب ألا يقل عن حرفين.")
+    .max(200, "اسم المنفّذ طويل جدًا."),
+  contributorKind: z.string().min(1, "اختر صفة المنفّذ."),
+  trees: z
+    .unknown()
+    .transform((val) =>
+      val === "" || val === undefined || val === null ? 0 : Number(val),
+    )
+    .refine((num) => Number.isFinite(num) && num >= 0 && Number.isInteger(num), {
+      message: "العدد يجب أن يكون رقمًا صحيحًا غير سالب.",
+    }),
+  storyAr: z.string().trim().max(20000, "القصة طويلة جدًا.").optional(),
+});
+
 export default function MapPage() {
   const { can } = useAuth();
   const queryClient = useQueryClient();
@@ -36,6 +60,7 @@ export default function MapPage() {
   const [image, setImage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [kindFilter, setKindFilter] = useState("");
+  const [pointErrors, setPointErrors] = useState<Record<string, string>>({});
 
   const areas = useQuery({ queryKey: ["map-areas"], queryFn: listMapAreas });
   const points = useQuery({
@@ -56,6 +81,7 @@ export default function MapPage() {
       setImage(null);
       setPicking(false);
       setError(null);
+      setPointErrors({});
     },
     onError: (caught) =>
       setError(
@@ -233,26 +259,50 @@ export default function MapPage() {
               <CardContent>
                 <form
                   className="space-y-3"
+                  noValidate
                   onSubmit={(event) => {
                     event.preventDefault();
-                    const form = new FormData(event.currentTarget);
-                    const trees = Number(form.get("trees") ?? 0);
+                    if (!pin) return;
+                    setError(null);
+                    setPointErrors({});
 
-                    create.mutate({
+                    const form = new FormData(event.currentTarget);
+                    const raw = {
                       nameAr: String(form.get("nameAr") ?? ""),
                       contributorNameAr: String(form.get("contributor") ?? ""),
                       contributorKind: String(
                         form.get("contributorKind") ?? "INDIVIDUAL",
-                      ) as keyof typeof CONTRIBUTOR_KIND_LABELS,
+                      ),
+                      trees: form.get("trees"),
+                      storyAr:
+                        String(form.get("story") ?? "").trim() || undefined,
+                    };
+
+                    const parsed = greenPointFormSchema.safeParse(raw);
+                    if (!parsed.success) {
+                      const issues: Record<string, string> = {};
+                      for (const issue of parsed.error.issues) {
+                        const key = String(issue.path[0] ?? "");
+                        if (key && !issues[key]) issues[key] = issue.message;
+                      }
+                      setPointErrors(issues);
+                      return;
+                    }
+
+                    const { data } = parsed;
+
+                    create.mutate({
+                      nameAr: data.nameAr,
+                      contributorNameAr: data.contributorNameAr,
+                      contributorKind:
+                        data.contributorKind as keyof typeof CONTRIBUTOR_KIND_LABELS,
                       lat: pin.lat,
                       lng: pin.lng,
                       ...(selected ? { areaId: selected.id } : {}),
-                      ...(form.get("story")
-                        ? { storyAr: String(form.get("story")) }
-                        : {}),
+                      ...(data.storyAr ? { storyAr: data.storyAr } : {}),
                       ...(image ? { coverImageUrl: image } : {}),
-                      ...(treeMetric && trees > 0
-                        ? { metricId: treeMetric.id, metricValue: trees }
+                      ...(treeMetric && data.trees > 0
+                        ? { metricId: treeMetric.id, metricValue: data.trees }
                         : {}),
                     });
                   }}
@@ -261,12 +311,22 @@ export default function MapPage() {
                     {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
                   </p>
 
-                  <Field id="nameAr" label="عنوان النقطة">
+                  <Field
+                    id="nameAr"
+                    label="عنوان النقطة"
+                    error={pointErrors.nameAr}
+                  >
                     {(props) => <Input {...props} name="nameAr" required />}
                   </Field>
 
-                  <Field id="contributor" label="من نفّذها">
-                    {(props) => <Input {...props} name="contributor" required />}
+                  <Field
+                    id="contributor"
+                    label="من نفّذها"
+                    error={pointErrors.contributorNameAr}
+                  >
+                    {(props) => (
+                      <Input {...props} name="contributor" required />
+                    )}
                   </Field>
 
                   <div className="space-y-1">
@@ -290,6 +350,7 @@ export default function MapPage() {
                     id="trees"
                     label={`عدد ${treeMetric?.nameAr ?? "الأشجار"}`}
                     hint="يدخل المجموع الوطني فور التوثيق."
+                    error={pointErrors.trees}
                   >
                     {(props) => (
                       <Input {...props} name="trees" type="number" min="0" />
@@ -303,7 +364,11 @@ export default function MapPage() {
                     onChange={setImage}
                   />
 
-                  <Field id="story" label="تفاصيل">
+                  <Field
+                    id="story"
+                    label="تفاصيل"
+                    error={pointErrors.storyAr}
+                  >
                     {(props) => (
                       <textarea
                         {...props}

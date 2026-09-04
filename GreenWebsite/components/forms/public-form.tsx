@@ -1,9 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import type { PublicForm, PublicFormField } from "@/lib/api/types";
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const URL_PATTERN = /^https?:\/\/[^\s]+$/i;
+const PHONE_PATTERN = /^[+]?[\d\s()-]{6,32}$/;
+const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 /**
  * الإرسال من متصفح الزائر مباشرةً إلى الـAPI، لا عبر خادم الموقع.
@@ -96,39 +102,103 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
     });
   }
 
+  function getFieldZodValidator(field: PublicFormField): z.ZodTypeAny {
+    switch (field.type) {
+      case "EMAIL":
+        return z
+          .string()
+          .trim()
+          .regex(EMAIL_PATTERN, "صيغة البريد الإلكتروني غير صحيحة.");
+
+      case "PHONE":
+        return z
+          .string()
+          .trim()
+          .regex(PHONE_PATTERN, "صيغة رقم الهاتف غير صحيحة.");
+
+      case "URL":
+        return z
+          .string()
+          .trim()
+          .regex(URL_PATTERN, "الرابط غير صحيح (يجب أن يبدأ بـ http:// أو https://).");
+
+      case "DATE":
+        return z
+          .string()
+          .trim()
+          .regex(DATE_PATTERN, "التاريخ يجب أن يكون بصيغة YYYY-MM-DD.");
+
+      case "NUMBER":
+        return z
+          .unknown()
+          .transform((val) => (typeof val === "string" ? val.trim() : val))
+          .refine((val) => {
+            const num = typeof val === "number" ? val : Number(val);
+            return Number.isFinite(num);
+          }, "القيمة يجب أن تكون رقمًا.");
+
+      case "BOOLEAN":
+        return z.boolean({ message: "القيمة يجب أن تكون نعم أو لا." });
+
+      case "MULTI_SELECT": {
+        let arr = z.array(z.string());
+        if (field.minSelections) {
+          arr = arr.min(
+            field.minSelections,
+            `اختر ${field.minSelections} على الأقل.`,
+          );
+        }
+        if (field.maxSelections) {
+          arr = arr.max(
+            field.maxSelections,
+            `اختر ${field.maxSelections} على الأكثر.`,
+          );
+        }
+        return arr;
+      }
+
+      case "SINGLE_SELECT":
+      case "AREA_REF":
+      case "OFFICE_REF":
+      case "PROGRAM_REF":
+        return z.string().trim();
+
+      case "TEXT":
+      case "LONG_TEXT":
+      default: {
+        let str = z.string().trim();
+        if (field.maxLength) {
+          str = str.max(field.maxLength, `الحد الأقصى ${field.maxLength} حرفًا.`);
+        }
+        return str;
+      }
+    }
+  }
+
   /**
-   * تحقّق أولي في المتصفح ليقف الخطأ عند سؤاله بدل رحلة إلى الخادم.
-   * والخادم يعيد الفحص كاملًا؛ ما يرجع منه يُعرض كما هو على أسئلته.
+   * تحقّق أولي في المتصفح باستخدام Zod ليقف الخطأ عند سؤاله بدل رحلة إلى الخادم.
    */
   function validate() {
     const found: Record<string, string> = {};
 
     for (const field of visible) {
-      const value = values[field.key];
+      const raw = values[field.key];
+      const empty = isBlank(raw);
 
-      if (field.isRequired && isBlank(value) && typeof value !== "boolean") {
+      if (field.isRequired && empty && typeof raw !== "boolean") {
         found[field.key] = "هذا السؤال مطلوب.";
         continue;
       }
 
-      if (Array.isArray(value)) {
-        if (field.minSelections && value.length < field.minSelections) {
-          found[field.key] = `اختر ${field.minSelections} على الأقل.`;
-        }
-
-        if (field.maxSelections && value.length > field.maxSelections) {
-          found[field.key] = `اختر ${field.maxSelections} على الأكثر.`;
-        }
-
+      if (empty) {
         continue;
       }
 
-      if (
-        field.maxLength &&
-        typeof value === "string" &&
-        value.length > field.maxLength
-      ) {
-        found[field.key] = `الحد الأقصى ${field.maxLength} حرفًا.`;
+      const validator = getFieldZodValidator(field);
+      const parsed = validator.safeParse(raw);
+      if (!parsed.success) {
+        found[field.key] =
+          parsed.error.issues[0]?.message ?? "قيمة غير صالحة.";
       }
     }
 
@@ -153,8 +223,10 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
 
       answers[field.key] =
         field.type === "NUMBER" && typeof value === "string"
-          ? Number(value)
-          : value;
+          ? Number(value.trim())
+          : typeof value === "string"
+            ? value.trim()
+            : value;
     }
 
     setSending(true);
