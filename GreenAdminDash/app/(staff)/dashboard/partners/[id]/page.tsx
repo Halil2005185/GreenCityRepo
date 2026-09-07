@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Circle, Copy, ExternalLink } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -39,7 +40,30 @@ import {
 } from "@/lib/api/partners";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
-import { cn, formatDateTime } from "@/lib/utils";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
+
+const addContactSchema = z.object({
+  fullNameAr: z
+    .string()
+    .trim()
+    .min(3, "الاسم الكامل يجب ألا يقل عن 3 أحرف.")
+    .max(160, "الاسم الكامل طويل جدًا."),
+  jobTitleAr: z.string().trim().max(160, "المنصب طويل جدًا.").optional(),
+  email: z
+    .string()
+    .trim()
+    .email("صيغة البريد الإلكتروني غير صحيحة.")
+    .max(254, "البريد طويل جدًا."),
+});
+
+const acknowledgementSchema = z.object({
+  acknowledgedByNameAr: z
+    .string()
+    .trim()
+    .min(3, "اسم المُقِرّ يجب ألا يقل عن 3 أحرف.")
+    .max(160, "اسم المُقِرّ طويل جدًا."),
+  method: z.string().min(1, "اختر طريقة الإقرار."),
+});
 
 function Section({
   title,
@@ -298,13 +322,31 @@ export default function PartnerDetailPage() {
             {canManage ? (
               <form
                 className="grid gap-2 border-t border-border pt-3 sm:grid-cols-4"
+                noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
+                  setError(null);
                   const form = new FormData(event.currentTarget);
-                  contactMutation.mutate({
+                  const raw = {
                     fullNameAr: String(form.get("fullNameAr") ?? ""),
-                    jobTitleAr: String(form.get("jobTitleAr") ?? ""),
-                    email: String(form.get("email") ?? ""),
+                    jobTitleAr:
+                      String(form.get("jobTitleAr") ?? "").trim() || undefined,
+                    email: String(form.get("email") ?? "").trim(),
+                  };
+
+                  const parsed = addContactSchema.safeParse(raw);
+                  if (!parsed.success) {
+                    setError(
+                      parsed.error.issues[0]?.message ??
+                        "بيانات جهة الاتصال غير صالحة.",
+                    );
+                    return;
+                  }
+
+                  contactMutation.mutate({
+                    fullNameAr: parsed.data.fullNameAr,
+                    email: parsed.data.email,
+                    jobTitleAr: parsed.data.jobTitleAr ?? "",
                   });
                   event.currentTarget.reset();
                 }}
@@ -435,14 +477,30 @@ export default function PartnerDetailPage() {
             {can(CAPABILITIES.partnersManage) ? (
               <form
                 className="grid gap-2 border-t border-border pt-3 sm:grid-cols-3"
+                noValidate
                 onSubmit={(event) => {
                   event.preventDefault();
+                  setError(null);
                   const form = new FormData(event.currentTarget);
-                  acknowledgementMutation.mutate({
+                  const raw = {
                     acknowledgedByNameAr: String(form.get("name") ?? ""),
-                    method: form.get(
-                      "method",
-                    ) as keyof typeof ACKNOWLEDGEMENT_METHOD_LABELS,
+                    method: String(form.get("method") ?? ""),
+                  };
+
+                  const parsed = acknowledgementSchema.safeParse(raw);
+                  if (!parsed.success) {
+                    setError(
+                      parsed.error.issues[0]?.message ??
+                        "بيانات الإقرار غير صالحة.",
+                    );
+                    return;
+                  }
+
+                  acknowledgementMutation.mutate({
+                    acknowledgedByNameAr: parsed.data.acknowledgedByNameAr,
+                    method:
+                      parsed.data
+                        .method as keyof typeof ACKNOWLEDGEMENT_METHOD_LABELS,
                   });
                   event.currentTarget.reset();
                 }}

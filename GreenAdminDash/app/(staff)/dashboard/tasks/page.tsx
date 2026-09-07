@@ -3,8 +3,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Plus } from "lucide-react";
 import { useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
+import { safeToIsoString } from "@/lib/validation/rules";
 import {
   Alert,
   Card,
@@ -51,6 +53,29 @@ const NEXT_STATUSES: Record<WorkStatus, readonly WorkStatus[]> = {
   DONE: ["IN_PROGRESS"],
   CANCELLED: ["TODO"],
 };
+
+const taskFormSchema = z.object({
+  titleAr: z
+    .string()
+    .trim()
+    .min(3, "عنوان المهمة يجب ألا يقل عن 3 أحرف.")
+    .max(300, "عنوان المهمة طويل جدًا."),
+  scopeKind: z.enum(["OFFICE", "INITIATIVE"]),
+  scopeId: z.string().trim().min(1, "يرجى اختيار جهة المهمة."),
+  priority: z.enum(["LOW", "NORMAL", "HIGH", "URGENT"]),
+  assigneeUserId: z.string().optional(),
+  dueAt: z
+    .string()
+    .optional()
+    .refine(
+      (val) => {
+        if (!val || !val.trim()) return true;
+        return !isNaN(new Date(val).getTime());
+      },
+      { message: "تاريخ الاستحقاق غير صالح." },
+    ),
+  descriptionAr: z.string().max(4000, "الوصف طويل جدًا.").optional(),
+});
 
 /** لا مكوّن `Select` في المكتبة بعد، والصنف يتكرر في النموذج فيُسمّى مرة. */
 const SELECT_CLASS =
@@ -114,6 +139,7 @@ export default function MyTasksPage() {
   const [creating, setCreating] = useState(false);
   const [scopeKind, setScopeKind] = useState<"OFFICE" | "INITIATIVE">("OFFICE");
   const [scopeId, setScopeId] = useState("");
+  const [taskErrors, setTaskErrors] = useState<Record<string, string>>({});
 
   const canManage = can(CAPABILITIES.workManage);
 
@@ -298,25 +324,48 @@ export default function MyTasksPage() {
           <CardContent>
             <form
               className="space-y-4"
+              noValidate
               onSubmit={(event) => {
                 event.preventDefault();
+                setTaskErrors({});
                 const form = new FormData(event.currentTarget);
-                const assigneeUserId = String(form.get("assigneeUserId") ?? "");
-                const dueAt = String(form.get("dueAt") ?? "");
-                const descriptionAr = String(
-                  form.get("descriptionAr") ?? "",
-                ).trim();
+                const rawValues = {
+                  scopeKind,
+                  scopeId,
+                  titleAr: String(form.get("titleAr") ?? ""),
+                  priority: String(form.get("priority") ?? "NORMAL") as WorkPriority,
+                  assigneeUserId:
+                    String(form.get("assigneeUserId") ?? "") || undefined,
+                  dueAt: String(form.get("dueAt") ?? "") || undefined,
+                  descriptionAr:
+                    String(form.get("descriptionAr") ?? "").trim() || undefined,
+                };
+
+                const parsed = taskFormSchema.safeParse(rawValues);
+                if (!parsed.success) {
+                  const errors: Record<string, string> = {};
+                  for (const issue of parsed.error.issues) {
+                    const key = String(issue.path[0] ?? "");
+                    if (key && !errors[key]) {
+                      errors[key] = issue.message;
+                    }
+                  }
+                  setTaskErrors(errors);
+                  return;
+                }
+
+                const { data } = parsed;
+                const isoDueAt = safeToIsoString(data.dueAt);
 
                 create.mutate({
-                  ...(scopeKind === "OFFICE"
-                    ? { officeId: scopeId }
-                    : { initiativeId: scopeId }),
-                  titleAr: String(form.get("titleAr") ?? ""),
-                  priority: String(form.get("priority")) as WorkPriority,
-                  ...(assigneeUserId ? { assigneeUserId } : {}),
-                  // الحقل يعطي وقتًا محليًا بلا منطقة، والخادم يريد ISO.
-                  ...(dueAt ? { dueAt: new Date(dueAt).toISOString() } : {}),
-                  ...(descriptionAr ? { descriptionAr } : {}),
+                  ...(data.scopeKind === "OFFICE"
+                    ? { officeId: data.scopeId }
+                    : { initiativeId: data.scopeId }),
+                  titleAr: data.titleAr,
+                  priority: data.priority as WorkPriority,
+                  ...(data.assigneeUserId ? { assigneeUserId: data.assigneeUserId } : {}),
+                  ...(isoDueAt ? { dueAt: isoDueAt } : {}),
+                  ...(data.descriptionAr ? { descriptionAr: data.descriptionAr } : {}),
                 });
               }}
             >
@@ -346,8 +395,16 @@ export default function MyTasksPage() {
                   <select
                     id="scopeId"
                     value={scopeId}
-                    onChange={(event) => setScopeId(event.target.value)}
-                    required
+                    onChange={(event) => {
+                      setScopeId(event.target.value);
+                      if (taskErrors.scopeId) {
+                        setTaskErrors((prev) => {
+                          const next = { ...prev };
+                          delete next.scopeId;
+                          return next;
+                        });
+                      }
+                    }}
                     className={SELECT_CLASS}
                   >
                     <option value="">
@@ -368,10 +425,13 @@ export default function MyTasksPage() {
                           </option>
                         ))}
                   </select>
+                  {taskErrors.scopeId ? (
+                    <p className="text-xs text-destructive">{taskErrors.scopeId}</p>
+                  ) : null}
                 </div>
               </div>
 
-              <Field id="titleAr" label="عنوان المهمة">
+              <Field id="titleAr" label="عنوان المهمة" error={taskErrors.titleAr}>
                 {(props) => (
                   <Input
                     {...props}
@@ -417,7 +477,7 @@ export default function MyTasksPage() {
                   </select>
                 </div>
 
-                <Field id="dueAt" label="الموعد" hint="اختياري.">
+                <Field id="dueAt" label="الموعد" hint="اختياري." error={taskErrors.dueAt}>
                   {(props) => (
                     <Input
                       {...props}
@@ -430,7 +490,7 @@ export default function MyTasksPage() {
                 </Field>
               </div>
 
-              <Field id="descriptionAr" label="التفاصيل">
+              <Field id="descriptionAr" label="التفاصيل" error={taskErrors.descriptionAr}>
                 {(props) => (
                   <textarea
                     {...props}
