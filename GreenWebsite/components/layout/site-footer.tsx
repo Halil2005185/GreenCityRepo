@@ -22,7 +22,7 @@ export function SiteFooter() {
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-3 lg:col-span-2">
             <div className="flex items-center gap-2.5">
-              <Logo className="size-8 text-primary" />
+              <Logo className="h-8" />
               <span className="text-base font-bold">{siteConfig.name}</span>
             </div>
             <p className="max-w-sm text-sm leading-relaxed text-muted-foreground">
