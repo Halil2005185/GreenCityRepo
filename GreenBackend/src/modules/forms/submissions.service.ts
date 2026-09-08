@@ -162,8 +162,14 @@ export async function listSubmissions(
   const last = rows.at(-1)
 
   return {
-    // `answers` و`formVersionId` أداتان للردم لا حقلان للواجهة.
-    data: filled.map(({ answers: _answers, formVersionId: _versionId, ...row }) => ({
+    /**
+     * الإجابات تخرج مع الصف لا في نداء ثانٍ لكل طلب.
+     *
+     * الفارز يختار السؤال الذي يريد رؤيته في القائمة — الاسم أو المواليد أو
+     * غيرهما — والقائمة تعرضه من هنا. وجلبها صفًّا صفًّا كان يعني خمسين نداءً
+     * لصفحة واحدة.
+     */
+    data: filled.map(({ formVersionId: _versionId, ...row }) => ({
       ...row,
       submittedAt: row.submittedAt.toISOString(),
     })),

@@ -1,7 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Plus, Search, X } from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
@@ -19,7 +19,6 @@ import {
 import { Input, Label } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/client";
 import {
-  type AnswerFilter,
   type FormField,
   REF_TYPES,
   SUBMISSION_STATUS_LABELS,
@@ -43,14 +42,6 @@ const STATUS_STYLES: Record<SubmissionStatus, string> = {
   ACCEPTED: "bg-success/15 text-success",
   REJECTED: "bg-destructive/10 text-destructive",
 };
-
-/**
- * ما يصلح للترشيح: أسئلة قيمها من مجموعة معروفة.
- *
- * النصّ الحرّ لا يُرشَّح بالمطابقة التامة — من يكتب «دمشق - المزة» لا يطابق
- * «دمشق»، فيبدو المرشّح معطّلًا. وللبحث في النصّ صندوق البحث أعلاه.
- */
-const FILTERABLE = ["SINGLE_SELECT", "MULTI_SELECT", "BOOLEAN", ...REF_TYPES];
 
 const BOOLEAN_OPTIONS = [
   { value: "true", labelAr: "نعم" },
@@ -81,9 +72,14 @@ export default function SubmissionsPage() {
    * ما تحته. والصفحات المحمَّلة تُجمع هنا لأن كل نداء يعيد دفعةً واحدة.
    */
   const [pages, setPages] = useState<string[]>([]);
-  const [answers, setAnswers] = useState<AnswerFilter[]>([]);
-  const [draftKey, setDraftKey] = useState("");
-  const [draftValue, setDraftValue] = useState("");
+  /**
+   * الأسئلة التي تُعرض إجاباتها في القائمة.
+   *
+   * الفارز يقرّر ما يميّز الطلب عنده: الاسم عند فريق، وتاريخ الميلاد أو
+   * المحافظة عند آخر. وحصرُها في الاسم المستخرَج يترك من لم يوسم سؤاله
+   * أمام صفوف بلا هوية.
+   */
+  const [shown, setShown] = useState<string[]>([]);
 
   const canManage = can(CAPABILITIES.formsManage);
 
@@ -94,12 +90,9 @@ export default function SubmissionsPage() {
    * أسئلة المسوّدة قد لا يقابلها في الطلبات شيء.
    */
   const fields: FormField[] = form.data?.published?.fields ?? [];
-  const filterable = fields.filter((field) => FILTERABLE.includes(field.type));
   const refOptions = useRefOptions(
-    filterable.some((field) => REF_TYPES.includes(field.type)),
+    fields.some((field) => REF_TYPES.includes(field.type)),
   );
-
-  const chosen = filterable.find((field) => field.key === draftKey) ?? null;
 
   const valuesFor = (field: FormField) =>
     field.type === "BOOLEAN"
@@ -108,17 +101,31 @@ export default function SubmissionsPage() {
         ? (refOptions[field.type as keyof typeof refOptions] ?? [])
         : field.options;
 
-  const labelOf = (filter: AnswerFilter) => {
-    const field = fields.find((one) => one.key === filter.key);
+  /**
+   * الإجابة كما تُقرأ لا كما تُخزَّن: نصّ الخيار لا مفتاحه، واسم المحافظة لا
+   * معرّفها — وإلا عُرض على الفارز `media` و`8f3c…` بدل «توثيق» و«دمشق».
+   */
+  const readAnswer = (field: FormField, answers: Record<string, unknown>) => {
+    const value = answers[field.key];
 
-    if (!field) return `${filter.key}: ${filter.value}`;
+    if (value === undefined || value === null || value === "") return null;
 
-    const option = valuesFor(field).find((one) => one.value === filter.value);
+    const options = valuesFor(field);
+    const labelOf = (one: string) =>
+      options.find((option) => option.value === one)?.labelAr ?? one;
 
-    return `${field.labelAr}: ${option?.labelAr ?? filter.value}`;
+    if (Array.isArray(value)) {
+      return value.map((one) => labelOf(String(one))).join("، ") || null;
+    }
+
+    if (typeof value === "boolean") return value ? "نعم" : "لا";
+
+    return labelOf(String(value));
   };
 
-  const listKey = ["submissions", id, status, search, answers] as const;
+  const shownFields = fields.filter((field) => shown.includes(field.key));
+
+  const listKey = ["submissions", id, status, search] as const;
 
   const first = useQuery({
     queryKey: listKey,
@@ -126,7 +133,6 @@ export default function SubmissionsPage() {
       listSubmissions(id, {
         ...(status ? { status } : {}),
         ...(search ? { q: search } : {}),
-        answers,
       }),
   });
 
@@ -140,7 +146,6 @@ export default function SubmissionsPage() {
         const page = await listSubmissions(id, {
           ...(status ? { status } : {}),
           ...(search ? { q: search } : {}),
-          answers,
           before,
         });
 
@@ -252,105 +257,62 @@ export default function SubmissionsPage() {
         </form>
       </div>
 
-      {filterable.length > 0 ? (
+      {fields.length > 0 ? (
         <div className="space-y-2 rounded-lg border border-border p-3">
           <div className="flex flex-wrap items-end gap-2">
             <div className="space-y-1">
-              <Label htmlFor="filter-field" className="text-xs">
-                ترشيح بإجابة
+              <Label htmlFor="show-field" className="text-xs">
+                أظهر إجابة سؤال
               </Label>
 
               <select
-                id="filter-field"
+                id="show-field"
                 className={SELECT_CLASS}
-                value={draftKey}
+                value=""
                 onChange={(event) => {
-                  setDraftKey(event.target.value);
-                  setDraftValue("");
+                  const key = event.target.value;
+
+                  if (!key) return;
+
+                  setShown((current) =>
+                    current.includes(key) ? current : [...current, key],
+                  );
                 }}
               >
                 <option value="">اختر سؤالًا…</option>
-                {filterable.map((field) => (
-                  <option key={field.key} value={field.key}>
-                    {field.labelAr}
-                  </option>
-                ))}
+                {fields
+                  .filter((field) => !shown.includes(field.key))
+                  .map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.labelAr}
+                    </option>
+                  ))}
               </select>
             </div>
-
-            <div className="space-y-1">
-              <Label htmlFor="filter-value" className="text-xs">
-                القيمة
-              </Label>
-
-              <select
-                id="filter-value"
-                className={SELECT_CLASS}
-                value={draftValue}
-                disabled={!chosen}
-                onChange={(event) => setDraftValue(event.target.value)}
-              >
-                <option value="">اختر…</option>
-                {chosen
-                  ? valuesFor(chosen).map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.labelAr}
-                      </option>
-                    ))
-                  : null}
-              </select>
-            </div>
-
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              disabled={!draftKey || !draftValue}
-              onClick={() => {
-                setPages([]);
-                setAnswers((current) =>
-                  current.some(
-                    (one) => one.key === draftKey && one.value === draftValue,
-                  )
-                    ? current
-                    : [...current, { key: draftKey, value: draftValue }],
-                );
-                setDraftValue("");
-              }}
-            >
-              <Plus className="size-4" />
-              أضف
-            </Button>
           </div>
 
-          {answers.length > 0 ? (
+          {shown.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
-              {answers.map((filter) => (
+              {shown.map((key) => (
                 <button
-                  key={`${filter.key}:${filter.value}`}
+                  key={key}
                   type="button"
                   className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs text-primary"
-                  onClick={() => {
-                    setPages([]);
-                    setAnswers((current) =>
-                      current.filter(
-                        (one) =>
-                          !(one.key === filter.key && one.value === filter.value),
-                      ),
-                    );
-                  }}
+                  onClick={() =>
+                    setShown((current) => current.filter((one) => one !== key))
+                  }
                 >
-                  {labelOf(filter)}
+                  {fields.find((field) => field.key === key)?.labelAr ?? key}
                   <X className="size-3" aria-hidden />
-                  <span className="sr-only">إزالة المرشّح</span>
+                  <span className="sr-only">إخفاء هذا السؤال</span>
                 </button>
               ))}
             </div>
           ) : (
             <p className="text-xs text-muted-foreground">
-              المرشّحات تُجمع بـ«و»: كل واحد يضيّق النتيجة. والنصّ الحرّ يُبحث
-              من صندوق البحث لا من هنا.
+              اختر سؤالًا لتظهر إجابته في القائمة — الاسم أو تاريخ الميلاد أو
+              أيّ سؤال آخر. ويظهر أول ما تختاره عنوانًا للطلب إن لم يكن له اسم
+              مستخرَج.
             </p>
           )}
         </div>
@@ -367,8 +329,8 @@ export default function SubmissionsPage() {
               </div>
             ) : rows.length === 0 ? (
               <p className="p-6 text-sm text-muted-foreground">
-                {search || status || answers.length > 0
-                  ? "لا طلبات تطابق الترشيح."
+                {search || status
+                  ? "لا طلبات تطابق البحث."
                   : "لا طلبات بعد. سيظهر هنا كل من يرسل الاستمارة."}
               </p>
             ) : (
@@ -384,8 +346,16 @@ export default function SubmissionsPage() {
                       )}
                     >
                       <div className="min-w-0">
+                        {/*
+                          العنوان: الاسم المستخرَج، وإلا إجابة أول سؤال اختاره
+                          الفارز — فلا يبقى صفٌّ بلا هوية وإجاباته كاملة.
+                        */}
                         <p className="font-medium">
-                          {row.applicantNameAr ?? "بلا اسم"}
+                          {row.applicantNameAr ??
+                            shownFields
+                              .map((field) => readAnswer(field, row.answers))
+                              .find(Boolean) ??
+                            "بلا اسم"}
                         </p>
 
                         <p
@@ -396,6 +366,19 @@ export default function SubmissionsPage() {
                             .filter(Boolean)
                             .join(" · ") || "—"}
                         </p>
+
+                        {shownFields.length > 0 ? (
+                          <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                            {shownFields.map((field) => (
+                              <div key={field.key} className="flex gap-1">
+                                <dt className="text-muted-foreground">
+                                  {field.labelAr}:
+                                </dt>
+                                <dd>{readAnswer(field, row.answers) ?? "—"}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        ) : null}
                       </div>
 
                       <div className="flex items-center gap-3 text-xs">

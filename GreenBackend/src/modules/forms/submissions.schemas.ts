@@ -22,6 +22,11 @@ export const submissionSummarySchema = registry.register(
     applicantPhone: z.string().nullable(),
     /** رقم الإصدار الذي أُرسل الطلب عليه — الأسئلة تُقرأ منه لا من المسوّدة. */
     formVersion: z.number().int(),
+    /**
+     * الإجابات خامًا بمفاتيحها. الواجهة تختار أيّها تعرض في القائمة، وتقرأ
+     * نصّ الخيار من تعريف السؤال الذي تملكه أصلًا.
+     */
+    answers: z.record(z.string(), z.unknown()),
     submittedAt: z.iso.datetime(),
   }),
 )
