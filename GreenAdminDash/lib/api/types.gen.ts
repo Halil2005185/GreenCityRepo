@@ -1749,6 +1749,7 @@ export interface paths {
                 query?: {
                     status?: "NEW" | "IN_REVIEW" | "ACCEPTED" | "REJECTED";
                     q?: string;
+                    answer?: string | string[];
                     before?: string;
                     limit?: number;
                 };
@@ -5966,15 +5967,18 @@ export interface components {
             applicantEmail: string | null;
             applicantPhone: string | null;
             formVersion: number;
+            answers: {
+                [key: string]: unknown;
+            };
             /** Format: date-time */
             submittedAt: string;
         };
         FormSubmissionDetail: components["schemas"]["FormSubmissionSummary"] & {
-            formNameAr: string;
-            answers: {
+            answers?: {
                 labelAr: string;
                 valueAr: string;
             }[];
+            formNameAr: string;
         };
         Area: {
             /** Format: uuid */

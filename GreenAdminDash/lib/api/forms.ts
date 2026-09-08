@@ -205,12 +205,16 @@ export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
   REJECTED: "مرفوض",
 };
 
+/** مرشّح على إجابة سؤال: مفتاح السؤال والقيمة المطلوبة. */
+export type AnswerFilter = { key: string; value: string };
+
 export function listSubmissions(
   formId: string,
   filters: {
     status?: SubmissionStatus | undefined;
     q?: string | undefined;
     before?: string | undefined;
+    answers?: AnswerFilter[] | undefined;
   } = {},
 ) {
   const query = new URLSearchParams();
@@ -218,6 +222,11 @@ export function listSubmissions(
   if (filters.status) query.set("status", filters.status);
   if (filters.q) query.set("q", filters.q);
   if (filters.before) query.set("before", filters.before);
+
+  // تتكرّر في العنوان وتُجمع بـ«و» على الخادم: كل مرشّح يضيّق النتيجة.
+  for (const answer of filters.answers ?? []) {
+    query.append("answer", `${answer.key}:${answer.value}`);
+  }
 
   const suffix = query.size > 0 ? `?${query}` : "";
 

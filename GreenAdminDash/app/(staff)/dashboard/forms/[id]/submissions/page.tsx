@@ -1,11 +1,12 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowRight, Search } from "lucide-react";
+import { ArrowRight, Search, X } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+import { useRefOptions } from "@/components/forms/use-ref-options";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -15,9 +16,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
+import { Input, Label } from "@/components/ui/field";
 import { ApiError } from "@/lib/api/client";
 import {
+  type FormField,
+  REF_TYPES,
   SUBMISSION_STATUS_LABELS,
   type SubmissionStatus,
   type SubmissionSummary,
@@ -30,12 +33,20 @@ import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { cn, formatDateTime } from "@/lib/utils";
 
+const SELECT_CLASS =
+  "h-9 rounded-md border border-input bg-background px-3 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-50";
+
 const STATUS_STYLES: Record<SubmissionStatus, string> = {
   NEW: "bg-primary/10 text-primary",
   IN_REVIEW: "bg-warning/15 text-warning",
   ACCEPTED: "bg-success/15 text-success",
   REJECTED: "bg-destructive/10 text-destructive",
 };
+
+const BOOLEAN_OPTIONS = [
+  { value: "true", labelAr: "نعم" },
+  { value: "false", labelAr: "لا" },
+];
 
 const FILTERS: Array<{ value: SubmissionStatus | ""; label: string }> = [
   { value: "", label: "الكل" },
@@ -61,10 +72,58 @@ export default function SubmissionsPage() {
    * ما تحته. والصفحات المحمَّلة تُجمع هنا لأن كل نداء يعيد دفعةً واحدة.
    */
   const [pages, setPages] = useState<string[]>([]);
+  /**
+   * الأسئلة التي تُعرض إجاباتها في القائمة.
+   *
+   * الفارز يقرّر ما يميّز الطلب عنده: الاسم عند فريق، وتاريخ الميلاد أو
+   * المحافظة عند آخر. وحصرُها في الاسم المستخرَج يترك من لم يوسم سؤاله
+   * أمام صفوف بلا هوية.
+   */
+  const [shown, setShown] = useState<string[]>([]);
 
   const canManage = can(CAPABILITIES.formsManage);
 
   const form = useQuery({ queryKey: ["forms", id], queryFn: () => getForm(id) });
+
+  /**
+   * الترشيح على أسئلة **الإصدار المنشور**: هو ما أجاب عنه المتقدّمون.
+   * أسئلة المسوّدة قد لا يقابلها في الطلبات شيء.
+   */
+  const fields: FormField[] = form.data?.published?.fields ?? [];
+  const refOptions = useRefOptions(
+    fields.some((field) => REF_TYPES.includes(field.type)),
+  );
+
+  const valuesFor = (field: FormField) =>
+    field.type === "BOOLEAN"
+      ? BOOLEAN_OPTIONS
+      : REF_TYPES.includes(field.type)
+        ? (refOptions[field.type as keyof typeof refOptions] ?? [])
+        : field.options;
+
+  /**
+   * الإجابة كما تُقرأ لا كما تُخزَّن: نصّ الخيار لا مفتاحه، واسم المحافظة لا
+   * معرّفها — وإلا عُرض على الفارز `media` و`8f3c…` بدل «توثيق» و«دمشق».
+   */
+  const readAnswer = (field: FormField, answers: Record<string, unknown>) => {
+    const value = answers[field.key];
+
+    if (value === undefined || value === null || value === "") return null;
+
+    const options = valuesFor(field);
+    const labelOf = (one: string) =>
+      options.find((option) => option.value === one)?.labelAr ?? one;
+
+    if (Array.isArray(value)) {
+      return value.map((one) => labelOf(String(one))).join("، ") || null;
+    }
+
+    if (typeof value === "boolean") return value ? "نعم" : "لا";
+
+    return labelOf(String(value));
+  };
+
+  const shownFields = fields.filter((field) => shown.includes(field.key));
 
   const listKey = ["submissions", id, status, search] as const;
 
@@ -198,6 +257,67 @@ export default function SubmissionsPage() {
         </form>
       </div>
 
+      {fields.length > 0 ? (
+        <div className="space-y-2 rounded-lg border border-border p-3">
+          <div className="flex flex-wrap items-end gap-2">
+            <div className="space-y-1">
+              <Label htmlFor="show-field" className="text-xs">
+                أظهر إجابة سؤال
+              </Label>
+
+              <select
+                id="show-field"
+                className={SELECT_CLASS}
+                value=""
+                onChange={(event) => {
+                  const key = event.target.value;
+
+                  if (!key) return;
+
+                  setShown((current) =>
+                    current.includes(key) ? current : [...current, key],
+                  );
+                }}
+              >
+                <option value="">اختر سؤالًا…</option>
+                {fields
+                  .filter((field) => !shown.includes(field.key))
+                  .map((field) => (
+                    <option key={field.key} value={field.key}>
+                      {field.labelAr}
+                    </option>
+                  ))}
+              </select>
+            </div>
+          </div>
+
+          {shown.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {shown.map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className="inline-flex items-center gap-1 rounded-full border border-primary bg-primary/10 px-3 py-1 text-xs text-primary"
+                  onClick={() =>
+                    setShown((current) => current.filter((one) => one !== key))
+                  }
+                >
+                  {fields.find((field) => field.key === key)?.labelAr ?? key}
+                  <X className="size-3" aria-hidden />
+                  <span className="sr-only">إخفاء هذا السؤال</span>
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              اختر سؤالًا لتظهر إجابته في القائمة — الاسم أو تاريخ الميلاد أو
+              أيّ سؤال آخر. ويظهر أول ما تختاره عنوانًا للطلب إن لم يكن له اسم
+              مستخرَج.
+            </p>
+          )}
+        </div>
+      ) : null}
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardContent className="p-0">
@@ -226,8 +346,16 @@ export default function SubmissionsPage() {
                       )}
                     >
                       <div className="min-w-0">
+                        {/*
+                          العنوان: الاسم المستخرَج، وإلا إجابة أول سؤال اختاره
+                          الفارز — فلا يبقى صفٌّ بلا هوية وإجاباته كاملة.
+                        */}
                         <p className="font-medium">
-                          {row.applicantNameAr ?? "بلا اسم"}
+                          {row.applicantNameAr ??
+                            shownFields
+                              .map((field) => readAnswer(field, row.answers))
+                              .find(Boolean) ??
+                            "بلا اسم"}
                         </p>
 
                         <p
@@ -238,6 +366,19 @@ export default function SubmissionsPage() {
                             .filter(Boolean)
                             .join(" · ") || "—"}
                         </p>
+
+                        {shownFields.length > 0 ? (
+                          <dl className="mt-1.5 flex flex-wrap gap-x-4 gap-y-1 text-xs">
+                            {shownFields.map((field) => (
+                              <div key={field.key} className="flex gap-1">
+                                <dt className="text-muted-foreground">
+                                  {field.labelAr}:
+                                </dt>
+                                <dd>{readAnswer(field, row.answers) ?? "—"}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        ) : null}
                       </div>
 
                       <div className="flex items-center gap-3 text-xs">

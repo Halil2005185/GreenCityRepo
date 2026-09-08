@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, lt, or } from 'drizzle-orm'
+import { and, asc, desc, eq, ilike, isNotNull, lt, or, sql } from 'drizzle-orm'
 
 import { errors } from '../../common/errors/app-error.js'
 import { db } from '../../db/client.js'
@@ -12,6 +12,88 @@ import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { readableAnswers } from './answers.service.js'
 import type { ListSubmissionsQuery, SubmissionStatus } from './submissions.schemas.js'
+
+/**
+ * شرط على إجابة سؤال بعينه.
+ *
+ * طرفان في تعبير واحد: مساواة نصّية للإجابات المفردة، واحتواء للقوائم
+ * المتعددة — إجابة «المهارات» مصفوفة، ومساواتها بنصّ لا تطابق أبدًا.
+ */
+function answerCondition(filter: string) {
+  const at = filter.indexOf(':')
+  const key = filter.slice(0, at)
+  const value = filter.slice(at + 1)
+
+  return sql`(
+    ${formSubmissions.answers} ->> ${key} = ${value}
+    or ${formSubmissions.answers} -> ${key} @> to_jsonb(${value}::text)
+  )`
+}
+
+/**
+ * أدوار الأسئلة في هذه الاستمارة: مفتاح السؤال ← دوره، من أحدث إصدار عرّفه.
+ *
+ * الدور ليس جزءًا من العقد المجمَّد بل طريقة قراءته: «هذا السؤال هو الاسم».
+ * فوسمُه اليوم يجب أن يُصلح قراءة ما وصل أمس — والمفتاح ثابت بعد النشر،
+ * فمعناه لا ينزلق تحت الطلبات القديمة.
+ */
+async function contactKeys(formId: string) {
+  const rows = await db
+    .select({
+      key: formFields.key,
+      contactRole: formFields.contactRole,
+      version: formVersions.version,
+    })
+    .from(formFields)
+    .innerJoin(formVersions, eq(formFields.versionId, formVersions.id))
+    .where(and(eq(formVersions.formId, formId), isNotNull(formFields.contactRole)))
+    .orderBy(desc(formVersions.version))
+
+  const byRole = new Map<string, string>()
+
+  // الأحدث يفوز: القائمة مرتّبة تنازليًا، فأول ما يُرى هو آخر ما عُرّف.
+  for (const row of rows) {
+    if (row.contactRole && !byRole.has(row.contactRole)) {
+      byRole.set(row.contactRole, row.key)
+    }
+  }
+
+  return byRole
+}
+
+/**
+ * يردم الاسم والبريد والهاتف من الإجابات حين تكون أعمدتها فارغة.
+ *
+ * الأعمدة تُستخرج وقت التقديم من الأسئلة الموسومة بأدوارها؛ وطلبٌ وصل قبل
+ * أن يُوسم سؤال الاسم يبقى بلا اسم في العمود وإن كان الاسم في إجاباته — فلا
+ * يصحّ أن يُعرض «بلا اسم» أمام طلب مكتمل.
+ *
+ * والقراءة هنا لا تكتب في القاعدة: الأعمدة تبقى كما وصلت، والعرض يُصلح
+ * نفسه. ولو كُتبت لصار تعديلُ وسمٍ يعيد كتابة طلبات قديمة بلا أثر مرئي.
+ */
+function fillContacts<
+  T extends {
+    answers: Record<string, unknown>
+    applicantNameAr: string | null
+    applicantEmail: string | null
+    applicantPhone: string | null
+  },
+>(rows: T[], keys: Map<string, string>) {
+  const read = (answers: Record<string, unknown>, role: string) => {
+    const key = keys.get(role)
+    const value = key ? answers[key] : undefined
+
+    return typeof value === 'string' && value.trim() !== '' ? value : null
+  }
+
+  for (const row of rows) {
+    row.applicantNameAr ||= read(row.answers, 'NAME')
+    row.applicantEmail ||= read(row.answers, 'EMAIL')
+    row.applicantPhone ||= read(row.answers, 'PHONE')
+  }
+
+  return rows
+}
 
 async function requireForm(formId: string) {
   const [form] = await db
@@ -51,6 +133,7 @@ export async function listSubmissions(
           ilike(formSubmissions.applicantPhone, `%${term}%`),
         )
       : undefined,
+    ...query.answer.map(answerCondition),
   ].filter(Boolean)
 
   const rows = await db
@@ -60,7 +143,9 @@ export async function listSubmissions(
       applicantNameAr: formSubmissions.applicantNameAr,
       applicantEmail: formSubmissions.applicantEmail,
       applicantPhone: formSubmissions.applicantPhone,
+      formVersionId: formSubmissions.formVersionId,
       formVersion: formVersions.version,
+      answers: formSubmissions.answers,
       submittedAt: formSubmissions.submittedAt,
     })
     .from(formSubmissions)
@@ -69,10 +154,22 @@ export async function listSubmissions(
     .orderBy(desc(formSubmissions.submittedAt))
     .limit(query.limit)
 
+  const missing = rows.some(
+    (row) => !row.applicantNameAr || !row.applicantEmail || !row.applicantPhone,
+  )
+
+  const filled = missing ? fillContacts(rows, await contactKeys(formId)) : rows
   const last = rows.at(-1)
 
   return {
-    data: rows.map((row) => ({
+    /**
+     * الإجابات تخرج مع الصف لا في نداء ثانٍ لكل طلب.
+     *
+     * الفارز يختار السؤال الذي يريد رؤيته في القائمة — الاسم أو المواليد أو
+     * غيرهما — والقائمة تعرضه من هنا. وجلبها صفًّا صفًّا كان يعني خمسين نداءً
+     * لصفحة واحدة.
+     */
+    data: filled.map(({ formVersionId: _versionId, ...row }) => ({
       ...row,
       submittedAt: row.submittedAt.toISOString(),
     })),
@@ -124,14 +221,26 @@ export async function getSubmission(formId: string, submissionId: string) {
     .where(eq(formFields.versionId, submission.versionId))
     .orderBy(asc(formFields.displayOrder))
 
+  const [contact] = fillContacts(
+    [
+      {
+        answers: submission.answers,
+        applicantNameAr: submission.applicantNameAr,
+        applicantEmail: submission.applicantEmail,
+        applicantPhone: submission.applicantPhone,
+      },
+    ],
+    await contactKeys(formId),
+  )
+
   return {
     id: submission.id,
     status: submission.status,
     formNameAr: submission.formNameAr,
     formVersion: submission.formVersion,
-    applicantNameAr: submission.applicantNameAr,
-    applicantEmail: submission.applicantEmail,
-    applicantPhone: submission.applicantPhone,
+    applicantNameAr: contact!.applicantNameAr,
+    applicantEmail: contact!.applicantEmail,
+    applicantPhone: contact!.applicantPhone,
     submittedAt: submission.submittedAt.toISOString(),
     answers: readableAnswers(fields, submission.answers),
   }

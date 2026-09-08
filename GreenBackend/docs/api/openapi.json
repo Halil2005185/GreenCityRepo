@@ -1968,6 +1968,10 @@
           "formVersion": {
             "type": "integer"
           },
+          "answers": {
+            "type": "object",
+            "additionalProperties": {}
+          },
           "submittedAt": {
             "type": "string",
             "format": "date-time"
@@ -1980,6 +1984,7 @@
           "applicantEmail",
           "applicantPhone",
           "formVersion",
+          "answers",
           "submittedAt"
         ]
       },
@@ -1991,9 +1996,6 @@
           {
             "type": "object",
             "properties": {
-              "formNameAr": {
-                "type": "string"
-              },
               "answers": {
                 "type": "array",
                 "items": {
@@ -2011,11 +2013,13 @@
                     "valueAr"
                   ]
                 }
+              },
+              "formNameAr": {
+                "type": "string"
               }
             },
             "required": [
-              "formNameAr",
-              "answers"
+              "formNameAr"
             ]
           }
         ]
@@ -7397,6 +7401,29 @@
             },
             "required": false,
             "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 300
+                },
+                {
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  },
+                  "maxItems": 10
+                }
+              ]
+            },
+            "required": false,
+            "name": "answer",
             "in": "query"
           },
           {
