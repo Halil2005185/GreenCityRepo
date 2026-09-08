@@ -41,6 +41,16 @@
   --border: oklch(0.9 0.01 150);
   --input: oklch(0.9 0.01 150);
   --ring: oklch(0.52 0.13 152);
+
+  /*
+   * ألوان الهوية بقيمها الحرفية من «Brand Identity/colors/color.md». هي
+   * وحدها بالـhex لا بالـoklch: دليل الهوية يعتمد قيمة محدَّدة للوغو، وأي
+   * تحويل يزيحها ولو قليلًا. لا تُستعمل خارج الشعار.
+   */
+  --brand-deep-green: #103900;
+  --brand-life-green: #89EF19;
+
+  --logo: var(--brand-deep-green);
 }
 
 .dark {
@@ -73,6 +83,9 @@
   --border: oklch(0.32 0.02 155);
   --input: oklch(0.34 0.02 155);
   --ring: oklch(0.68 0.14 152);
+
+  /* الأخضر العميق يغيب على خلفية داكنة، فيتبدّل إلى الأخضر الحيوي. */
+  --logo: var(--brand-life-green);
 }
 
 @theme inline {
@@ -126,6 +139,22 @@
     direction: ltr;
     unicode-bidi: isolate;
   }
+}
+
+/*
+ * رمز الهوية: الملف نقطي، فيُستعمل قناعًا وتأتي التعبئة من `--logo`. هكذا
+ * يتبع الرمز السمة بملف واحد دون نسختين، وشكله يبقى المعتمد بالبكسل.
+ *
+ * دليل الهوية يمنع التدرجات والشفافية على اللوغو، فالتعبئة لون صلب من
+ * ألوان الهوية دائمًا. نسبة الأبعاد من أبعاد الملف نفسه حتى يكفي تحديد
+ * الارتفاع في موضع الاستعمال.
+ */
+.brand-logo {
+  display: inline-block;
+  aspect-ratio: 452 / 512;
+  background-color: var(--logo);
+  -webkit-mask: url("/brand/logomark.png") center / contain no-repeat;
+  mask: url("/brand/logomark.png") center / contain no-repeat;
 }
 
 /*
