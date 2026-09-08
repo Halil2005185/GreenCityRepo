@@ -32,6 +32,14 @@
       "description": "إصدارات الميثاق والإقرار به"
     },
     {
+      "name": "Media",
+      "description": "الشبكة الإعلامية: صنّاع المحتوى والإعلاميون ومتابعاتهم"
+    },
+    {
+      "name": "Relations",
+      "description": "مرجعيات العلاقات: أشكال العمل الإعلامي وأنواع العلاقة"
+    },
+    {
       "name": "Geography",
       "description": "التسلسل الجغرافي بكل مستوياته"
     },
@@ -3795,6 +3803,344 @@
           "lng"
         ]
       },
+      "CatalogRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nameAr": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "nameAr"
+        ]
+      },
+      "MediaContactSummary": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "jobTitleAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outletNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "partnerId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "partnerNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "stage": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "INTERESTED",
+              "COLLABORATING",
+              "DORMANT",
+              "DECLINED"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ]
+          },
+          "horizon": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "LONG_TERM",
+              "SHORT_TERM",
+              "ONE_OFF",
+              null
+            ]
+          },
+          "relationshipTypeNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogRef"
+            }
+          },
+          "accountManagerNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "lastContactAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "openFollowUps": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "fullNameAr",
+          "jobTitleAr",
+          "outletNameAr",
+          "partnerId",
+          "partnerNameAr",
+          "email",
+          "phone",
+          "stage",
+          "priority",
+          "horizon",
+          "relationshipTypeNameAr",
+          "channels",
+          "accountManagerNameAr",
+          "lastContactAt",
+          "openFollowUps",
+          "createdAt"
+        ]
+      },
+      "MediaContactInteraction": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NOTE",
+              "CALL",
+              "EMAIL",
+              "MEETING",
+              "MESSAGE",
+              "DOCUMENT_REQUEST",
+              "STAGE_CHANGE"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "summaryAr": {
+            "type": "string"
+          },
+          "bodyAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dueAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "completedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "recordedByNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "occurredAt",
+          "summaryAr",
+          "bodyAr",
+          "dueAt",
+          "completedAt",
+          "isOverdue",
+          "recordedByNameAr"
+        ]
+      },
+      "MediaContactDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MediaContactSummary"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "nameEn": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "profileUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "relationshipTypeId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "accountManagerId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "internalNotesAr": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "لا تخرج إلا لمن يملك `media.notes.view`؛ غيره يقرأ null."
+              },
+              "interactions": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MediaContactInteraction"
+                }
+              }
+            },
+            "required": [
+              "nameEn",
+              "profileUrl",
+              "relationshipTypeId",
+              "accountManagerId",
+              "internalNotesAr",
+              "interactions"
+            ]
+          }
+        ]
+      },
+      "MediaFollowUp": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contactId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "contactNameAr": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ]
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "NOTE",
+              "CALL",
+              "EMAIL",
+              "MEETING",
+              "MESSAGE",
+              "DOCUMENT_REQUEST",
+              "STAGE_CHANGE"
+            ]
+          },
+          "summaryAr": {
+            "type": "string"
+          },
+          "dueAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "recordedByNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "contactId",
+          "contactNameAr",
+          "priority",
+          "kind",
+          "summaryAr",
+          "dueAt",
+          "isOverdue",
+          "recordedByNameAr"
+        ]
+      },
       "Office": {
         "type": "object",
         "properties": {
@@ -4184,6 +4530,58 @@
           "publicLogoConsent": {
             "type": "boolean"
           },
+          "contactPriority": {
+            "type": "string",
+            "enum": [
+              "HIGH",
+              "MEDIUM",
+              "LOW"
+            ]
+          },
+          "engagementHorizon": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "LONG_TERM",
+              "SHORT_TERM",
+              "ONE_OFF",
+              null
+            ]
+          },
+          "relationshipTypeNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mediaChannels": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "nameAr": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "nameAr"
+              ]
+            }
+          },
+          "lastContactAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
           "activatedAt": {
             "type": [
               "string",
@@ -4208,6 +4606,11 @@
           "primaryContactNameAr",
           "publicNameConsent",
           "publicLogoConsent",
+          "contactPriority",
+          "engagementHorizon",
+          "relationshipTypeNameAr",
+          "mediaChannels",
+          "lastContactAt",
           "activatedAt",
           "createdAt"
         ]
@@ -4576,6 +4979,13 @@
                 ],
                 "format": "uuid"
               },
+              "relationshipTypeId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
               "internalNotesAr": {
                 "type": [
                   "string",
@@ -4642,6 +5052,7 @@
               "summaryAr",
               "supportForms",
               "accountManagerId",
+              "relationshipTypeId",
               "internalNotesAr",
               "rejectionReasonAr",
               "suspensionReasonAr",
@@ -4767,6 +5178,90 @@
           "emailVerifiedAt",
           "createdAt",
           "memberships"
+        ]
+      },
+      "MediaChannel": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "nameAr",
+          "nameEn",
+          "descriptionAr",
+          "displayOrder",
+          "isActive"
+        ]
+      },
+      "RelationshipType": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "slug",
+          "nameAr",
+          "nameEn",
+          "descriptionAr",
+          "displayOrder",
+          "isActive"
         ]
       },
       "SignedUpload": {
@@ -11027,6 +11522,825 @@
         }
       }
     },
+    "/api/admin/media/contacts": {
+      "get": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "الشبكة الإعلامية",
+        "description": "سجل صنّاع المحتوى والإعلاميين — أشخاص لا جهات، ومستقل عن سجل الشركاء. الفرز الافتراضي بالأولوية ثم بأقدم تواصل، أي «من يجب أن أكلّمه اليوم».",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "NEW",
+                "CONTACTED",
+                "INTERESTED",
+                "COLLABORATING",
+                "DORMANT",
+                "DECLINED"
+              ]
+            },
+            "required": false,
+            "name": "stage",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HIGH",
+                "MEDIUM",
+                "LOW"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LONG_TERM",
+                "SHORT_TERM",
+                "ONE_OFF"
+              ]
+            },
+            "required": false,
+            "name": "horizon",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "relationshipTypeId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "accountManagerId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 120
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650
+            },
+            "required": false,
+            "name": "staleDays",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": false,
+            "name": "hasOpenFollowUp",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الأشخاص",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MediaContactSummary"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "إضافة شخص إلى الشبكة الإعلامية",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullNameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "jobTitleAr": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 6,
+                    "maxLength": 32
+                  },
+                  "profileUrl": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  "outletNameAr": {
+                    "type": "string",
+                    "maxLength": 200
+                  },
+                  "partnerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "stage": {
+                    "type": "string",
+                    "enum": [
+                      "NEW",
+                      "CONTACTED",
+                      "INTERESTED",
+                      "COLLABORATING",
+                      "DORMANT",
+                      "DECLINED"
+                    ],
+                    "default": "NEW"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ],
+                    "default": "MEDIUM"
+                  },
+                  "horizon": {
+                    "type": "string",
+                    "enum": [
+                      "LONG_TERM",
+                      "SHORT_TERM",
+                      "ONE_OFF"
+                    ]
+                  },
+                  "relationshipTypeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "channelIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  },
+                  "accountManagerId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "lastContactAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "internalNotesAr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "fullNameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaContactDetail"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "البريد مسجّل لشخص آخر",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير مكتملة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/media/contacts/{id}": {
+      "get": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "ملف شخص من الشبكة الإعلامية",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الملف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaContactDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الشخص غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "تعديل ملف شخص",
+        "description": "المرحلة لها مسارها الخاص فتترك أثرًا في السجل.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullNameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 160
+                  },
+                  "jobTitleAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 160
+                  },
+                  "email": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 254,
+                    "format": "email"
+                  },
+                  "phone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "minLength": 6,
+                    "maxLength": 32
+                  },
+                  "profileUrl": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  "outletNameAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 200
+                  },
+                  "partnerId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "priority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ]
+                  },
+                  "horizon": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "LONG_TERM",
+                      "SHORT_TERM",
+                      "ONE_OFF",
+                      null
+                    ]
+                  },
+                  "relationshipTypeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "channelIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 20
+                  },
+                  "accountManagerId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "lastContactAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "internalNotesAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 4000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaContactDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الشخص غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "البريد مسجّل لشخص آخر",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/media/follow-ups": {
+      "get": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "المتابعات المستحقة",
+        "description": "المتابعات التي حان موعدها ولم تُنجَز، عبر الشبكة كلها. هي ما يحوّل السجل من أرشيف إلى قائمة عمل يومية.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "minimum": 0,
+              "maximum": 365,
+              "default": 0
+            },
+            "required": false,
+            "name": "withinDays",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "default": false
+            },
+            "required": false,
+            "name": "mine",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المتابعات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MediaFollowUp"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/media/contacts/{id}/stage": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "نقل مرحلة التواصل",
+        "description": "كل نقلة تُسجَّل في سجل المتابعة، فيبقى «لماذا صار خاملًا» مقروءًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stage": {
+                    "type": "string",
+                    "enum": [
+                      "NEW",
+                      "CONTACTED",
+                      "INTERESTED",
+                      "COLLABORATING",
+                      "DORMANT",
+                      "DECLINED"
+                    ]
+                  },
+                  "noteAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "stage"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "نُقلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaContactDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الشخص غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/media/contacts/{id}/interactions": {
+      "post": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "تسجيل تواصل",
+        "description": "يحدّث «آخر تواصل» تلقائيًا حين يكون أحدث من المسجّل، فلا يُدخَل التاريخ مرتين.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "NOTE",
+                      "CALL",
+                      "EMAIL",
+                      "MEETING",
+                      "MESSAGE",
+                      "DOCUMENT_REQUEST"
+                    ],
+                    "description": "`STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة."
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "summaryAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 300
+                  },
+                  "bodyAr": {
+                    "type": "string",
+                    "maxLength": 4000
+                  },
+                  "dueAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                },
+                "required": [
+                  "kind",
+                  "summaryAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "سُجِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaContactDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الشخص غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/media/contacts/{id}/interactions/{interactionId}": {
+      "patch": {
+        "tags": [
+          "Media"
+        ],
+        "summary": "إنجاز متابعة أو إعادة فتحها",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "interactionId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "completed": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "completed"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "حُدِّثت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaContactDetail"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المتابعة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "السجل بلا موعد متابعة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/offices": {
       "get": {
         "tags": [
@@ -11377,6 +12691,60 @@
             "required": false,
             "name": "q",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "HIGH",
+                "MEDIUM",
+                "LOW"
+              ]
+            },
+            "required": false,
+            "name": "priority",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "LONG_TERM",
+                "SHORT_TERM",
+                "ONE_OFF"
+              ]
+            },
+            "required": false,
+            "name": "horizon",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "relationshipTypeId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "channelId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3650
+            },
+            "required": false,
+            "name": "staleDays",
+            "in": "query"
           }
         ],
         "responses": {
@@ -11491,6 +12859,40 @@
                   "internalNotesAr": {
                     "type": "string",
                     "maxLength": 4000
+                  },
+                  "contactPriority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ],
+                    "default": "MEDIUM"
+                  },
+                  "engagementHorizon": {
+                    "type": "string",
+                    "enum": [
+                      "LONG_TERM",
+                      "SHORT_TERM",
+                      "ONE_OFF"
+                    ]
+                  },
+                  "relationshipTypeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "mediaChannelIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 20,
+                    "default": []
+                  },
+                  "lastContactAt": {
+                    "type": "string",
+                    "format": "date-time"
                   }
                 },
                 "required": [
@@ -11642,6 +13044,41 @@
                     "type": "string",
                     "maxLength": 4000
                   },
+                  "contactPriority": {
+                    "type": "string",
+                    "enum": [
+                      "HIGH",
+                      "MEDIUM",
+                      "LOW"
+                    ],
+                    "default": "MEDIUM"
+                  },
+                  "engagementHorizon": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "enum": [
+                      "LONG_TERM",
+                      "SHORT_TERM",
+                      "ONE_OFF",
+                      null
+                    ]
+                  },
+                  "relationshipTypeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "lastContactAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
                   "supportForms": {
                     "type": "array",
                     "items": {
@@ -11657,6 +13094,14 @@
                       ]
                     },
                     "maxItems": 7
+                  },
+                  "mediaChannelIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 20
                   }
                 }
               }
@@ -12599,6 +14044,408 @@
           },
           "404": {
             "description": "لا يوجد عضو فريق بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/relations/media-channels": {
+      "get": {
+        "tags": [
+          "Relations"
+        ],
+        "summary": "أشكال العمل الإعلامي",
+        "description": "بأي شكل يعمل الإعلامي أو الجهة: سؤال شارع، ريبورتاج، بودكاست، تصوير. مفردات يحرّرها مكتب العلاقات دون migration.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "default": false
+            },
+            "required": false,
+            "name": "includeInactive",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "أشكال العمل الإعلامي",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/MediaChannel"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Relations"
+        ],
+        "summary": "إضافة شكل عمل إعلامي",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999,
+                    "default": 0
+                  }
+                },
+                "required": [
+                  "slug",
+                  "nameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaChannel"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الـslug مستخدم",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/relations/media-channels/{id}": {
+      "patch": {
+        "tags": [
+          "Relations"
+        ],
+        "summary": "تعديل شكل عمل إعلامي",
+        "description": "التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999,
+                    "default": 0
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MediaChannel"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المفردة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/relations/relationship-types": {
+      "get": {
+        "tags": [
+          "Relations"
+        ],
+        "summary": "أنواع العلاقة",
+        "description": "طبيعة العلاقة عمليًا — تعاون تطوعي، تغطية، تبادل منفعة. غير نوع الشراكة الذي يحدده الميثاق.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "default": false
+            },
+            "required": false,
+            "name": "includeInactive",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "أنواع العلاقة",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RelationshipType"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Relations"
+        ],
+        "summary": "إضافة نوع علاقة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "slug": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[a-z0-9-]+$"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999,
+                    "default": 0
+                  }
+                },
+                "required": [
+                  "slug",
+                  "nameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipType"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الـslug مستخدم",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/relations/relationship-types/{id}": {
+      "patch": {
+        "tags": [
+          "Relations"
+        ],
+        "summary": "تعديل نوع علاقة",
+        "description": "التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999,
+                    "default": 0
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RelationshipType"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المفردة غير موجودة",
             "content": {
               "application/problem+json": {
                 "schema": {

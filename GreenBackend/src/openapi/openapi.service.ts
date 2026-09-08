@@ -19,12 +19,14 @@ import '../modules/impact/impact.schemas.js'
 import '../modules/initiatives/initiatives.schemas.js'
 import '../modules/invitations/invitations.schemas.js'
 import '../modules/map/map.schemas.js'
+import '../modules/media/media.schemas.js'
 import '../modules/metrics/metrics.schemas.js'
 import '../modules/org/org.schemas.js'
 import '../modules/partner-portal/portal.schemas.js'
 import '../modules/partners/partners.schemas.js'
 import '../modules/people/people.schemas.js'
 import '../modules/programs/programs.schemas.js'
+import '../modules/relations/relations.schemas.js'
 import '../modules/uploads/uploads.schemas.js'
 import '../modules/work/work.schemas.js'
 
@@ -52,6 +54,8 @@ export function buildOpenApiDocument() {
       { name: 'Invitations', description: 'إدارة دعوات أعضاء الفريق وممثلي الشركاء' },
       { name: 'Partners', description: 'سجل الشركاء ودورة الاعتماد' },
       { name: 'Charter', description: 'إصدارات الميثاق والإقرار به' },
+      { name: 'Media', description: 'الشبكة الإعلامية: صنّاع المحتوى والإعلاميون ومتابعاتهم' },
+      { name: 'Relations', description: 'مرجعيات العلاقات: أشكال العمل الإعلامي وأنواع العلاقة' },
       { name: 'Geography', description: 'التسلسل الجغرافي بكل مستوياته' },
       { name: 'Programs', description: 'البرامج التي تنضوي تحتها المبادرات' },
       { name: 'Metrics', description: 'كتالوج المؤشرات ووحداتها' },

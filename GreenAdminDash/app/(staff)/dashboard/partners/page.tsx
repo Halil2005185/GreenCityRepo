@@ -5,9 +5,14 @@ import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { useState } from "react";
 
+import {
+  PRIORITY_STYLES,
+  sinceLabel,
+} from "@/components/relations/classification";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { Alert, Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/field";
+import { PRIORITY_LABELS } from "@/lib/api/media";
 import {
   PARTNERSHIP_TYPE_LABELS,
   PIPELINE_STAGES,
@@ -44,14 +49,18 @@ const FILTERS = [
 export default function PartnersPage() {
   const { can } = useAuth();
   const [stage, setStage] = useState("");
+  const [priority, setPriority] = useState("");
+  const [staleDays, setStaleDays] = useState(0);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
 
   const partners = useQuery({
-    queryKey: ["partners", stage, query],
+    queryKey: ["partners", stage, priority, staleDays, query],
     queryFn: () =>
       listPartners({
         ...(stage ? { stage } : {}),
+        ...(priority ? { priority } : {}),
+        ...(staleDays ? { staleDays } : {}),
         ...(query ? { q: query } : {}),
       }),
   });
@@ -95,6 +104,31 @@ export default function PartnersPage() {
           </button>
         ))}
 
+        <select
+          value={priority}
+          onChange={(event) => setPriority(event.target.value)}
+          className="h-9 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="أولوية التواصل"
+        >
+          <option value="">كل الأولويات</option>
+          {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={staleDays}
+          onChange={(event) => setStaleDays(Number(event.target.value))}
+          className="h-9 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          aria-label="آخر تواصل"
+        >
+          <option value={0}>أي تاريخ تواصل</option>
+          <option value={30}>لم نتواصل منذ شهر</option>
+          <option value={90}>منذ ٣ أشهر</option>
+        </select>
+
         <form
           className="ms-auto flex items-center gap-2"
           onSubmit={(event) => {
@@ -137,6 +171,8 @@ export default function PartnersPage() {
                     <th className="p-3 text-start font-medium">المرحلة</th>
                     <th className="p-3 text-start font-medium">أنواع الشراكة</th>
                     <th className="p-3 text-start font-medium">جهة الاتصال</th>
+                    <th className="p-3 text-start font-medium">الأولوية</th>
+                    <th className="p-3 text-start font-medium">آخر تواصل</th>
                     <th className="p-3 text-start font-medium">مسؤول العلاقة</th>
                     <th className="p-3 text-start font-medium">الإظهار</th>
                   </tr>
@@ -193,6 +229,31 @@ export default function PartnersPage() {
                       <td className="p-3 text-muted-foreground">
                         {partner.primaryContactNameAr ?? "—"}
                       </td>
+
+                      <td className="p-3">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs",
+                            PRIORITY_STYLES[partner.contactPriority],
+                          )}
+                        >
+                          {PRIORITY_LABELS[partner.contactPriority]}
+                        </span>
+                        {partner.relationshipTypeNameAr ? (
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {partner.relationshipTypeNameAr}
+                          </span>
+                        ) : null}
+                      </td>
+
+                      <td className="p-3 text-xs">
+                        {partner.lastContactAt ? (
+                          sinceLabel(partner.lastContactAt)
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
+
                       <td className="p-3 text-muted-foreground">
                         {partner.accountManagerNameAr ?? "—"}
                       </td>

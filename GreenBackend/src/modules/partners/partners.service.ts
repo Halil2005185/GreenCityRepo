@@ -13,9 +13,11 @@ import {
   partnerConsentEvents,
   partnerContacts,
   partnerInteractions,
+  partnerMediaChannels,
   partnerPartnerships,
   partners,
 } from '../../db/schema/partners.js'
+import { mediaChannels, relationshipTypes } from '../../db/schema/relations.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { findCurrentVersion } from '../charter/charter.service.js'
@@ -26,6 +28,70 @@ type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
 const accountManager = alias(users, 'account_manager')
 const partnershipApprover = alias(users, 'partnership_approver')
 const interactionRecorder = alias(users, 'interaction_recorder')
+
+/** أشكال العمل الإعلامي لمجموعة جهات، بالشكل الذي تعرضه القائمة والتفصيل. */
+async function mediaChannelsFor(partnerIds: string[], tx: Executor = db) {
+  const grouped = new Map<string, { id: string; nameAr: string }[]>()
+
+  if (partnerIds.length === 0) return grouped
+
+  const rows = await tx
+    .select({
+      partnerId: partnerMediaChannels.partnerId,
+      id: mediaChannels.id,
+      nameAr: mediaChannels.nameAr,
+    })
+    .from(partnerMediaChannels)
+    .innerJoin(
+      mediaChannels,
+      eq(partnerMediaChannels.channelId, mediaChannels.id),
+    )
+    .where(inArray(partnerMediaChannels.partnerId, partnerIds))
+    .orderBy(asc(mediaChannels.displayOrder))
+
+  for (const row of rows) {
+    const list = grouped.get(row.partnerId) ?? []
+
+    list.push({ id: row.id, nameAr: row.nameAr })
+    grouped.set(row.partnerId, list)
+  }
+
+  return grouped
+}
+
+/** يمنع ربط الجهة بشكل معطّل قبل أن يرفضه المفتاح الأجنبي بلا رسالة مفهومة. */
+async function assertChannelsExist(channelIds: string[], tx: Executor = db) {
+  if (channelIds.length === 0) return
+
+  const rows = await tx
+    .select({ id: mediaChannels.id })
+    .from(mediaChannels)
+    .where(
+      and(inArray(mediaChannels.id, channelIds), eq(mediaChannels.isActive, true)),
+    )
+
+  if (rows.length !== new Set(channelIds).size) {
+    throw errors.unprocessable('أحد أشكال العمل الإعلامي غير موجود أو معطّل.')
+  }
+}
+
+async function replaceMediaChannels(
+  tx: Executor,
+  partnerId: string,
+  channelIds: string[],
+) {
+  await tx
+    .delete(partnerMediaChannels)
+    .where(eq(partnerMediaChannels.partnerId, partnerId))
+
+  if (channelIds.length === 0) return
+
+  await tx
+    .insert(partnerMediaChannels)
+    .values(
+      [...new Set(channelIds)].map((channelId) => ({ partnerId, channelId })),
+    )
+}
 
 const REQUIREMENT_LABELS = {
   PRIMARY_CONTACT: 'جهة اتصال رئيسية نشطة',
@@ -125,6 +191,25 @@ export async function listPartners(
             and ${partnerPartnerships.status} <> 'ENDED'
         )`
       : undefined,
+    filters.priority ? eq(partners.contactPriority, filters.priority) : undefined,
+    filters.horizon
+      ? eq(partners.engagementHorizon, filters.horizon)
+      : undefined,
+    filters.relationshipTypeId
+      ? eq(partners.relationshipTypeId, filters.relationshipTypeId)
+      : undefined,
+    filters.channelId
+      ? sql`exists (
+          select 1 from ${partnerMediaChannels}
+          where ${partnerMediaChannels.partnerId} = ${partners.id}
+            and ${partnerMediaChannels.channelId} = ${filters.channelId}
+        )`
+      : undefined,
+    filters.staleDays
+      ? sql`${partners.lastContactAt} is null
+            or ${partners.lastContactAt}
+               < now() - make_interval(days => ${filters.staleDays})`
+      : undefined,
   ].filter(Boolean)
 
   const rows = await db
@@ -137,12 +222,20 @@ export async function listPartners(
       suspendedAt: partners.suspendedAt,
       publicNameConsent: partners.publicNameConsent,
       publicLogoConsent: partners.publicLogoConsent,
+      contactPriority: partners.contactPriority,
+      engagementHorizon: partners.engagementHorizon,
+      lastContactAt: partners.lastContactAt,
+      relationshipTypeNameAr: relationshipTypes.nameAr,
       activatedAt: partners.activatedAt,
       createdAt: partners.createdAt,
       accountManagerNameAr: accountManager.fullNameAr,
     })
     .from(partners)
     .leftJoin(accountManager, eq(partners.accountManagerId, accountManager.id))
+    .leftJoin(
+      relationshipTypes,
+      eq(partners.relationshipTypeId, relationshipTypes.id),
+    )
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(partners.createdAt))
     .limit(300)
@@ -195,6 +288,8 @@ export async function listPartners(
     contactRows.map((row) => [row.partnerId, row.fullNameAr]),
   )
 
+  const channelsByPartner = await mediaChannelsFor(ids)
+
   return rows.map((row) => ({
     id: row.id,
     displayNameAr: row.displayNameAr,
@@ -207,6 +302,11 @@ export async function listPartners(
     primaryContactNameAr: contactByPartner.get(row.id) ?? null,
     publicNameConsent: row.publicNameConsent,
     publicLogoConsent: row.publicLogoConsent,
+    contactPriority: row.contactPriority,
+    engagementHorizon: row.engagementHorizon,
+    relationshipTypeNameAr: row.relationshipTypeNameAr,
+    mediaChannels: channelsByPartner.get(row.id) ?? [],
+    lastContactAt: row.lastContactAt?.toISOString() ?? null,
     activatedAt: row.activatedAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   }))
@@ -221,9 +321,14 @@ export async function loadPartnerDetail(
     .select({
       partner: partners,
       accountManagerNameAr: accountManager.fullNameAr,
+      relationshipTypeNameAr: relationshipTypes.nameAr,
     })
     .from(partners)
     .leftJoin(accountManager, eq(partners.accountManagerId, accountManager.id))
+    .leftJoin(
+      relationshipTypes,
+      eq(partners.relationshipTypeId, relationshipTypes.id),
+    )
     .where(eq(partners.id, partnerId))
     .limit(1)
 
@@ -295,6 +400,7 @@ export async function loadPartnerDetail(
     ])
 
   const activation = await activationRequirements(partnerId)
+  const channelsByPartner = await mediaChannelsFor([partnerId])
 
   /** الملاحظات الداخلية لا تخرج إلا لمن يملك القدرة صراحةً. */
   const canSeeNotes = viewer.capabilities.includes('partners.notes.view')
@@ -315,6 +421,12 @@ export async function loadPartnerDetail(
     supportForms: row.supportForms,
     accountManagerId: row.accountManagerId,
     accountManagerNameAr: partner.accountManagerNameAr,
+    contactPriority: row.contactPriority,
+    engagementHorizon: row.engagementHorizon,
+    relationshipTypeId: row.relationshipTypeId,
+    relationshipTypeNameAr: partner.relationshipTypeNameAr,
+    mediaChannels: channelsByPartner.get(partnerId) ?? [],
+    lastContactAt: row.lastContactAt?.toISOString() ?? null,
     internalNotesAr: canSeeNotes ? row.internalNotesAr : null,
     rejectionReasonAr: row.rejectionReasonAr,
     publicNameConsent: row.publicNameConsent,
@@ -429,6 +541,8 @@ export async function createPartner(
   const legalNameAr = normalizeText(input.legalNameAr)
   const displayNameAr = normalizeText(input.displayNameAr ?? input.legalNameAr)
 
+  await assertChannelsExist(input.mediaChannelIds)
+
   const partnerId = await db.transaction(async (tx) => {
     const [created] = await tx
       .insert(partners)
@@ -437,6 +551,7 @@ export async function createPartner(
         displayNameAr,
         organizationKind: input.organizationKind,
         supportForms: input.supportForms,
+        contactPriority: input.contactPriority,
         ...(input.nameEn ? { nameEn: normalizeText(input.nameEn) } : {}),
         ...(input.websiteUrl ? { websiteUrl: input.websiteUrl } : {}),
         ...(input.summaryAr ? { summaryAr: input.summaryAr } : {}),
@@ -446,10 +561,21 @@ export async function createPartner(
         ...(input.internalNotesAr
           ? { internalNotesAr: input.internalNotesAr }
           : {}),
+        ...(input.engagementHorizon
+          ? { engagementHorizon: input.engagementHorizon }
+          : {}),
+        ...(input.relationshipTypeId
+          ? { relationshipTypeId: input.relationshipTypeId }
+          : {}),
+        ...(input.lastContactAt
+          ? { lastContactAt: new Date(input.lastContactAt) }
+          : {}),
       })
       .returning({ id: partners.id })
 
     if (!created) throw new Error('Failed to create partner.')
+
+    await replaceMediaChannels(tx, created.id, input.mediaChannelIds)
 
     await logInteraction(tx, {
       partnerId: created.id,
@@ -486,6 +612,8 @@ export async function updatePartner(
 ) {
   await requirePartner(partnerId)
 
+  if (input.mediaChannelIds) await assertChannelsExist(input.mediaChannelIds)
+
   const changes = {
     ...(input.legalNameAr ? { legalNameAr: normalizeText(input.legalNameAr) } : {}),
     ...(input.displayNameAr
@@ -506,11 +634,31 @@ export async function updatePartner(
     ...(input.internalNotesAr !== undefined
       ? { internalNotesAr: input.internalNotesAr || null }
       : {}),
+    ...(input.contactPriority ? { contactPriority: input.contactPriority } : {}),
+    ...(input.engagementHorizon !== undefined
+      ? { engagementHorizon: input.engagementHorizon }
+      : {}),
+    ...(input.relationshipTypeId !== undefined
+      ? { relationshipTypeId: input.relationshipTypeId }
+      : {}),
+    ...(input.lastContactAt !== undefined
+      ? {
+          lastContactAt: input.lastContactAt
+            ? new Date(input.lastContactAt)
+            : null,
+        }
+      : {}),
   }
 
-  if (Object.keys(changes).length > 0) {
+  if (Object.keys(changes).length > 0 || input.mediaChannelIds) {
     await db.transaction(async (tx) => {
-      await tx.update(partners).set(changes).where(eq(partners.id, partnerId))
+      if (Object.keys(changes).length > 0) {
+        await tx.update(partners).set(changes).where(eq(partners.id, partnerId))
+      }
+
+      if (input.mediaChannelIds) {
+        await replaceMediaChannels(tx, partnerId, input.mediaChannelIds)
+      }
 
       await recordAudit(
         {
@@ -519,7 +667,12 @@ export async function updatePartner(
           entityType: 'partner',
           entityId: partnerId,
           summaryAr: 'تعديل ملف الجهة',
-          metadata: { fields: Object.keys(changes) },
+          metadata: {
+            fields: [
+              ...Object.keys(changes),
+              ...(input.mediaChannelIds ? ['mediaChannelIds'] : []),
+            ],
+          },
           ...trace,
         },
         tx,
@@ -915,18 +1068,30 @@ export async function recordInteraction(
   actor: AuthContext,
   trace: RequestTrace,
 ) {
-  await requirePartner(partnerId)
+  const partner = await requirePartner(partnerId)
+  const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
 
   await db.transaction(async (tx) => {
     await tx.insert(partnerInteractions).values({
       partnerId,
       kind: input.kind,
-      occurredAt: input.occurredAt ? new Date(input.occurredAt) : new Date(),
+      occurredAt,
       summaryAr: normalizeText(input.summaryAr),
       recordedById: actor.userId,
       partnerVisible: input.partnerVisible,
       ...(input.bodyAr ? { bodyAr: input.bodyAr } : {}),
     })
+
+    /**
+     * «آخر تواصل» يتقدّم ولا يتراجع: تسجيل اجتماع قديم نُسي إدخاله يجب
+     * ألا يُظهر الجهة مهملةً في فرز المتأخرين.
+     */
+    if (!partner.lastContactAt || occurredAt > partner.lastContactAt) {
+      await tx
+        .update(partners)
+        .set({ lastContactAt: occurredAt })
+        .where(eq(partners.id, partnerId))
+    }
 
     await recordAudit(
       {

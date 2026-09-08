@@ -17,10 +17,12 @@ import { invitationsRouter } from '../modules/invitations/invitations.routes.js'
 import { orgRouter } from '../modules/org/org.routes.js'
 import { partnerPortalRouter } from '../modules/partner-portal/portal.routes.js'
 import { mapRouter } from '../modules/map/map.routes.js'
+import { mediaRouter } from '../modules/media/media.routes.js'
 import { metricsRouter } from '../modules/metrics/metrics.routes.js'
 import { partnersRouter } from '../modules/partners/partners.routes.js'
 import { peopleRouter } from '../modules/people/people.routes.js'
 import { programsRouter } from '../modules/programs/programs.routes.js'
+import { relationsRouter } from '../modules/relations/relations.routes.js'
 import { uploadsRouter } from '../modules/uploads/uploads.routes.js'
 import { workRouter } from '../modules/work/work.routes.js'
 import { buildOpenApiDocument } from '../openapi/openapi.service.js'
@@ -42,6 +44,7 @@ apiRouter.use('/admin/charter', charterAdminRouter)
 apiRouter.use('/admin/invitations', invitationsRouter)
 apiRouter.use('/admin/partners', partnersRouter)
 apiRouter.use('/admin/people', peopleRouter)
+apiRouter.use('/admin/media', mediaRouter)
 apiRouter.use('/admin/forms', formsRouter)
 apiRouter.use('/admin/uploads', uploadsRouter)
 
@@ -49,6 +52,7 @@ apiRouter.use('/admin/uploads', uploadsRouter)
 apiRouter.use('/admin/areas', geoRouter)
 apiRouter.use('/admin/programs', programsRouter)
 apiRouter.use('/admin/metrics', metricsRouter)
+apiRouter.use('/admin/relations', relationsRouter)
 
 // التشغيل: المبادرات ومواقعها وأهدافها، والعمل، ودفتر الأثر.
 apiRouter.use('/admin/initiatives', initiativesRouter)

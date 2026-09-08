@@ -12,6 +12,7 @@
 export type CapabilityGroup =
   | 'access'
   | 'partners'
+  | 'media'
   | 'charter'
   | 'operations'
   | 'contributions'
@@ -52,6 +53,26 @@ export const CAPABILITY_CATALOG = [
   },
   { key: 'partners.consent.manage', nameAr: 'إدارة موافقات الإظهار', group: 'partners', scope: 'STAFF' },
   { key: 'partners.notes.view', nameAr: 'الاطلاع على ملاحظات إيفا الداخلية', group: 'partners', scope: 'STAFF' },
+
+  // ── الشبكة الإعلامية ─────────────────────────────────────────────────
+  //
+  // قدرات مستقلة عن `partners.*` لا مشتقة منها: مكتب الإعلام يحتاج دفتر
+  // صنّاع المحتوى ولا يحتاج ملفات الشراكات ولا موافقات الإظهار، ومن يقرأ
+  // سجل الشركاء لا يلزم أن يرى أرقام هواتف الإعلاميين وملاحظاتهم.
+  { key: 'media.view', nameAr: 'عرض الشبكة الإعلامية', group: 'media', scope: 'STAFF' },
+  { key: 'media.manage', nameAr: 'إضافة صنّاع المحتوى وتعديل ملفاتهم', group: 'media', scope: 'STAFF' },
+  {
+    key: 'media.notes.view',
+    nameAr: 'الاطلاع على الملاحظات الداخلية للشبكة الإعلامية',
+    group: 'media',
+    scope: 'STAFF',
+  },
+  {
+    key: 'relations.taxonomy.manage',
+    nameAr: 'إدارة مرجعيات العلاقات — وسائل الإعلام وأنواع العلاقة',
+    group: 'media',
+    scope: 'STAFF',
+  },
 
   // ── الميثاق ──────────────────────────────────────────────────────────
   { key: 'charter.manage', nameAr: 'إدارة إصدارات الميثاق', group: 'charter', scope: 'STAFF' },

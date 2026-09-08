@@ -4295,6 +4295,481 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/media/contacts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * الشبكة الإعلامية
+         * @description سجل صنّاع المحتوى والإعلاميين — أشخاص لا جهات، ومستقل عن سجل الشركاء. الفرز الافتراضي بالأولوية ثم بأقدم تواصل، أي «من يجب أن أكلّمه اليوم».
+         */
+        get: {
+            parameters: {
+                query?: {
+                    stage?: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
+                    priority?: "HIGH" | "MEDIUM" | "LOW";
+                    horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                    channelId?: string;
+                    relationshipTypeId?: string;
+                    accountManagerId?: string;
+                    q?: string;
+                    staleDays?: number;
+                    hasOpenFollowUp?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الأشخاص */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MediaContactSummary"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** إضافة شخص إلى الشبكة الإعلامية */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        fullNameAr: string;
+                        nameEn?: string;
+                        jobTitleAr?: string;
+                        /** Format: email */
+                        email?: string;
+                        phone?: string;
+                        /** Format: uri */
+                        profileUrl?: string;
+                        outletNameAr?: string;
+                        /** Format: uuid */
+                        partnerId?: string;
+                        /**
+                         * @default NEW
+                         * @enum {string}
+                         */
+                        stage?: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
+                        /**
+                         * @default MEDIUM
+                         * @enum {string}
+                         */
+                        priority?: "HIGH" | "MEDIUM" | "LOW";
+                        /** @enum {string} */
+                        horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                        /** Format: uuid */
+                        relationshipTypeId?: string;
+                        /** @default [] */
+                        channelIds?: string[];
+                        /** Format: uuid */
+                        accountManagerId?: string;
+                        /** Format: date-time */
+                        lastContactAt?: string;
+                        internalNotesAr?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيف */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaContactDetail"];
+                    };
+                };
+                /** @description البريد مسجّل لشخص آخر */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير مكتملة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/media/contacts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ملف شخص من الشبكة الإعلامية */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الملف */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaContactDetail"];
+                    };
+                };
+                /** @description الشخص غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * تعديل ملف شخص
+         * @description المرحلة لها مسارها الخاص فتترك أثرًا في السجل.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        fullNameAr?: string;
+                        nameEn?: string | null;
+                        jobTitleAr?: string | null;
+                        /** Format: email */
+                        email?: string | null;
+                        phone?: string | null;
+                        /** Format: uri */
+                        profileUrl?: string | null;
+                        outletNameAr?: string | null;
+                        /** Format: uuid */
+                        partnerId?: string | null;
+                        /** @enum {string} */
+                        priority?: "HIGH" | "MEDIUM" | "LOW";
+                        /** @enum {string|null} */
+                        horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
+                        /** Format: uuid */
+                        relationshipTypeId?: string | null;
+                        channelIds?: string[];
+                        /** Format: uuid */
+                        accountManagerId?: string | null;
+                        /** Format: date-time */
+                        lastContactAt?: string | null;
+                        internalNotesAr?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaContactDetail"];
+                    };
+                };
+                /** @description الشخص غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description البريد مسجّل لشخص آخر */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/media/follow-ups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * المتابعات المستحقة
+         * @description المتابعات التي حان موعدها ولم تُنجَز، عبر الشبكة كلها. هي ما يحوّل السجل من أرشيف إلى قائمة عمل يومية.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    withinDays?: number | null;
+                    mine?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المتابعات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MediaFollowUp"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/media/contacts/{id}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * نقل مرحلة التواصل
+         * @description كل نقلة تُسجَّل في سجل المتابعة، فيبقى «لماذا صار خاملًا» مقروءًا.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        stage: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
+                        noteAr?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description نُقلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaContactDetail"];
+                    };
+                };
+                /** @description الشخص غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/media/contacts/{id}/interactions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل تواصل
+         * @description يحدّث «آخر تواصل» تلقائيًا حين يكون أحدث من المسجّل، فلا يُدخَل التاريخ مرتين.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * @description `STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة.
+                         * @enum {string}
+                         */
+                        kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST";
+                        /** Format: date-time */
+                        occurredAt?: string;
+                        summaryAr: string;
+                        bodyAr?: string;
+                        /** Format: date-time */
+                        dueAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجِّل */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaContactDetail"];
+                    };
+                };
+                /** @description الشخص غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/media/contacts/{id}/interactions/{interactionId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** إنجاز متابعة أو إعادة فتحها */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    interactionId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        completed: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description حُدِّثت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaContactDetail"];
+                    };
+                };
+                /** @description المتابعة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description السجل بلا موعد متابعة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
     "/api/admin/offices": {
         parameters: {
             query?: never;
@@ -4594,6 +5069,11 @@ export interface paths {
                     stage?: "NEW" | "CONTACTED" | "QUALIFIED" | "NEGOTIATION" | "PENDING_APPROVAL" | "ACTIVE" | "ON_HOLD" | "REJECTED" | "ENDED";
                     type?: "STRATEGIC" | "EXECUTIVE" | "TECHNICAL" | "MEDIA" | "EVENT";
                     q?: string;
+                    priority?: "HIGH" | "MEDIUM" | "LOW";
+                    horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                    relationshipTypeId?: string;
+                    channelId?: string;
+                    staleDays?: number;
                 };
                 header?: never;
                 path?: never;
@@ -4651,6 +5131,19 @@ export interface paths {
                         /** Format: uuid */
                         accountManagerId?: string;
                         internalNotesAr?: string;
+                        /**
+                         * @default MEDIUM
+                         * @enum {string}
+                         */
+                        contactPriority?: "HIGH" | "MEDIUM" | "LOW";
+                        /** @enum {string} */
+                        engagementHorizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                        /** Format: uuid */
+                        relationshipTypeId?: string;
+                        /** @default [] */
+                        mediaChannelIds?: string[];
+                        /** Format: date-time */
+                        lastContactAt?: string;
                     };
                 };
             };
@@ -4749,7 +5242,19 @@ export interface paths {
                         /** Format: uuid */
                         accountManagerId?: string;
                         internalNotesAr?: string;
+                        /**
+                         * @default MEDIUM
+                         * @enum {string}
+                         */
+                        contactPriority?: "HIGH" | "MEDIUM" | "LOW";
+                        /** @enum {string|null} */
+                        engagementHorizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
+                        /** Format: uuid */
+                        relationshipTypeId?: string | null;
+                        /** Format: date-time */
+                        lastContactAt?: string | null;
                         supportForms?: ("MORAL_MEDIA" | "COMMUNITY_VOLUNTEERING" | "SPONSORSHIP_LOGISTICS" | "TECHNICAL_ACADEMIC_EXPERTISE" | "ENVIRONMENTAL_AWARENESS" | "INTERNAL_SUSTAINABILITY" | "SPACES_AND_RESOURCES")[];
+                        mediaChannelIds?: string[];
                     };
                 };
             };
@@ -5485,6 +5990,294 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/admin/relations/media-channels": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * أشكال العمل الإعلامي
+         * @description بأي شكل يعمل الإعلامي أو الجهة: سؤال شارع، ريبورتاج، بودكاست، تصوير. مفردات يحرّرها مكتب العلاقات دون migration.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    includeInactive?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description أشكال العمل الإعلامي */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["MediaChannel"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** إضافة شكل عمل إعلامي */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        slug: string;
+                        nameAr: string;
+                        nameEn?: string;
+                        descriptionAr?: string;
+                        /** @default 0 */
+                        displayOrder?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيف */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaChannel"];
+                    };
+                };
+                /** @description الـslug مستخدم */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/relations/media-channels/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * تعديل شكل عمل إعلامي
+         * @description التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr?: string;
+                        nameEn?: string;
+                        descriptionAr?: string;
+                        /** @default 0 */
+                        displayOrder?: number;
+                        isActive?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["MediaChannel"];
+                    };
+                };
+                /** @description المفردة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/relations/relationship-types": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * أنواع العلاقة
+         * @description طبيعة العلاقة عمليًا — تعاون تطوعي، تغطية، تبادل منفعة. غير نوع الشراكة الذي يحدده الميثاق.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    includeInactive?: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description أنواع العلاقة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["RelationshipType"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        /** إضافة نوع علاقة */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        slug: string;
+                        nameAr: string;
+                        nameEn?: string;
+                        descriptionAr?: string;
+                        /** @default 0 */
+                        displayOrder?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيف */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RelationshipType"];
+                    };
+                };
+                /** @description الـslug مستخدم */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/relations/relationship-types/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * تعديل نوع علاقة
+         * @description التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr?: string;
+                        nameEn?: string;
+                        descriptionAr?: string;
+                        /** @default 0 */
+                        displayOrder?: number;
+                        isActive?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RelationshipType"];
+                    };
+                };
+                /** @description المفردة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/admin/uploads/sign": {
@@ -6421,6 +7214,81 @@ export interface components {
             lat: number;
             lng: number;
         };
+        CatalogRef: {
+            /** Format: uuid */
+            id: string;
+            nameAr: string;
+        };
+        MediaContactSummary: {
+            /** Format: uuid */
+            id: string;
+            fullNameAr: string;
+            jobTitleAr: string | null;
+            outletNameAr: string | null;
+            /** Format: uuid */
+            partnerId: string | null;
+            partnerNameAr: string | null;
+            /** Format: email */
+            email: string | null;
+            phone: string | null;
+            /** @enum {string} */
+            stage: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
+            /** @enum {string} */
+            priority: "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string|null} */
+            horizon: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
+            relationshipTypeNameAr: string | null;
+            channels: components["schemas"]["CatalogRef"][];
+            accountManagerNameAr: string | null;
+            /** Format: date-time */
+            lastContactAt: string | null;
+            openFollowUps: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        MediaContactInteraction: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST" | "STAGE_CHANGE";
+            /** Format: date-time */
+            occurredAt: string;
+            summaryAr: string;
+            bodyAr: string | null;
+            /** Format: date-time */
+            dueAt: string | null;
+            /** Format: date-time */
+            completedAt: string | null;
+            isOverdue: boolean;
+            recordedByNameAr: string | null;
+        };
+        MediaContactDetail: components["schemas"]["MediaContactSummary"] & {
+            nameEn: string | null;
+            profileUrl: string | null;
+            /** Format: uuid */
+            relationshipTypeId: string | null;
+            /** Format: uuid */
+            accountManagerId: string | null;
+            /** @description لا تخرج إلا لمن يملك `media.notes.view`؛ غيره يقرأ null. */
+            internalNotesAr: string | null;
+            interactions: components["schemas"]["MediaContactInteraction"][];
+        };
+        MediaFollowUp: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            contactId: string;
+            contactNameAr: string;
+            /** @enum {string} */
+            priority: "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string} */
+            kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST" | "STAGE_CHANGE";
+            summaryAr: string;
+            /** Format: date-time */
+            dueAt: string;
+            isOverdue: boolean;
+            recordedByNameAr: string | null;
+        };
         Office: {
             /** Format: uuid */
             id: string;
@@ -6508,6 +7376,18 @@ export interface components {
             primaryContactNameAr: string | null;
             publicNameConsent: boolean;
             publicLogoConsent: boolean;
+            /** @enum {string} */
+            contactPriority: "HIGH" | "MEDIUM" | "LOW";
+            /** @enum {string|null} */
+            engagementHorizon: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
+            relationshipTypeNameAr: string | null;
+            mediaChannels: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+            }[];
+            /** Format: date-time */
+            lastContactAt: string | null;
             /** Format: date-time */
             activatedAt: string | null;
             /** Format: date-time */
@@ -6596,6 +7476,8 @@ export interface components {
             supportForms: ("MORAL_MEDIA" | "COMMUNITY_VOLUNTEERING" | "SPONSORSHIP_LOGISTICS" | "TECHNICAL_ACADEMIC_EXPERTISE" | "ENVIRONMENTAL_AWARENESS" | "INTERNAL_SUSTAINABILITY" | "SPACES_AND_RESOURCES")[];
             /** Format: uuid */
             accountManagerId: string | null;
+            /** Format: uuid */
+            relationshipTypeId: string | null;
             internalNotesAr: string | null;
             rejectionReasonAr: string | null;
             suspensionReasonAr: string | null;
@@ -6640,6 +7522,26 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             memberships: components["schemas"]["TeamMembership"][];
+        };
+        MediaChannel: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            nameAr: string;
+            nameEn: string | null;
+            descriptionAr: string | null;
+            displayOrder: number;
+            isActive: boolean;
+        };
+        RelationshipType: {
+            /** Format: uuid */
+            id: string;
+            slug: string;
+            nameAr: string;
+            nameEn: string | null;
+            descriptionAr: string | null;
+            displayOrder: number;
+            isActive: boolean;
         };
         SignedUpload: {
             uploadUrl: string;

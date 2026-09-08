@@ -4,6 +4,7 @@ import {
   check,
   index,
   pgTable,
+  primaryKey,
   text,
   uniqueIndex,
   varchar,
@@ -14,7 +15,9 @@ import {
   consentAction,
   consentSource,
   consentType,
+  contactPriority as contactPriorityEnum,
   contactStatus,
+  engagementHorizon as engagementHorizonEnum,
   interactionKind,
   membershipStatus,
   organizationKind,
@@ -26,6 +29,7 @@ import {
 import { users } from './identity.js'
 import { roles } from './org.js'
 import { initiatives } from './programs.js'
+import { mediaChannels, relationshipTypes } from './relations.js'
 
 /**
  * الجهة الشريكة — سجل CRM كامل من «محتملة» إلى «نشطة».
@@ -63,6 +67,29 @@ export const partners = pgTable(
       () => users.id,
       { onDelete: 'set null' },
     ),
+
+    /**
+     * محاور تصنيف العلاقة — المفردات نفسها المستعملة في الشبكة الإعلامية.
+     *
+     * مكتب العلاقات طلبها على الجهات أيضًا: «بدي من هاد الشي ينضاف لقسم
+     * الشركاء كمان». وتوحيدها مقصود: صفحة تقول عن مراسل «أولوية عالية،
+     * مدى طويل» وأخرى تقول عن قناته شيئًا بمفردات أخرى تجبر القارئ على
+     * ترجمة بين لغتين داخل المكتب الواحد.
+     *
+     * `stage` يبقى محورًا مستقلًا: مرحلة الشراكة أين وصل الملف، والأولوية
+     * كم يهمّنا أن يصل.
+     */
+    relationshipTypeId: uuidColumn('relationship_type_id').references(
+      () => relationshipTypes.id,
+      { onDelete: 'set null' },
+    ),
+    contactPriority: contactPriorityEnum('contact_priority')
+      .default('MEDIUM')
+      .notNull(),
+    engagementHorizon: engagementHorizonEnum('engagement_horizon'),
+
+    /** يُحدَّث عند تسجيل متابعة، ويقبل الإدخال اليدوي لتاريخ سابق للنظام. */
+    lastContactAt: tsColumn('last_contact_at'),
 
     /** لا يخرج من الـAPI إلا لمن يملك `partners.notes.view`. */
     internalNotesAr: text('internal_notes_ar'),
@@ -370,6 +397,29 @@ export const partnerMemberships = pgTable(
       sql`(${table.status} = 'ACTIVE' and ${table.endedAt} is null)
           or (${table.status} = 'ENDED' and ${table.endedAt} is not null)`,
     ),
+  ],
+)
+
+/**
+ * أشكال العمل الإعلامي التي تعمل بها الجهة.
+ *
+ * جدول ربط خاص بالشركاء لا جدول متعدد الأشكال مشترك مع الأشخاص: المفتاح
+ * الأجنبي هنا حقيقي يحرسه المحرّك، وعمود `owner_type` نصّي كان سيحوّل
+ * الحراسة إلى شرط في الكود ينساه أول من يكتب استعلامًا مباشرًا.
+ */
+export const partnerMediaChannels = pgTable(
+  'partner_media_channels',
+  {
+    partnerId: uuidColumn('partner_id')
+      .notNull()
+      .references(() => partners.id, { onDelete: 'cascade' }),
+    channelId: uuidColumn('channel_id')
+      .notNull()
+      .references(() => mediaChannels.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.partnerId, table.channelId] }),
+    index('partner_media_channels_channel_idx').on(table.channelId),
   ],
 )
 
