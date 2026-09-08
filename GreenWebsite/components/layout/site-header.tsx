@@ -39,7 +39,7 @@ export function SiteHeader() {
             className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
             aria-label={`${siteConfig.name} — الصفحة الرئيسية`}
           >
-            <Logo className="size-8 text-primary" />
+            <Logo className="h-8" />
             <span className="text-base font-bold">{siteConfig.name}</span>
           </Link>
 

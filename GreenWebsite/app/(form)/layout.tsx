@@ -19,7 +19,7 @@ export default function FormLayout({ children }: LayoutProps<"/">) {
             href="/"
             className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Logo />
+            <Logo className="h-8" />
           </Link>
         </div>
       </header>
