@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Mail,
   Map,
+  Megaphone,
   ScrollText,
   Sprout,
   Users,
@@ -33,6 +34,12 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "الشركاء",
     icon: Building2,
     requires: [CAPABILITIES.partnersView],
+  },
+  {
+    href: "/dashboard/media",
+    label: "الشبكة الإعلامية",
+    icon: Megaphone,
+    requires: [CAPABILITIES.mediaView],
   },
   {
     href: "/dashboard/initiatives",

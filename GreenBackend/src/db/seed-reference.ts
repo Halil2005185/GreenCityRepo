@@ -7,6 +7,7 @@ import { db } from './client.js'
 import { areas } from './schema/geo.js'
 import { metrics } from './schema/metrics.js'
 import { programs } from './schema/programs.js'
+import { mediaChannels, relationshipTypes } from './schema/relations.js'
 import { workTemplates } from './schema/work.js'
 import {
   GOVERNORATE_SEEDS,
@@ -14,6 +15,11 @@ import {
   PROGRAM_SEEDS,
   TREE_PLANTING_TEMPLATE,
 } from './seed-operational.js'
+import {
+  type CatalogSeed,
+  MEDIA_CHANNEL_SEEDS,
+  RELATIONSHIP_TYPE_SEEDS,
+} from './seed-relations.js'
 
 /**
  * بذر البيانات المرجعية للتشغيل. كلها `onConflictDoUpdate` على الـslug،
@@ -214,10 +220,47 @@ export async function seedTreePlantingTemplates(programId: string, officeIds: Ma
   return inserted
 }
 
+/**
+ * مرجعيات العلاقات — الجدولان متطابقا الشكل، فدالة واحدة تخدمهما.
+ *
+ * `isActive` عمدًا خارج `set`: تعطيل المكتب لمفردة لا تستعيدها إعادة
+ * البذر، وإلا صار كل نشر يُرجع ما أخفاه المكتب قصدًا.
+ */
+async function seedCatalog(
+  table: typeof mediaChannels | typeof relationshipTypes,
+  seeds: readonly CatalogSeed[],
+) {
+  const bySlug = new Map<string, string>()
+
+  for (const seed of seeds) {
+    const values = {
+      slug: seed.slug,
+      nameAr: seed.nameAr,
+      nameEn: seed.nameEn,
+      displayOrder: seed.displayOrder,
+      ...(seed.descriptionAr ? { descriptionAr: seed.descriptionAr } : {}),
+    }
+
+    const [row] = await db
+      .insert(table)
+      .values(values)
+      .onConflictDoUpdate({ target: table.slug, set: values })
+      .returning({ id: table.id })
+
+    if (!row) throw new Error(`Failed to upsert catalog row "${seed.slug}".`)
+
+    bySlug.set(seed.slug, row.id)
+  }
+
+  return bySlug
+}
+
 export type ReferenceSeedResult = {
   areaIds: Map<string, string>
   programIds: Map<string, string>
   metricIds: Map<string, string>
+  mediaChannelIds: Map<string, string>
+  relationshipTypeIds: Map<string, string>
   templateCount: number
 }
 
@@ -227,13 +270,25 @@ export async function seedReferenceData(
   const areaIds = await seedGovernorates()
   const programIds = await seedPrograms()
   const metricIds = await seedMetrics()
+  const mediaChannelIds = await seedCatalog(mediaChannels, MEDIA_CHANNEL_SEEDS)
+  const relationshipTypeIds = await seedCatalog(
+    relationshipTypes,
+    RELATIONSHIP_TYPE_SEEDS,
+  )
 
   const treePlantingId = programIds.get('tree-planting')
   const templateCount = treePlantingId
     ? await seedTreePlantingTemplates(treePlantingId, officeIds)
     : 0
 
-  return { areaIds, programIds, metricIds, templateCount }
+  return {
+    areaIds,
+    programIds,
+    metricIds,
+    mediaChannelIds,
+    relationshipTypeIds,
+    templateCount,
+  }
 }
 
 /** يُستدعى من الاختبارات التي تحتاج مرجعيات دون بذر كامل. */

@@ -7,6 +7,10 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import {
+  ClassificationFields,
+  type ClassificationValue,
+} from "@/components/relations/classification";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -40,6 +44,12 @@ export default function NewPartnerPage() {
   const router = useRouter();
   const [formError, setFormError] = useState<string | null>(null);
   const [supportForms, setSupportForms] = useState<SupportForm[]>([]);
+  const [classification, setClassification] = useState<ClassificationValue>({
+    priority: "MEDIUM",
+    horizon: "",
+    relationshipTypeId: "",
+    channelIds: [],
+  });
 
   const {
     register,
@@ -67,11 +77,19 @@ export default function NewPartnerPage() {
       organizationKind:
         values.organizationKind as keyof typeof ORGANIZATION_KIND_LABELS,
       supportForms,
+      contactPriority: classification.priority,
+      mediaChannelIds: classification.channelIds,
       ...(values.displayNameAr ? { displayNameAr: values.displayNameAr } : {}),
       ...(values.websiteUrl ? { websiteUrl: values.websiteUrl } : {}),
       ...(values.summaryAr ? { summaryAr: values.summaryAr } : {}),
       ...(values.internalNotesAr
         ? { internalNotesAr: values.internalNotesAr }
+        : {}),
+      ...(classification.horizon
+        ? { engagementHorizon: classification.horizon }
+        : {}),
+      ...(classification.relationshipTypeId
+        ? { relationshipTypeId: classification.relationshipTypeId }
         : {}),
     }),
   );
@@ -215,6 +233,22 @@ export default function NewPartnerPage() {
                 />
               )}
             </Field>
+
+            {/* المحاور نفسها المستعملة في الشبكة الإعلامية، بمفردات واحدة. */}
+            <div className="space-y-4 rounded-md border border-border p-4">
+              <div>
+                <h2 className="text-sm font-medium">تصنيف العلاقة</h2>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  كلها اختيارية الآن وتُضبط بعد أول تواصل.
+                </p>
+              </div>
+
+              <ClassificationFields
+                value={classification}
+                onChange={setClassification}
+                idPrefix="partner"
+              />
+            </div>
 
             <div className="flex gap-2">
               <Button type="submit" loading={create.isPending}>

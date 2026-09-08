@@ -152,6 +152,47 @@ export const acknowledgementMethod = pgEnum('acknowledgement_method', [
   'DOCUMENT',
 ])
 
+// ── الشبكة الإعلامية وتصنيف العلاقات ───────────────────────────────────
+
+/**
+ * خط متابعة الشخص الإعلامي، أخف من `partner_stage` عمدًا.
+ *
+ * لا بوابة اعتماد فيه ولا إقرار ميثاق: صانع المحتوى فرد نتواصل معه، لا
+ * جهة تُعتمد شراكتها. لذلك تنتهي السلسلة عند «تعاون قائم» بلا `ACTIVE`
+ * يحتاج توقيع المدير العام.
+ *
+ * `DORMANT` انقطاع لا رفض: من تعاون معنا مرة ثم غاب يبقى في الشبكة
+ * ويُعاد تنشيطه، بخلاف `DECLINED` الذي اعتذر صراحةً.
+ */
+export const mediaContactStage = pgEnum('media_contact_stage', [
+  'NEW',
+  'CONTACTED',
+  'INTERESTED',
+  'COLLABORATING',
+  'DORMANT',
+  'DECLINED',
+])
+
+/** أولوية التواصل — من نبدأ به حين يضيق الوقت. */
+export const contactPriority = pgEnum('contact_priority', [
+  'HIGH',
+  'MEDIUM',
+  'LOW',
+])
+
+/**
+ * أفق العلاقة، محور مستقل عن الأولوية لا درجة أخرى منها.
+ *
+ * صحفي نحتاج تغطيته غدًا أولويته عالية وأفقه `ONE_OFF`، وأكاديمي لن
+ * نراسله هذا الشهر أولويته منخفضة وأفقه `LONG_TERM`. دمج المحورين في
+ * سلّم واحد يخسر أحدهما، ومكتب العلاقات طلبهما معًا.
+ */
+export const engagementHorizon = pgEnum('engagement_horizon', [
+  'LONG_TERM',
+  'SHORT_TERM',
+  'ONE_OFF',
+])
+
 // ── الجغرافيا والتشغيل ─────────────────────────────────────────────────
 
 /**

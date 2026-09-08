@@ -6,6 +6,11 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { z } from "zod";
 
+import {
+  ClassificationFields,
+  ClassificationSummary,
+  type ClassificationValue,
+} from "@/components/relations/classification";
 import { Button } from "@/components/ui/button";
 import {
   Alert,
@@ -36,6 +41,7 @@ import {
   recordConsent,
   restorePartner,
   suspendPartner,
+  updatePartner,
   updatePartnership,
 } from "@/lib/api/partners";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -125,6 +131,9 @@ export default function PartnerDetailPage() {
 
   const [error, setError] = useState<string | null>(null);
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
+  /** غير `null` يعني أن قسم التصنيف في وضع التحرير. */
+  const [classificationDraft, setClassificationDraft] =
+    useState<ClassificationValue | null>(null);
 
   const partner = useQuery({
     queryKey: ["partner", partnerId],
@@ -170,6 +179,21 @@ export default function PartnerDetailPage() {
   const stageMutation = useMutation({
     mutationFn: (stage: string) => changeStage(partnerId, stage),
     ...shared,
+  });
+
+  const classificationMutation = useMutation({
+    mutationFn: (value: ClassificationValue) =>
+      updatePartner(partnerId, {
+        contactPriority: value.priority,
+        engagementHorizon: value.horizon || null,
+        relationshipTypeId: value.relationshipTypeId || null,
+        mediaChannelIds: value.channelIds,
+      }),
+    onSuccess: (updated) => {
+      onMutated(updated);
+      setClassificationDraft(null);
+    },
+    onError: onFailed,
   });
 
   const contactMutation = useMutation({
@@ -622,6 +646,70 @@ export default function PartnerDetailPage() {
               </div>
             </Section>
           ) : null}
+
+          <Section
+            title="تصنيف العلاقة"
+            description="المحاور نفسها المستعملة في الشبكة الإعلامية، بمفردات واحدة."
+          >
+            {classificationDraft ? (
+              <div className="space-y-4">
+                <ClassificationFields
+                  value={classificationDraft}
+                  onChange={setClassificationDraft}
+                  idPrefix="partner-edit"
+                />
+
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    size="sm"
+                    loading={classificationMutation.isPending}
+                    onClick={() =>
+                      classificationMutation.mutate(classificationDraft)
+                    }
+                  >
+                    حفظ
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setClassificationDraft(null)}
+                  >
+                    إلغاء
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <ClassificationSummary
+                  priority={data.contactPriority}
+                  horizon={data.engagementHorizon}
+                  relationshipTypeNameAr={data.relationshipTypeNameAr}
+                  channels={data.mediaChannels}
+                  lastContactAt={data.lastContactAt}
+                />
+
+                {canManage ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setClassificationDraft({
+                        priority: data.contactPriority,
+                        horizon: data.engagementHorizon ?? "",
+                        relationshipTypeId: data.relationshipTypeId ?? "",
+                        channelIds: data.mediaChannels.map((item) => item.id),
+                      })
+                    }
+                  >
+                    تعديل التصنيف
+                  </Button>
+                ) : null}
+              </>
+            )}
+          </Section>
 
           <Section
             title="موافقة الإظهار"

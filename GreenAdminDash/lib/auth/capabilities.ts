@@ -18,6 +18,11 @@ export const CAPABILITIES = {
   partnersConsentManage: "partners.consent.manage",
   partnersNotesView: "partners.notes.view",
 
+  mediaView: "media.view",
+  mediaManage: "media.manage",
+  mediaNotesView: "media.notes.view",
+  relationsTaxonomyManage: "relations.taxonomy.manage",
+
   charterManage: "charter.manage",
   charterAcknowledgementsRecord: "charter.acknowledgements.record",
 

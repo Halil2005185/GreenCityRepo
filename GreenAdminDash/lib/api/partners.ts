@@ -88,11 +88,24 @@ export const ACKNOWLEDGEMENT_METHOD_LABELS = {
 
 // ── نداءات الإدارة ─────────────────────────────────────────────────────
 
-export function listPartners(filters: { stage?: string; q?: string } = {}) {
+export type PartnerFilters = {
+  stage?: string;
+  q?: string;
+  priority?: string;
+  horizon?: string;
+  relationshipTypeId?: string;
+  channelId?: string;
+  staleDays?: number;
+};
+
+export function listPartners(filters: PartnerFilters = {}) {
   const params = new URLSearchParams();
 
-  if (filters.stage) params.set("stage", filters.stage);
-  if (filters.q) params.set("q", filters.q);
+  for (const [key, value] of Object.entries(filters)) {
+    if (value === undefined || value === "") continue;
+
+    params.set(key, String(value));
+  }
 
   const query = params.toString();
 
@@ -113,9 +126,21 @@ export function createPartner(body: {
   summaryAr?: string;
   supportForms: SupportForm[];
   internalNotesAr?: string;
+  contactPriority?: PartnerSummary["contactPriority"];
+  engagementHorizon?: NonNullable<PartnerSummary["engagementHorizon"]>;
+  relationshipTypeId?: string;
+  mediaChannelIds?: string[];
 }) {
   return apiFetch<PartnerDetail>("/admin/partners", {
     method: "POST",
+    body,
+  });
+}
+
+/** `null` يمسح الحقل و`undefined` يتركه، فالجسم غير مقيّد بنوع صارم. */
+export function updatePartner(id: string, body: Record<string, unknown>) {
+  return apiFetch<PartnerDetail>(`/admin/partners/${id}`, {
+    method: "PATCH",
     body,
   });
 }
