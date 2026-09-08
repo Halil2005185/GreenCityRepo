@@ -5,6 +5,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { LogOut } from "lucide-react";
 
+import { Logo } from "@/components/layout/logo";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth/auth-context";
 import type { Capability } from "@/lib/auth/capabilities";
@@ -83,8 +84,11 @@ export function AppShell({
       {/* الحدود المنطقية (`border-e`) تنعكس تلقائيًا تحت dir="rtl". */}
       <aside className="hidden w-64 shrink-0 border-e border-border bg-card md:flex md:flex-col">
         <div className="border-b border-border p-5">
-          <p className="text-lg font-bold text-primary">المدن الخضراء</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">{title}</p>
+          <div className="flex items-center gap-2.5">
+            <Logo className="h-9" />
+            <p className="text-lg font-bold text-primary">المدن الخضراء</p>
+          </div>
+          <p className="mt-1.5 text-xs text-muted-foreground">{title}</p>
         </div>
 
         <nav className="flex-1 space-y-1 p-3" aria-label="التنقل الرئيسي">
@@ -120,7 +124,10 @@ export function AppShell({
 
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex items-center justify-between gap-4 border-b border-border bg-card px-5 py-3 md:hidden">
-          <p className="font-bold text-primary">المدن الخضراء</p>
+          <div className="flex items-center gap-2">
+            <Logo className="h-9" />
+            <p className="font-bold text-primary">المدن الخضراء</p>
+          </div>
           <Button variant="ghost" size="sm" onClick={() => void logout()}>
             <LogOut className="size-4" />
             خروج
