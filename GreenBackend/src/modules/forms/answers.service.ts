@@ -317,13 +317,18 @@ export function readableAnswers(
     const labelOf = (option: string) =>
       field.options.find((one) => one.value === option)?.labelAr ?? option
 
+    /**
+     * البحث عن الاسم يشمل كل حقل له خيارات لا `SINGLE_SELECT` وحده —
+     * أسئلة المرجع (AREA_REF وأخواتها) تحمل خياراتها من كتالوج النظام،
+     * لا من الحقل نفسه، فتُقرأ هنا كما تُقرأ خيارات الاختيار الواحد.
+     */
     const valueAr = Array.isArray(value)
       ? value.map((one) => labelOf(String(one))).join('، ')
       : typeof value === 'boolean'
         ? value
           ? 'نعم'
           : 'لا'
-        : field.type === 'SINGLE_SELECT'
+        : field.options.length > 0
           ? labelOf(String(value))
           : String(value)
 
