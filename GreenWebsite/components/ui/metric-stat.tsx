@@ -16,17 +16,18 @@ export function MetricStat({ metric }: { metric: PublicMetricProgress }) {
   return (
     <div className="rounded-xl border border-border bg-card p-6 text-start">
       <p className="text-sm text-muted-foreground">{metric.metricNameAr}</p>
-      <p className="mt-2 flex items-baseline gap-2">
-        <span className="numeric text-3xl font-bold tracking-tight">
+      <p className="mt-3 flex items-baseline gap-2">
+        {/* الرقم هو بطل البطاقة، فهو وحده بالأخضر الحيوي. */}
+        <span className="numeric text-4xl font-bold tracking-tight text-primary">
           {formatNumber(metric.actual, metric.decimals)}
         </span>
         <span className="text-sm text-muted-foreground">{metric.unitAr}</span>
       </p>
 
       {hasTarget && (
-        <div className="mt-4 space-y-2">
+        <div className="mt-5 space-y-2">
           <div
-            className="h-1.5 overflow-hidden rounded-full bg-muted"
+            className="h-1.5 overflow-hidden rounded-full bg-surface-strong"
             role="progressbar"
             aria-valuemin={0}
             aria-valuemax={100}

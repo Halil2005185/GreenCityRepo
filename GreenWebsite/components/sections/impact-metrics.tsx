@@ -1,5 +1,6 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { MetricStat } from "@/components/ui/metric-stat";
+import { RevealGroup, revealDelay } from "@/components/ui/reveal";
 import { getImpactSummary } from "@/lib/api/public";
 
 /**
@@ -21,10 +22,12 @@ export async function ImpactMetrics({ limit }: { limit?: number }) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {shown.map((metric) => (
-        <MetricStat key={metric.metricId} metric={metric} />
+    <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {shown.map((metric, index) => (
+        <div key={metric.metricId} className="reveal" style={revealDelay(index)}>
+          <MetricStat metric={metric} />
+        </div>
       ))}
-    </div>
+    </RevealGroup>
   );
 }

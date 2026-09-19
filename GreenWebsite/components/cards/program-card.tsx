@@ -11,7 +11,7 @@ export function ProgramCard({ program }: { program: PublicProgram }) {
       href={`/programs/${program.slug}`}
       className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="group h-full transition-colors hover:border-primary/40">
+      <Card className="group h-full transition-colors hover:border-primary/60 hover:bg-surface-strong">
         <CardHeader>
           <CardTitle>{program.nameAr}</CardTitle>
           {program.descriptionAr && (

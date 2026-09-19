@@ -22,7 +22,7 @@ export function InitiativeCard({
   const href = initiative.slug ? `/initiatives/${initiative.slug}` : null;
 
   const body = (
-    <Card className="h-full transition-colors hover:border-primary/40">
+    <Card className="h-full transition-colors hover:border-primary/60 hover:bg-surface-strong">
       <CardHeader>
         <div className="flex flex-wrap items-center gap-2">
           <Badge tone={INITIATIVE_STATUS_TONES[initiative.status]}>

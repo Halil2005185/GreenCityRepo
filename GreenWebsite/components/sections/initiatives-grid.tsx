@@ -1,5 +1,6 @@
 import { InitiativeCard } from "@/components/cards/initiative-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RevealGroup, revealDelay } from "@/components/ui/reveal";
 import { listInitiatives } from "@/lib/api/public";
 
 export async function InitiativesGrid({
@@ -21,10 +22,12 @@ export async function InitiativesGrid({
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {initiatives.map((initiative) => (
-        <InitiativeCard key={initiative.id} initiative={initiative} />
+    <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {initiatives.map((initiative, index) => (
+        <div key={initiative.id} className="reveal" style={revealDelay(index)}>
+          <InitiativeCard initiative={initiative} />
+        </div>
       ))}
-    </div>
+    </RevealGroup>
   );
 }
