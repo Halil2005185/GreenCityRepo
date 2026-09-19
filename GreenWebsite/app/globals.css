@@ -146,14 +146,17 @@
   }
 
   /**
-   * الكشف عند التمرير: الحركة كلها في CSS و«رأيتُه» وحدها في JS، فيبقى
-   * المحتوى ظاهرًا كاملًا لو لم يعمل السكربت — العنصر المخفي أبدًا أسوأ
-   * من عنصر بلا حركة.
+   * الكشف عند التمرير: الحركة في CSS و«صار مرئيًا» وحدها في JS — مراقبٌ
+   * واحد للمجموعة كلها لا مراقب لكل عنصر، فالعناصر الداخلية تبقى مكوّنات
+   * خادم ولا يُدفع إلى المتصفح إلا الغلاف.
    *
-   * `--reveal-delay` يضبطه المستدعي للتدرّج، وسقفه منخفض عمدًا: تأخير
-   * يتجاوز جزءًا من الثانية يقرأه الزائر بطئًا في الصفحة لا أناقة فيها.
+   * الإخفاء مشروط بوجود `data-reveal-visible` على الأب: العنصر الذي لا
+   * مجموعةَ له يُعرض كما هو، فلا يختفي محتوى بسبب صنفٍ نُسي.
+   *
+   * `--reveal-delay` للتدرّج، وسقفه منخفض عمدًا: تأخير يتجاوز جزءًا من
+   * الثانية يقرأه الزائر بطئًا في الصفحة لا أناقة فيها.
    */
-  .reveal {
+  [data-reveal-visible] .reveal {
     opacity: 0;
     transform: translateY(1.25rem);
     transition:
@@ -162,9 +165,20 @@
     transition-delay: var(--reveal-delay, 0ms);
   }
 
-  .reveal[data-visible="true"] {
+  [data-reveal-visible="true"] .reveal {
     opacity: 1;
     transform: none;
+  }
+
+  /**
+   * بلا JavaScript لا مراقب يقلب السمة، فيبقى المحتوى مخفيًا إلى الأبد.
+   * هذه القاعدة تُلغي الإخفاء أصلًا في تلك الحالة.
+   */
+  @media (scripting: none) {
+    [data-reveal-visible] .reveal {
+      opacity: 1;
+      transform: none;
+    }
   }
 
   /**
@@ -172,8 +186,8 @@
    * إزاحة ولا تلاشٍ ولا تأخير.
    */
   @media (prefers-reduced-motion: reduce) {
-    .reveal,
-    .reveal[data-visible="true"] {
+    [data-reveal-visible] .reveal,
+    [data-reveal-visible="true"] .reveal {
       opacity: 1;
       transform: none;
       transition: none;

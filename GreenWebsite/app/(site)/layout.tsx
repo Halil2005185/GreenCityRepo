@@ -1,5 +1,6 @@
 import { SiteFooter } from "@/components/layout/site-footer";
 import { SiteHeader } from "@/components/layout/site-header";
+import { BackToTop } from "@/components/ui/back-to-top";
 
 /**
  * قشرة الموقع: شريط التنقّل والتذييل وما بينهما.
@@ -26,6 +27,9 @@ export default function SiteLayout({ children }: LayoutProps<"/">) {
       </main>
 
       <SiteFooter />
+
+      {/* هنا مرة واحدة لا في كل صفحة — القشرة هي ما يعلو الصفحات جميعًا. */}
+      <BackToTop />
     </div>
   );
 }
