@@ -28,11 +28,16 @@ COPY tsconfig.json drizzle.config.ts ./
 COPY src ./src
 COPY drizzle ./drizzle
 
-# `scripts/` معها لأن البذر يُشغَّل من هذه الصورة أيضًا:
-#   docker compose run --rm migrate npm run db:seed
+# `scripts/` معها لأن المزامنة والبذر يُشغَّلان من هذه الصورة أيضًا.
 COPY scripts ./scripts
 
-CMD ["npm", "run", "db:migrate"]
+# الترحيل ثم مزامنة ما يملكه الكود: الأدوار وقدراتها والمرجعيات الناقصة.
+# بدون المزامنة كانت القدرة الجديدة تصل إلى الإنتاج بلا دور يحملها، فيختفي
+# القسم الجديد عن الجميع حتى يتذكر أحدهم تشغيل البذر يدويًا.
+#
+# البذر الكامل — ومعه حساب المدير الأول — يبقى يدويًا لمرة واحدة:
+#   docker compose run --rm -e SEED_ADMIN_EMAIL=... migrate npm run db:seed
+CMD ["npm", "run", "db:deploy"]
 
 # ───────────────────────────── التشغيل ────────────────────────────────
 #

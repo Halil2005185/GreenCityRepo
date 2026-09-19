@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 
-import { and, eq, isNull } from 'drizzle-orm'
+import { and, eq, inArray, isNull } from 'drizzle-orm'
 
 import { db } from './client.js'
 import { areas } from './schema/geo.js'
@@ -22,9 +22,50 @@ import {
 } from './seed-relations.js'
 
 /**
- * بذر البيانات المرجعية للتشغيل. كلها `onConflictDoUpdate` على الـslug،
- * فإعادة التشغيل تحدّث الأسماء ولا تُكرّر الصفوف ولا تلمس ما بُني فوقها.
+ * بذر البيانات المرجعية للتشغيل. يُشغَّل بعد الترحيل في كل نشر، فالقاعدة
+ * الحاكمة هي من يملك الصف بعد إنشائه:
+ *
+ * - ما لا تحرّره اللوحة — حدود المحافظات من ملف البيانات — يملكه الكود،
+ *   فيُحدَّث عند التعارض وتصل أي تصحيحات إلى الإنتاج بالدمج وحده.
+ * - ما تحرّره اللوحة — البرامج والمؤشرات ومرجعيات العلاقات — تملكه القاعدة
+ *   بعد إنشائه، فيُدرج الناقص منه ولا يُمَس الموجود. التحديث عند التعارض
+ *   كان سيمحو في كل نشر ما عدّله الفريق من اسم أو ترتيب، بصمت.
+ *
+ * تصحيح اسم مرجعي موجود مكانه اللوحة لا هذا الملف.
  */
+
+type OwnedByDatabase =
+  | typeof programs
+  | typeof metrics
+  | typeof mediaChannels
+  | typeof relationshipTypes
+
+/**
+ * معرّفات الصفوف بالـslug بعد إدراج الناقص.
+ *
+ * `onConflictDoNothing` لا يعيد الصفوف الموجودة في `returning`، فالقراءة
+ * بعد الإدراج هي الطريقة الوحيدة لمعرفة معرّف ما لم يُدرج الآن.
+ */
+async function idsBySlug(
+  table: OwnedByDatabase,
+  seeds: readonly { slug: string }[],
+) {
+  const slugs = seeds.map((seed) => seed.slug)
+
+  const rows = await db
+    .select({ id: table.id, slug: table.slug })
+    .from(table)
+    .where(inArray(table.slug, slugs))
+
+  const bySlug = new Map(rows.map((row) => [row.slug, row.id]))
+  const missing = slugs.filter((slug) => !bySlug.has(slug))
+
+  if (missing.length > 0) {
+    throw new Error(`Seed rows missing after insert: ${missing.join(', ')}`)
+  }
+
+  return bySlug
+}
 
 /**
  * حدود المحافظات من geoBoundaries — المصدر UN OCHA، برخصة CC BY 3.0 IGO
@@ -86,47 +127,31 @@ export async function seedGovernorates() {
   return bySlug
 }
 
+/** تحرّرها اللوحة (`PATCH /admin/programs/:id`)، فتُدرج ولا تُحدَّث. */
 export async function seedPrograms() {
-  const bySlug = new Map<string, string>()
-
-  for (const program of PROGRAM_SEEDS) {
-    const [row] = await db
-      .insert(programs)
-      .values({
+  await db
+    .insert(programs)
+    .values(
+      PROGRAM_SEEDS.map((program) => ({
         slug: program.slug,
         nameAr: program.nameAr,
         nameEn: program.nameEn,
         descriptionAr: program.descriptionAr,
         defaultTargetRollup: program.defaultTargetRollup,
         displayOrder: program.displayOrder,
-      })
-      .onConflictDoUpdate({
-        target: programs.slug,
-        set: {
-          nameAr: program.nameAr,
-          nameEn: program.nameEn,
-          descriptionAr: program.descriptionAr,
-          defaultTargetRollup: program.defaultTargetRollup,
-          displayOrder: program.displayOrder,
-        },
-      })
-      .returning({ id: programs.id })
+      })),
+    )
+    .onConflictDoNothing({ target: programs.slug })
 
-    if (!row) throw new Error(`Failed to upsert program "${program.slug}".`)
-
-    bySlug.set(program.slug, row.id)
-  }
-
-  return bySlug
+  return idsBySlug(programs, PROGRAM_SEEDS)
 }
 
+/** تحرّرها اللوحة (`PATCH /admin/metrics/:id`)، فتُدرج ولا تُحدَّث. */
 export async function seedMetrics() {
-  const bySlug = new Map<string, string>()
-
-  for (const metric of METRIC_SEEDS) {
-    const [row] = await db
-      .insert(metrics)
-      .values({
+  await db
+    .insert(metrics)
+    .values(
+      METRIC_SEEDS.map((metric) => ({
         slug: metric.slug,
         nameAr: metric.nameAr,
         nameEn: metric.nameEn,
@@ -135,26 +160,11 @@ export async function seedMetrics() {
         decimals: metric.decimals,
         displayOrder: metric.displayOrder,
         ...(metric.descriptionAr ? { descriptionAr: metric.descriptionAr } : {}),
-      })
-      .onConflictDoUpdate({
-        target: metrics.slug,
-        set: {
-          nameAr: metric.nameAr,
-          nameEn: metric.nameEn,
-          unitAr: metric.unitAr,
-          aggregation: metric.aggregation,
-          decimals: metric.decimals,
-          displayOrder: metric.displayOrder,
-        },
-      })
-      .returning({ id: metrics.id })
+      })),
+    )
+    .onConflictDoNothing({ target: metrics.slug })
 
-    if (!row) throw new Error(`Failed to upsert metric "${metric.slug}".`)
-
-    bySlug.set(metric.slug, row.id)
-  }
-
-  return bySlug
+  return idsBySlug(metrics, METRIC_SEEDS)
 }
 
 /**
@@ -223,36 +233,27 @@ export async function seedTreePlantingTemplates(programId: string, officeIds: Ma
 /**
  * مرجعيات العلاقات — الجدولان متطابقا الشكل، فدالة واحدة تخدمهما.
  *
- * `isActive` عمدًا خارج `set`: تعطيل المكتب لمفردة لا تستعيدها إعادة
- * البذر، وإلا صار كل نشر يُرجع ما أخفاه المكتب قصدًا.
+ * يحرّرهما مكتب العلاقات من شاشة المرجعيات، فتُدرج المفردة الناقصة ولا
+ * يُمَس الموجود: لا اسم أعاد المكتب صياغته، ولا مفردة عطّلها قصدًا.
  */
 async function seedCatalog(
   table: typeof mediaChannels | typeof relationshipTypes,
   seeds: readonly CatalogSeed[],
 ) {
-  const bySlug = new Map<string, string>()
+  await db
+    .insert(table)
+    .values(
+      seeds.map((seed) => ({
+        slug: seed.slug,
+        nameAr: seed.nameAr,
+        nameEn: seed.nameEn,
+        displayOrder: seed.displayOrder,
+        ...(seed.descriptionAr ? { descriptionAr: seed.descriptionAr } : {}),
+      })),
+    )
+    .onConflictDoNothing({ target: table.slug })
 
-  for (const seed of seeds) {
-    const values = {
-      slug: seed.slug,
-      nameAr: seed.nameAr,
-      nameEn: seed.nameEn,
-      displayOrder: seed.displayOrder,
-      ...(seed.descriptionAr ? { descriptionAr: seed.descriptionAr } : {}),
-    }
-
-    const [row] = await db
-      .insert(table)
-      .values(values)
-      .onConflictDoUpdate({ target: table.slug, set: values })
-      .returning({ id: table.id })
-
-    if (!row) throw new Error(`Failed to upsert catalog row "${seed.slug}".`)
-
-    bySlug.set(seed.slug, row.id)
-  }
-
-  return bySlug
+  return idsBySlug(table, seeds)
 }
 
 export type ReferenceSeedResult = {
