@@ -15,7 +15,7 @@ export function ProgramCard({ program }: { program: PublicProgram }) {
         <CardHeader>
           <CardTitle>{program.nameAr}</CardTitle>
           {program.descriptionAr && (
-            <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+            <p className="line-clamp-3 text-sm leading-loose text-muted-foreground">
               {program.descriptionAr}
             </p>
           )}

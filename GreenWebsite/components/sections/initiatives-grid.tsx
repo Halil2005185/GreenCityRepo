@@ -1,6 +1,7 @@
 import { InitiativeCard } from "@/components/cards/initiative-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { RevealGroup, revealDelay } from "@/components/ui/reveal";
+import { RevealGroup } from "@/components/ui/reveal";
+import { revealDelay } from "@/lib/utils";
 import { listInitiatives } from "@/lib/api/public";
 
 export async function InitiativesGrid({

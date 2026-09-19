@@ -1,8 +1,9 @@
 import type { Metadata } from "next";
 
 import { CtaBand } from "@/components/sections/cta-band";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
-import { PageHeader, Section } from "@/components/ui/section";
+import { PageHeader, Section, SectionHeading } from "@/components/ui/section";
+import { RevealGroup } from "@/components/ui/reveal";
+import { revealDelay } from "@/lib/utils";
 import { siteConfig } from "@/lib/site";
 
 export const metadata: Metadata = {
@@ -11,6 +12,20 @@ export const metadata: Metadata = {
     "من نحن، ولماذا نعمل على إعادة الغطاء النباتي إلى المدن السورية، وكيف تُدار المبادرات من التخطيط إلى توثيق الأثر.",
   alternates: { canonical: "/about" },
 };
+
+const IDEA = [
+  "فقدت المدن السورية جزءًا كبيرًا من غطائها النباتي خلال سنوات الحرب، وما تبقّى منه يحتاج رعاية لا تكفيها الجهود الفردية المتفرقة.",
+  "المدن الخضراء مشروع مجتمعي يجمع الجهات المحلية والمؤسسات والفرق التطوعية حول خطة واحدة: إعادة الحياة إلى المساحات العامة، والحفاظ عليها بعد ذلك.",
+  "يقود المشروع فريق إيفا التطوعي، ويُنفَّذ عبر برامج متعددة، تحت كل برنامج مبادرات لها مواقع تنفيذ وأهداف ومؤشرات قياس خاصة بها.",
+];
+
+const PROCESS = [
+  "تحديد المناطق المستهدفة والشركاء المشاركين قبل اختيار المواقع.",
+  "تقسيم المبادرة إلى مواقع تنفيذ، لكل موقع هدفه ومسؤوله وجدوله.",
+  "تنفيذ المهام ميدانيًا مع توثيق كل خطوة بدليل.",
+  "التحقق الداخلي من الأدلة قبل احتساب أي رقم في الأثر.",
+  "المتابعة بعد التنفيذ وتقييم ما بقي حيًّا ومستدامًا.",
+];
 
 const PRINCIPLES = [
   {
@@ -41,59 +56,76 @@ export default function AboutPage() {
       />
 
       <Section>
-        <div className="grid gap-10 lg:grid-cols-2">
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight">الفكرة</h2>
-            <p className="text-base leading-relaxed text-muted-foreground">
-              فقدت المدن السورية جزءًا كبيرًا من غطائها النباتي خلال سنوات
-              الحرب، وما تبقّى منه يحتاج رعاية لا تكفيها الجهود الفردية
-              المتفرقة. المدن الخضراء مشروع مجتمعي يجمع الجهات المحلية
-              والمؤسسات والفرق التطوعية حول خطة واحدة: إعادة الحياة إلى
-              المساحات العامة، والحفاظ عليها بعد ذلك.
-            </p>
-            <p className="text-base leading-relaxed text-muted-foreground">
-              يقود المشروع فريق إيفا التطوعي، وينفَّذ عبر برامج متعددة، تحت
-              كل برنامج مبادرات لها مواقع تنفيذ وأهداف ومؤشرات قياس خاصة بها.
-            </p>
+        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+          <div className="space-y-6">
+            <SectionHeading title="الفكرة" />
+            <div className="space-y-5">
+              {IDEA.map((paragraph) => (
+                <p
+                  key={paragraph}
+                  className="max-w-[58ch] text-base leading-loose text-muted-foreground"
+                >
+                  {paragraph}
+                </p>
+              ))}
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-2xl font-bold tracking-tight">كيف تُدار المبادرة</h2>
-            <ol className="space-y-4">
-              {[
-                "تحديد المناطق المستهدفة والشركاء المشاركين قبل اختيار المواقع.",
-                "تقسيم المبادرة إلى مواقع تنفيذ، لكل موقع هدفه ومسؤوله وجدوله.",
-                "تنفيذ المهام ميدانيًا مع توثيق كل خطوة بدليل.",
-                "التحقق الداخلي من الأدلة قبل احتساب أي رقم في الأثر.",
-                "المتابعة بعد التنفيذ وتقييم ما بقي حيًّا ومستدامًا.",
-              ].map((step, index) => (
-                <li key={step} className="flex gap-3">
-                  <span className="numeric mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                    {index + 1}
-                  </span>
-                  <span className="text-base leading-relaxed text-muted-foreground">
-                    {step}
-                  </span>
-                </li>
-              ))}
-            </ol>
+          <div className="space-y-6">
+            <SectionHeading title="كيف تُدار المبادرة" />
+
+            {/*
+              الخط الواصل يُرسم قطعةً بين كل دائرتين لا شريطًا مطلقًا
+              يُوضَع بإزاحة محسوبة: الإزاحة تُقاس بالبكسل من حافة بعينها
+              فتنكسر عند انعكاس الاتجاه أو تغيّر حجم الدائرة.
+            */}
+            <RevealGroup>
+              <ol className="space-y-0">
+                {PROCESS.map((step, index) => (
+                  <li
+                    key={step}
+                    className="reveal flex gap-5 pb-7 last:pb-0"
+                    style={revealDelay(index, 80)}
+                  >
+                    <div className="flex flex-col items-center">
+                      <span className="numeric flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                        {index + 1}
+                      </span>
+                      {index < PROCESS.length - 1 && (
+                        <span aria-hidden className="mt-2 w-px flex-1 bg-border" />
+                      )}
+                    </div>
+                    <p className="flex-1 pt-1 text-base leading-loose text-muted-foreground">
+                      {step}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            </RevealGroup>
           </div>
         </div>
       </Section>
 
       <Section muted eyebrow="مبادئنا" title="أربعة نلتزم بها">
-        <div className="grid gap-4 sm:grid-cols-2">
-          {PRINCIPLES.map((item) => (
-            <Card key={item.title}>
-              <CardHeader>
-                <CardTitle>{item.title}</CardTitle>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.body}
-                </p>
-              </CardHeader>
-            </Card>
+        <RevealGroup className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          {PRINCIPLES.map((principle, index) => (
+            <div
+              key={principle.title}
+              className="reveal space-y-3"
+              style={revealDelay(index, 80)}
+            >
+              <span className="numeric flex size-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+                {index + 1}
+              </span>
+              <h3 className="text-lg font-bold leading-[1.6] text-foreground">
+                {principle.title}
+              </h3>
+              <p className="text-sm leading-loose text-muted-foreground">
+                {principle.body}
+              </p>
+            </div>
           ))}
-        </div>
+        </RevealGroup>
       </Section>
 
       <CtaBand />

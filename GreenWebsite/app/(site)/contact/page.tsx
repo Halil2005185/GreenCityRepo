@@ -100,7 +100,7 @@ export default function ContactPage() {
           <Card className="h-fit">
             <CardHeader>
               <CardTitle>هل أنت شريك حالي؟</CardTitle>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-loose text-muted-foreground">
                 لممثلي الجهات الشريكة بوابة خاصة لمتابعة المبادرات والمهام
                 والمساهمات. يُفتح الحساب بدعوة من فريق المشروع لا بتسجيل عام.
               </p>

@@ -1,6 +1,7 @@
 import { EmptyState } from "@/components/ui/empty-state";
 import { MetricStat } from "@/components/ui/metric-stat";
-import { RevealGroup, revealDelay } from "@/components/ui/reveal";
+import { RevealGroup } from "@/components/ui/reveal";
+import { revealDelay } from "@/lib/utils";
 import { getImpactSummary } from "@/lib/api/public";
 
 /**

@@ -1,15 +1,18 @@
 import { HandHeart, Leaf, Trees, Users } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 import { CtaBand } from "@/components/sections/cta-band";
 import { ImpactMetrics } from "@/components/sections/impact-metrics";
 import { InitiativesGrid } from "@/components/sections/initiatives-grid";
 import { ProgramsGrid } from "@/components/sections/programs-grid";
+import { Backdrop } from "@/components/ui/backdrop";
 import { buttonVariants } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
+import { RevealGroup } from "@/components/ui/reveal";
 import { Section } from "@/components/ui/section";
 import { siteConfig } from "@/lib/site";
-import { cn } from "@/lib/utils";
+import { cn, revealDelay } from "@/lib/utils";
 
 /**
  * كيف نعمل: وصف المنهجية لا وصف مبادرة بعينها. أي رقم أو اسم مبادرة
@@ -45,30 +48,53 @@ const APPROACH = [
 export default function HomePage() {
   return (
     <>
-      <section className="hero-surface border-b border-border">
+      <section className="relative isolate overflow-hidden border-b border-border">
+        <Backdrop src="/bg/section.webp" priority />
+
         <Container>
-          <div className="max-w-3xl py-20 sm:py-28">
-            <p className="text-sm font-medium text-primary">
-              مبادرة مجتمعية بيئية — يقودها فريق إيفا
-            </p>
-            <h1 className="mt-4 text-4xl font-bold leading-[1.15] tracking-tight sm:text-5xl">
-              {siteConfig.tagline}
-            </h1>
-            <p className="mt-6 text-lg leading-relaxed text-muted-foreground">
-              {siteConfig.description} نعمل مع الجهات المحلية والفرق الشبابية على
-              برامج تشجير ومساحات خضراء، بخطة تُدار وتُقاس ويُتابَع أثرها بعد
-              التنفيذ.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/join" className={buttonVariants({ size: "lg" })}>
-                كن شريكًا
-              </Link>
-              <Link
-                href="/initiatives"
-                className={cn(buttonVariants({ variant: "outline", size: "lg" }))}
-              >
-                تصفّح المبادرات
-              </Link>
+          <div className="grid items-center gap-10 py-16 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-24">
+            <div className="max-w-2xl">
+              <p className="text-sm font-medium text-primary">
+                مبادرة مجتمعية بيئية — يقودها فريق إيفا
+              </p>
+              <h1 className="mt-4 text-4xl font-bold leading-[1.2] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
+                {siteConfig.tagline}
+              </h1>
+              <p className="mt-6 text-lg leading-loose text-foreground">
+                {siteConfig.description} نعمل مع الجهات المحلية والفرق الشبابية
+                على برامج تشجير ومساحات خضراء، بخطة تُدار وتُقاس ويُتابَع أثرها
+                بعد التنفيذ.
+              </p>
+              <div className="mt-9 flex flex-wrap gap-3">
+                <Link href="/join" className={buttonVariants({ size: "lg" })}>
+                  كن شريكًا
+                </Link>
+                <Link
+                  href="/initiatives"
+                  className={cn(
+                    buttonVariants({ variant: "outline", size: "lg" }),
+                  )}
+                >
+                  تصفّح المبادرات
+                </Link>
+              </div>
+            </div>
+
+            {/*
+              اللوحة: مدينة سورية تنبت من شجرة. زخرفية لا معلوماتية — ما
+              تقوله يقوله العنوان إلى جانبها — فـ`alt` فارغ عمدًا، وقراءتها
+              على قارئ الشاشة تكرارٌ لا إفادة فيه.
+            */}
+            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+              <Image
+                src="/bg/hero.webp"
+                alt=""
+                width={800}
+                height={1000}
+                priority
+                sizes="(min-width: 1024px) 45vw, (min-width: 640px) 60vw, 90vw"
+                className="h-auto w-full"
+              />
             </div>
           </div>
         </Container>
@@ -128,19 +154,25 @@ export default function HomePage() {
         title="كيف نعمل"
         description="أربعة مبادئ تحكم كل مبادرة مهما اختلف مجالها أو مقياسها."
       >
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {APPROACH.map((item) => (
-            <div key={item.title} className="space-y-3">
-              <span className="inline-flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
+        <RevealGroup className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
+          {APPROACH.map((item, index) => (
+            <div
+              key={item.title}
+              className="reveal space-y-3"
+              style={revealDelay(index, 80)}
+            >
+              <span className="inline-flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
                 <item.icon className="size-5" aria-hidden />
               </span>
-              <h3 className="text-base font-semibold">{item.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <h3 className="text-base font-bold text-foreground">
+                {item.title}
+              </h3>
+              <p className="text-sm leading-loose text-muted-foreground">
                 {item.description}
               </p>
             </div>
           ))}
-        </div>
+        </RevealGroup>
       </Section>
 
       <CtaBand />

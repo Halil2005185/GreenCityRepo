@@ -282,7 +282,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
     return (
       <div className="rounded-xl border border-primary/30 bg-primary/5 p-6">
         <h2 className="text-lg font-bold text-primary">وصلنا طلبك</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-sm leading-loose text-muted-foreground">
           شكرًا لك. سنراجع ما أرسلته ونتواصل معك إن احتجنا تفاصيل أكثر.
           {sentTo.copiedTo ? (
             <>
@@ -303,7 +303,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
     return (
       <div className="rounded-xl border border-border bg-muted/40 p-6">
         <h2 className="text-lg font-bold">الاستمارة مغلقة حاليًا</h2>
-        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+        <p className="mt-2 text-sm leading-loose text-muted-foreground">
           لا تستقبل هذه الاستمارة طلبات في الوقت الحالي. تابعنا لتعرف موعد
           فتحها من جديد.
         </p>
@@ -394,7 +394,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
         {sending ? "…جارٍ الإرسال" : "إرسال الطلب"}
       </Button>
 
-      <p className="text-xs leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-loose text-muted-foreground">
         تُستعمل بياناتك لغرض هذه الاستمارة وحدها، ولا تُنشر ولا تُشارك مع جهة
         خارجية.
       </p>

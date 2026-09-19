@@ -2,6 +2,7 @@ import { Building2, Sprout, Users } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
+import { PartnershipJourney } from "@/components/sections/partnership-journey";
 import { buttonVariants } from "@/components/ui/button";
 import {
   Card,
@@ -9,9 +10,9 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { RevealGroup } from "@/components/ui/reveal";
 import { PageHeader, Section } from "@/components/ui/section";
-import { PARTNERSHIP_JOURNEY } from "@/lib/content/partnership";
-import { cn } from "@/lib/utils";
+import { cn, revealDelay } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "انضم إلينا",
@@ -54,29 +55,31 @@ export default function JoinPage() {
       />
 
       <Section>
-        <div className="grid gap-4 lg:grid-cols-3">
-          {PATHS.map((path) => (
-            <Card key={path.title} className="flex h-full flex-col">
-              <CardHeader className="flex-1">
-                <span className="inline-flex size-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <path.icon className="size-5" aria-hidden />
-                </span>
-                <CardTitle>{path.title}</CardTitle>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {path.body}
-                </p>
-              </CardHeader>
-              <CardContent>
-                <Link
-                  href={path.href}
-                  className={cn(buttonVariants({ variant: "outline" }))}
-                >
-                  {path.cta}
-                </Link>
-              </CardContent>
-            </Card>
+        <RevealGroup className="grid gap-5 lg:grid-cols-3">
+          {PATHS.map((path, index) => (
+            <div key={path.title} className="reveal" style={revealDelay(index)}>
+              <Card className="flex h-full flex-col">
+                <CardHeader className="flex-1">
+                  <span className="inline-flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                    <path.icon className="size-5" aria-hidden />
+                  </span>
+                  <CardTitle>{path.title}</CardTitle>
+                  <p className="text-sm leading-loose text-muted-foreground">
+                    {path.body}
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <Link
+                    href={path.href}
+                    className={cn(buttonVariants({ variant: "outline" }))}
+                  >
+                    {path.cta}
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
           ))}
-        </div>
+        </RevealGroup>
       </Section>
 
       <Section
@@ -85,19 +88,7 @@ export default function JoinPage() {
         title="مسار الشراكة"
         description="نفس المسار لكل جهة، فلا تعتمد الشراكة على معرفة شخصية بأحد."
       >
-        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {PARTNERSHIP_JOURNEY.map((step, index) => (
-            <li key={step.title} className="space-y-2">
-              <span className="numeric flex size-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                {index + 1}
-              </span>
-              <h3 className="text-base font-semibold">{step.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {step.description}
-              </p>
-            </li>
-          ))}
-        </ol>
+        <PartnershipJourney />
       </Section>
     </>
   );

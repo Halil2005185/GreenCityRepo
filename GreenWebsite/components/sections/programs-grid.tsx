@@ -1,6 +1,7 @@
 import { ProgramCard } from "@/components/cards/program-card";
 import { EmptyState } from "@/components/ui/empty-state";
-import { RevealGroup, revealDelay } from "@/components/ui/reveal";
+import { RevealGroup } from "@/components/ui/reveal";
+import { revealDelay } from "@/lib/utils";
 import { listPrograms } from "@/lib/api/public";
 
 export async function ProgramsGrid({ limit }: { limit?: number }) {

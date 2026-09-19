@@ -63,7 +63,7 @@ function Inline({ nodes }: { nodes: PublicIntroInline[] | undefined }) {
 
 export function IntroContent({ doc }: { doc: PublicIntroDoc }) {
   return (
-    <div className="space-y-4 text-base leading-relaxed text-muted-foreground">
+    <div className="space-y-4 text-base leading-loose text-muted-foreground">
       {doc.content.map((node, index) => {
         if (node.type === "paragraph") {
           return (

@@ -27,13 +27,10 @@ export function RevealGroup({
     if (!element) return;
 
     /**
-     * متصفح بلا `IntersectionObserver` يعرض المحتوى فورًا بدل أن يخفيه.
+     * لا فرع احتياطي لغياب `IntersectionObserver`: هو مدعوم في كل متصفح
+     * يشغّل React 19 أصلًا، وفرعٌ لا يُنفَّذ أبدًا لا يُصان. الخطر الحقيقي
+     * — تعطيل JavaScript — يغطّيه `scripting: none` في `globals.css`.
      */
-    if (typeof IntersectionObserver === "undefined") {
-      setVisible(true);
-      return;
-    }
-
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting) return;
@@ -56,16 +53,6 @@ export function RevealGroup({
       {children}
     </div>
   );
-}
-
-/**
- * تأخير العنصر داخل المجموعة. يُستعمل هكذا:
- * `<li className="reveal" style={revealDelay(index)}>`
- *
- * السقف 240ms: العنصر الثامن في شبكة يجب ألا ينتظر ثانيتين.
- */
-export function revealDelay(index: number, step = 60) {
-  return { "--reveal-delay": `${Math.min(index * step, 240)}ms` } as React.CSSProperties;
 }
 
 /** عنصر واحد يظهر بالتدرّج — مجموعة من طفل واحد. */

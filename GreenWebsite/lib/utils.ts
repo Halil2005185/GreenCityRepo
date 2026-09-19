@@ -10,6 +10,20 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 /**
+ * تأخير ظهور عنصر داخل `RevealGroup`، يُستعمل هكذا:
+ * `<li className="reveal" style={revealDelay(index)}>`
+ *
+ * هنا لا في `reveal.tsx` رغم أنه مكانها المنطقي: ذاك الملف `"use client"`،
+ * وكل ما يُصدَّر منه يصير مرجعًا إلى العميل لا دالةً تُستدعى على الخادم —
+ * والصفحات التي تستعملها مكوّنات خادم.
+ *
+ * السقف 240ms: العنصر الثامن في شبكة يجب ألا ينتظر ثانيتين.
+ */
+export function revealDelay(index: number, step = 60): React.CSSProperties {
+  return { "--reveal-delay": `${Math.min(index * step, 240)}ms` } as React.CSSProperties;
+}
+
+/**
  * كل التواريخ تُحفظ UTC وتُعرض بتوقيت دمشق. التنسيق هنا لا في الخادم،
  * حتى يبقى الوقت المخزَّن واحدًا ويتغير العرض وحده.
  */
