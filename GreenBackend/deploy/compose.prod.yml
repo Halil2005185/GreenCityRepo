@@ -1,8 +1,11 @@
 # نشر الباك‌اند على الـVPS: ترحيل ومزامنة تسبقان الإصدار، الـAPI، وعامل البريد.
 #
-# يُشغَّل من داخل مجلد `deploy/` كي يلتقط Compose ملف `.env` المجاور تلقائيًا:
+# يُشغَّل من داخل مجلد `deploy/` كي يلتقط Compose ملف `.env` المجاور تلقائيًا،
+# وعبر `deploy.sh` لا بـ`up -d` مباشرة — السبب عند خدمة migrate أدناه:
 #
-#   docker compose -f compose.prod.yml up -d --build
+#   docker compose -f compose.prod.yml build
+#   docker compose -f compose.prod.yml run --rm -T migrate
+#   docker compose -f compose.prod.yml up -d --no-deps api worker
 #
 # لا خدمة PostgreSQL هنا: القاعدة على Neon في المنطقة نفسها (فرانكفورت)،
 # فالنسخ والرجوع الزمني وترقيات الإصدار من عندهم، ولا تزاحم على نواة
@@ -24,6 +27,11 @@ services:
   # الناقصة (`npm run db:deploy`). الـAPI لا يبدأ قبل نجاحها، فلا يخدم إصدار
   # جديد قاعدةً بمخطط قديم ولا بقدرات لم تُمنح بعد. تكرار التشغيل بلا ضرر:
   # Drizzle يتخطى المطبَّق، والمزامنة لا تمس ما حرّره الفريق من اللوحة.
+  #
+  # `depends_on` أدناه شبكة أمان للتشغيل اليدوي لا ضمانة: `up` يعيد إنشاء
+  # api — فيزيل العامل — قبل أن ينتظر نجاح migrate، فيبقى الخادم بلا API إن
+  # فشل. لذلك يشغّل `deploy.sh` هذه الخدمة بـ`run --rm` أولًا ثم يرفع api
+  # وworker بـ`--no-deps`، وهكذا يجب أن يُفعل يدويًا أيضًا.
   #
   # يستعمل `DIRECT_URL` لا النقطة المُجمَّعة: تنفيذ DDL عبر PgBouncer في
   # وضع المعاملات يعمل أحيانًا ويفشل أحيانًا. الاختيار في drizzle.config.ts.

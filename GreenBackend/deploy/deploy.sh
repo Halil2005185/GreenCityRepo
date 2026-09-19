@@ -55,10 +55,25 @@ fi
 log 'بناء الصور'
 docker compose -f "${COMPOSE_FILE}" build
 
-# الترحيل والمزامنة خدمة يعتمد عليها الـAPI بشرط `service_completed_successfully`،
-# فسقوطها هنا يمنع بدء إصدار جديد على مخطط قديم أو أدوار ناقصة القدرات.
-log 'الترحيل والمزامنة ثم تشغيل الخدمات'
-docker compose -f "${COMPOSE_FILE}" up -d --remove-orphans
+# ───────────────────────── الترحيل والمزامنة ─────────────────────────
+
+# خطوة مستقلة قبل لمس الخدمات، لا تبعية تُحلّ داخل `up`.
+#
+# `up -d` يعيد إنشاء api وworker — يوقف القديمين ويزيلهما — ثم ينتظر نجاح
+# migrate. فإن فشل الترحيل بقي الخادم بلا API إطلاقًا: الإصدار الجديد لم
+# يبدأ، والعامل أُزيل. هذا ما حدث في نشر #31. تشغيله هنا أولًا يجعل الفشل
+# يوقف السكربت والإصدار القديم ما زال يخدم.
+#
+# و`run` يطبع المخرجات هنا لا في سجل حاوية على الخادم، فيظهر سبب الفشل في
+# سجل GitHub Actions مباشرة. المزامنة لا تطبع أسرارًا، وفشل التحقق من
+# البيئة يطبع أسماء المتغيرات لا قيمها.
+log 'الترحيل والمزامنة'
+docker compose -f "${COMPOSE_FILE}" run --rm -T migrate
+
+# `--no-deps`: الترحيل نجح للتو، وتركه لـ`up` يعيد تشغيله ويعيد معه الخلل
+# نفسه — إزالة الإصدار العامل قبل انتظار النتيجة.
+log 'تشغيل الخدمات'
+docker compose -f "${COMPOSE_FILE}" up -d --no-deps --remove-orphans api worker
 
 # ────────────────────────── فحص الجاهزية ──────────────────────────
 
@@ -73,6 +88,9 @@ for attempt in $(seq 1 "${HEALTH_RETRIES}"); do
     log "جاهز بعد ${attempt} محاولة."
     docker compose -f "${COMPOSE_FILE}" ps
     docker image prune -f >/dev/null
+    # حاوية migrate من التدفق القديم (`up`) تبقى «Exited» بسجل قديم يضلّل
+    # من يقرؤه. بعد نجاح النشر وحده، فلا تُمحى أدلة فشل لم يُقرأ بعد.
+    docker compose -f "${COMPOSE_FILE}" rm -f migrate >/dev/null 2>&1 || true
     exit 0
   fi
   sleep 2
@@ -82,14 +100,18 @@ done
 
 printf '\n\033[1;31m✗ لم يصبح الـAPI جاهزًا خلال %s ثانية.\033[0m\n' "$((HEALTH_RETRIES * 2))" >&2
 docker compose -f "${COMPOSE_FILE}" ps
-docker compose -f "${COMPOSE_FILE}" logs --tail 80 migrate api
+# سجل migrate طُبع أعلاه من `run --rm`، ولا حاوية باقية يُقرأ منها.
+docker compose -f "${COMPOSE_FILE}" logs --tail 80 api worker
 
 cat >&2 <<'EOF'
 
 للرجوع إلى الصورة السابقة:
 
   docker tag greencities-api:previous greencities-api:local
-  docker compose -f compose.prod.yml up -d --no-build api worker
+  docker compose -f compose.prod.yml up -d --no-build --no-deps api worker
+
+`--no-deps` ضروري: بدونه يعيد `up` تشغيل migrate، فإن كان هو ما يفشل
+أُزيل الإصدار العامل قبل انتظار نتيجته، وصار الرجوع نفسه انقطاعًا.
 
 هذا يرجّع الكود وحده. إن كان الإصدار الفاشل قد طبّق ترحيلًا فالمخطط لا
 يعود معه، وإرجاع الكود قد لا يكفي — راجع سجل migrate أعلاه قبل القرار.
