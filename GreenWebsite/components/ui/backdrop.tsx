@@ -39,8 +39,16 @@ export function Backdrop({
   scrim?: keyof typeof SCRIMS;
   className?: string;
 }) {
+  /**
+   * `bg-background` هنا تحت الصورة لا على الشريط نفسه: هذا العنصر بـ`-z-10`
+   * فهو يُرسم خلف خلفية أبيه، ولونٌ على الأب كان يحجب اللوحة. ووجوده
+   * ضروري — لو تعذّر تحميل الصورة لظهر نصٌّ بيج على صفحة بيج.
+   */
   return (
-    <div aria-hidden className={cn("absolute inset-0 -z-10 overflow-hidden", className)}>
+    <div
+      aria-hidden
+      className={cn("absolute inset-0 -z-10 overflow-hidden bg-background", className)}
+    >
       <Image
         src={src}
         alt=""
