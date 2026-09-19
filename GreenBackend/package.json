@@ -21,6 +21,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
+    "db:sync": "tsx scripts/sync.ts",
+    "db:deploy": "npm run db:migrate && npm run db:sync",
     "db:reset": "tsx scripts/reset-db.ts",
     "db:studio": "drizzle-kit studio",
     "worker": "tsx scripts/worker.ts",
