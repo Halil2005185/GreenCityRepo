@@ -70,7 +70,7 @@ export default async function PartnersPage() {
                 style={revealDelay(index)}
               >
                 <Check
-                  className="mt-1 size-4 shrink-0 text-primary"
+                  className="mt-1 size-4 shrink-0 text-accent-ink"
                   aria-hidden
                 />
                 <span className="text-sm leading-loose text-foreground">

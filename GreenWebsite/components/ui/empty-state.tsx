@@ -26,7 +26,7 @@ export function EmptyState({
         className,
       )}
     >
-      <span className="mx-auto mb-4 inline-flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+      <span className="mx-auto mb-4 inline-flex size-12 items-center justify-center rounded-full bg-accent-ink/10 text-accent-ink">
         <Sprout className="size-6" aria-hidden />
       </span>
       <p className="text-base font-bold text-foreground">{title}</p>

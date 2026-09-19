@@ -18,12 +18,12 @@ export function SiteFooter() {
   );
 
   return (
-    <footer className="relative isolate overflow-hidden border-t border-border">
+    <footer className="on-painted relative isolate overflow-hidden border-t border-border">
       <Backdrop src="/bg/footer.webp" scrim="strong" />
 
       <Container>
         {/*
-          النص هنا كله بيجٌ كامل لا مخفَّف — القاعدة مشروحة في `Backdrop`:
+          النص هنا كله بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css:
           في اللوحة بكسلات أوراق مُشمسة تُسقط النص الثانوي تحت حدّ التباين.
         */}
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
@@ -42,7 +42,7 @@ export function SiteFooter() {
                   <li key={item.href}>
                     <Link
                       href={item.href}
-                      className="rounded text-sm text-foreground transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                      className="rounded text-sm text-foreground transition-colors hover:text-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                     >
                       {item.label}
                     </Link>
@@ -74,7 +74,7 @@ export function SiteFooter() {
                 <li>
                   <a
                     href={`mailto:${contactChannels.email}`}
-                    className="inline-flex rounded-full border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex rounded-full border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {contactChannels.email}
                   </a>
@@ -86,7 +86,7 @@ export function SiteFooter() {
                     href={contactChannels[key as keyof typeof contactChannels]}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="inline-flex rounded-full border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                    className="inline-flex rounded-full border border-border px-3 py-1.5 text-xs text-foreground transition-colors hover:border-primary hover:text-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                   >
                     {label}
                   </a>

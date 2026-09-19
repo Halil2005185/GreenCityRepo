@@ -60,7 +60,7 @@ export default function JoinPage() {
             <div key={path.title} className="reveal" style={revealDelay(index)}>
               <Card className="flex h-full flex-col">
                 <CardHeader className="flex-1">
-                  <span className="inline-flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+                  <span className="inline-flex size-12 items-center justify-center rounded-full bg-accent-ink/10 text-accent-ink">
                     <path.icon className="size-5" aria-hidden />
                   </span>
                   <CardTitle>{path.title}</CardTitle>

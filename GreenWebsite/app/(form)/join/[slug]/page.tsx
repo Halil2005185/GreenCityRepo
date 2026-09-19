@@ -88,7 +88,7 @@ export default async function PublicFormPage({
             لست متأكدًا أن هذه استمارتك؟{" "}
             <Link
               href="/join"
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-accent-ink underline-offset-4 hover:underline"
             >
               طرق المشاركة كلها
             </Link>

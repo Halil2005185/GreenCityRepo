@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 /**
  * شريط الدعوة في ذيل كل صفحة: لوحة مرسومة، عنوان ودعوتان.
  *
- * النص فوق اللوحة بيجٌ كامل — القاعدة مشروحة في `Backdrop`.
+ * النص فوق اللوحة بيجٌ كامل — القاعدة مشروحة عند `.on-painted` في globals.css.
  */
 export function CtaBand({
   title = "لكل جهة دور في إعادة الحياة للمدن",
@@ -22,7 +22,7 @@ export function CtaBand({
   secondary?: { href: string; label: string } | null;
 }) {
   return (
-    <section className="relative isolate overflow-hidden border-y border-border">
+    <section className="on-painted relative isolate overflow-hidden border-y border-border">
       <Backdrop src="/bg/section.webp" />
 
       <Container>

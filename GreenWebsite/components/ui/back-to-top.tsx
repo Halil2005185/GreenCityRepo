@@ -41,7 +41,7 @@ export function BackToTop() {
       aria-label="العودة إلى أعلى الصفحة"
       className={cn(
         "fixed bottom-6 end-6 z-50 inline-flex size-11 items-center justify-center rounded-full",
-        "border border-primary/40 bg-surface/90 text-primary shadow-lg backdrop-blur",
+        "border border-accent-ink/30 bg-card/90 text-accent-ink shadow-lg backdrop-blur",
         "transition duration-300 hover:bg-primary hover:text-primary-foreground",
         "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background",
         shown ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-4 opacity-0",

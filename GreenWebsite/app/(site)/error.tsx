@@ -22,11 +22,11 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <div className="relative isolate">
+    <div className="on-painted relative isolate">
       <Backdrop src="/bg/section.webp" />
 
       <Container>
-        {/* النص هنا بيجٌ كامل لا مخفَّف — القاعدة مشروحة في `Backdrop`. */}
+        {/* النص هنا بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css. */}
         <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 py-24 text-center">
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             حدث خطأ غير متوقع

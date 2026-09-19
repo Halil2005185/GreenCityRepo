@@ -19,7 +19,7 @@ export function PartnershipJourney() {
             className="reveal space-y-3"
             style={revealDelay(index, 80)}
           >
-            <span className="numeric flex size-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+            <span className="numeric flex size-10 items-center justify-center rounded-full bg-accent-ink/10 text-sm font-bold text-accent-ink">
               {index + 1}
             </span>
             <h3 className="text-base font-bold text-foreground">{step.title}</h3>

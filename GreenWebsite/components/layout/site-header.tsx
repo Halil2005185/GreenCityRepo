@@ -31,7 +31,7 @@ export function SiteHeader() {
     pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/90 backdrop-blur-md">
+    <header className="on-painted sticky top-0 z-50 border-b border-border bg-background backdrop-blur-md">
       <Container>
         <div className="flex h-16 items-center justify-between gap-4 lg:h-20">
           <Link

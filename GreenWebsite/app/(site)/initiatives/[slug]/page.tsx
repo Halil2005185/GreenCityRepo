@@ -47,8 +47,8 @@ export default async function InitiativePage({
 
   return (
     <>
-      {/* النص هنا بيجٌ كامل لا مخفَّف — القاعدة مشروحة في `Backdrop`. */}
-      <div className="relative isolate border-b border-border py-16 sm:py-24">
+      {/* النص هنا بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css. */}
+      <div className="on-painted relative isolate border-b border-border py-16 sm:py-24">
         <Backdrop src="/bg/section.webp" priority />
 
         <Container>

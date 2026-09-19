@@ -48,13 +48,13 @@ const APPROACH = [
 export default function HomePage() {
   return (
     <>
-      <section className="relative isolate overflow-hidden border-b border-border">
+      <section className="on-painted relative isolate overflow-hidden border-b border-border">
         <Backdrop src="/bg/section.webp" priority />
 
         <Container>
           <div className="grid items-center gap-10 py-16 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-24">
             <div className="max-w-2xl">
-              <p className="text-sm font-medium text-primary">
+              <p className="text-sm font-medium text-accent-ink">
                 مبادرة مجتمعية بيئية — يقودها فريق إيفا
               </p>
               <h1 className="mt-4 text-4xl font-bold leading-[1.2] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
@@ -161,7 +161,7 @@ export default function HomePage() {
               className="reveal space-y-3"
               style={revealDelay(index, 80)}
             >
-              <span className="inline-flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
+              <span className="inline-flex size-12 items-center justify-center rounded-full bg-accent-ink/10 text-accent-ink">
                 <item.icon className="size-5" aria-hidden />
               </span>
               <h3 className="text-base font-bold text-foreground">

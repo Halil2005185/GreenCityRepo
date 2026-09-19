@@ -280,8 +280,8 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
 
   if (sentTo) {
     return (
-      <div className="rounded-xl border border-primary/40 bg-primary/10 p-6">
-        <h2 className="text-lg font-bold text-primary">وصلنا طلبك</h2>
+      <div className="rounded-xl border border-accent-ink/30 bg-accent-ink/5 p-6">
+        <h2 className="text-lg font-bold text-accent-ink">وصلنا طلبك</h2>
         <p className="mt-2 text-sm leading-loose text-muted-foreground">
           شكرًا لك. سنراجع ما أرسلته ونتواصل معك إن احتجنا تفاصيل أكثر.
           {sentTo.copiedTo ? (

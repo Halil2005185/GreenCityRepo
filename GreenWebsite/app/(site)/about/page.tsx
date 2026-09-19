@@ -114,7 +114,7 @@ export default function AboutPage() {
               className="reveal space-y-3"
               style={revealDelay(index, 80)}
             >
-              <span className="numeric flex size-10 items-center justify-center rounded-full bg-primary/15 text-sm font-bold text-primary">
+              <span className="numeric flex size-10 items-center justify-center rounded-full bg-accent-ink/10 text-sm font-bold text-accent-ink">
                 {index + 1}
               </span>
               <h3 className="text-lg font-bold leading-[1.6] text-foreground">

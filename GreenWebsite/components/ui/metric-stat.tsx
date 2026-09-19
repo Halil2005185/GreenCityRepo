@@ -18,7 +18,7 @@ export function MetricStat({ metric }: { metric: PublicMetricProgress }) {
       <p className="text-sm text-muted-foreground">{metric.metricNameAr}</p>
       <p className="mt-3 flex items-baseline gap-2">
         {/* الرقم هو بطل البطاقة، فهو وحده بالأخضر الحيوي. */}
-        <span className="numeric text-4xl font-bold tracking-tight text-primary">
+        <span className="numeric text-4xl font-bold tracking-tight text-accent-ink">
           {formatNumber(metric.actual, metric.decimals)}
         </span>
         <span className="text-sm text-muted-foreground">{metric.unitAr}</span>

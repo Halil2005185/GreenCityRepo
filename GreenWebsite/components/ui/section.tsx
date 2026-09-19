@@ -21,11 +21,11 @@ export function SectionHeading({
     <div className={cn("flex items-start gap-4", className)}>
       <span
         aria-hidden
-        className="mt-1 h-10 w-1 shrink-0 rounded-full bg-primary/70 lg:h-12"
+        className="mt-1 h-10 w-1 shrink-0 rounded-full bg-accent-ink lg:h-12"
       />
       <div className="space-y-1.5">
         {eyebrow && (
-          <p className="text-sm font-medium text-primary">{eyebrow}</p>
+          <p className="text-sm font-medium text-accent-ink">{eyebrow}</p>
         )}
         <Tag className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
           {title}
@@ -64,7 +64,7 @@ export function Section({
       className={cn(
         "py-16 sm:py-20",
         muted && "border-y border-border bg-surface/50",
-        backdrop && "relative isolate border-y border-border",
+        backdrop && "on-painted relative isolate border-y border-border",
         className,
       )}
       {...props}
@@ -115,13 +115,13 @@ export function PageHeader({
   children?: React.ReactNode;
 }) {
   return (
-    <div className="relative isolate border-b border-border py-16 sm:py-24">
+    <div className="on-painted relative isolate border-b border-border py-16 sm:py-24">
       <Backdrop src="/bg/section.webp" priority />
 
       <Container>
         <div className="max-w-3xl space-y-5">
           {eyebrow && (
-            <p className="text-sm font-medium text-primary">{eyebrow}</p>
+            <p className="text-sm font-medium text-accent-ink">{eyebrow}</p>
           )}
           <h1 className="text-3xl font-bold leading-[1.25] tracking-tight text-foreground sm:text-4xl">
             {title}

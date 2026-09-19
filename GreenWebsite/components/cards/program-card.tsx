@@ -29,7 +29,7 @@ export function ProgramCard({ program }: { program: PublicProgram }) {
           </span>
           {/* السهم إلى اليسار لأن اتجاه التقدّم في RTL يسار لا يمين. */}
           <ArrowLeft
-            className="size-4 text-primary transition-transform group-hover:-translate-x-1"
+            className="size-4 text-accent-ink transition-transform group-hover:-translate-x-1"
             aria-hidden
           />
         </CardContent>

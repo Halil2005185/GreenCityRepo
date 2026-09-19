@@ -1,11 +1,13 @@
 @import "tailwindcss";
 
 /**
- * سمة واحدة داكنة، لا مبدّل ولا `prefers-color-scheme`.
+ * سمة واحدة، لا مبدّل ولا `prefers-color-scheme`.
  *
- * الهوية البصرية للموقع سطحٌ أخضر عميق ونصّ بيج، وهذا ليس «وضعًا داكنًا»
- * لسمة فاتحة بل هو التصميم نفسه: خلفيات الأقسام لوحات خضراء داكنة، ولا
- * نسخة فاتحة منها تُعرض. سمة فاتحة هنا تعني نصف الموقع بصور لا تلائمه.
+ * وهي سمة التصميم المُسلَّم كما هو: صفحةٌ بيج فاتحة
+ * (`Frontend/src/index.css` يضبط الجسم على `rgba(254,240,231,.3)`)، وفوقها
+ * أشرطة خضراء داكنة تحمل اللوحات المرسومة — الشريط العلوي، والبطل، ورؤوس
+ * الصفحات، وشريط الدعوة، والتذييل. الأخضر العميق لهجة الأشرطة لا لون
+ * الموقع كله؛ وجعلُه سطحًا عامًّا يُسطّح التصميم ويطمس اللوحات.
  */
 :root {
   --radius: 0.75rem;
@@ -13,8 +15,8 @@
   /**
    * ألوان الهوية بقيمها الحرفية من «Brand Identity/colors/color.md». تبقى
    * بالـhex لا بالـoklch: دليل الهوية يعتمد قيمة محدَّدة، وأي تحويل يزيحها
-   * ولو قليلًا. لا تُستعمل هذه المتغيرات في المكوّنات مباشرة — المكوّنات
-   * تستعمل الدلالية أدناه، فيبقى تغيير لون واحد تغييرًا في ملف واحد.
+   * ولو قليلًا. لا تُستعمل في المكوّنات مباشرة — المكوّنات تستعمل الدلالية
+   * أدناه، فيبقى تغيير لون واحد تغييرًا في ملف واحد.
    */
   --brand-deep-green: #103900;
   --brand-life-green: #89ef19;
@@ -22,52 +24,88 @@
   --brand-urban-charcoal: #1f2c35;
   --brand-brown: #7a4018;
 
-  /**
-   * الأسطح تدرّجات من الأخضر العميق وحده (تفتيح بالأبيض)، لا مزج لونَي
-   * هوية لتوليد ثالث — دليل الهوية يمنع ذلك صراحةً ويجيز الدرجات المخفَّفة
-   * للمساحات. النسبة المئوية بعد كل قيمة هي مقدار التفتيح، ورقم التباين
-   * محسوب مقابل نص البيج `--foreground`.
-   */
-  --background: var(--brand-deep-green);
-  --surface: #214712; /* +7% — 9.56:1 */
-  --surface-strong: #284d1a; /* +10% — 8.72:1 */
-
-  --foreground: var(--brand-warm-beige); /* 11.72:1 على الخلفية */
-  /**
-   * النص الثانوي بيجٌ مشوبٌ بالخلفية لا بيج شفّاف: الشفافية فوق صورة
-   * القسم تعطي تباينًا متغيّرًا بتغيّر البكسل تحتها. القيمة الصلبة تُقاس
-   * مرة: 6.80:1 على الخلفية و5.55:1 على السطح — كلاهما فوق 4.5:1.
-   */
-  --muted-foreground: #bbbda6;
-
-  --card: var(--surface);
+  /* الأسطح الفاتحة: بيج مائل إلى الدفء، بنسبة 60% «خلفيات هادئة». */
+  --background: #fffbf8;
+  --surface: #fdf3ec;
+  --surface-strong: #f7eae0;
+  --card: #ffffff;
   --card-foreground: var(--foreground);
 
-  --primary: var(--brand-life-green); /* 8.97:1 على الخلفية */
-  --primary-foreground: var(--brand-deep-green); /* 8.97:1 داخل الزر */
+  --foreground: var(--brand-urban-charcoal); /* 13.88:1 على الخلفية */
+  --muted-foreground: #566068; /* 6.24:1 على الخلفية، 5.45:1 على أغمق سطح */
 
-  --secondary: var(--surface-strong);
-  --secondary-foreground: var(--foreground);
+  /**
+   * الأخضر الحيوي **تعبئة لا نص**: على سطح فاتح تباينه 1.41:1 — أي أنه غير
+   * مقروء نصًّا مهما كبر. فالزر يملؤه ويكتب عليه بالأخضر العميق (8.97:1)،
+   * والنص واللمسات تأخذ `--accent-ink`.
+   */
+  --primary: var(--brand-life-green);
+  --primary-foreground: var(--brand-deep-green);
+  --accent-ink: var(--brand-deep-green); /* 12.70:1 على الخلفية */
 
-  --muted: var(--surface);
-  --accent: #315524; /* +14% — سطح التمرير والحالة النشطة */
-  --accent-foreground: var(--foreground);
+  --secondary: #f7eae0;
+  --secondary-foreground: var(--brand-deep-green);
+  --muted: #fdf3ec;
+  --accent: #f2e4d8;
+  --accent-foreground: var(--brand-deep-green);
 
-  /* حالات محسوبة على السطح الداكن، كلها فوق 5:1 على الخلفية والبطاقة. */
+  --destructive: #b3261e; /* 6.35:1 */
+  --destructive-foreground: #ffffff;
+  --success: #1e7a46; /* 5.20:1 */
+  --warning: #8a5a00; /* 5.76:1 */
+
+  --border: #ebdccf;
+  /** حدّ الحقل أغمق من حدّ البطاقة: 3.27:1 — حدّ الإدخال عنصر واجهة يُشترط تمييزه. */
+  --input: #9e8b7a;
+  --ring: var(--brand-deep-green);
+
+  --logo: var(--brand-deep-green);
+}
+
+/**
+ * نطاق الشريط المرسوم: كل ما يعلو لوحةً خضراء داكنة يُلفّ بهذا الصنف،
+ * فتنقلب المتغيّرات داخله وتتبعها المكوّنات دون أن تعرف أين هي. هكذا يبقى
+ * `text-muted-foreground` مثلًا صحيحًا في الموضعين، ولا يُكتب لون صريح.
+ *
+ * **قاعدة لا تُخرق: النص داخل الشريط المرسوم بيجٌ كامل (`text-foreground`)
+ * لا `text-muted-foreground`.** في اللوحتين بكسلات أوراق مُشمسة تقارب
+ * الأبيض داخل مساحة النص لا في أطرافها وحدها؛ قيست أسوأ حالة عند حجاب
+ * 78%: البيج 5.99:1 والنص الثانوي 3.48:1. التدرّج هنا بالحجم والوزن لا
+ * باللون — وهو أيضًا ما يوجبه دليل الهوية: «النصوص الأساسية لا تُستخدم
+ * بدرجات لونية مخففة».
+ */
+.on-painted {
+  --background: var(--brand-deep-green);
+  --surface: #214712;
+  --surface-strong: #284d1a;
+  --card: #214712;
+
+  --foreground: var(--brand-warm-beige); /* 11.72:1 على الأخضر العميق */
+  --muted-foreground: #bbbda6;
+
+  --primary: var(--brand-life-green);
+  --primary-foreground: var(--brand-deep-green);
+  --accent-ink: var(--brand-life-green); /* 8.97:1 على الأخضر العميق */
+
+  --secondary: #284d1a;
+  --secondary-foreground: var(--brand-warm-beige);
+  --muted: #214712;
+  --accent: #315524;
+  --accent-foreground: var(--brand-warm-beige);
+
   --destructive: #ff9b8a;
   --destructive-foreground: var(--brand-deep-green);
   --success: #7bd8a4;
   --warning: #f5c451;
 
-  --border: #315524;
-  --input: #315524;
+  /* حدود الأشرطة زخرفية لا حدود إدخال، فالبيج الشفيف أنسب من لون صلب. */
+  --border: rgb(254 240 231 / 0.24);
+  --input: rgb(254 240 231 / 0.32);
   --ring: var(--brand-life-green);
 
-  /**
-   * الشعار أخضر حيوي ثابتًا: لا سمة فاتحة تستدعي تبديله، ودليل الهوية
-   * يوجب لونًا كاملًا من النظام بلا تدرّج ولا شفافية.
-   */
   --logo: var(--brand-life-green);
+
+  color: var(--foreground);
 }
 
 @theme inline {
@@ -79,6 +117,7 @@
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent-ink: var(--accent-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -112,8 +151,8 @@
   }
 
   ::selection {
-    background-color: var(--primary);
-    color: var(--primary-foreground);
+    background-color: var(--brand-life-green);
+    color: var(--brand-deep-green);
   }
 
   /**
@@ -131,7 +170,8 @@
 @layer components {
   /*
    * رمز الهوية: الملف نقطي، فيُستعمل قناعًا وتأتي التعبئة من `--logo`.
-   * هكذا يبقى شكل الرمز كما سُلّم بالبكسل، ويتبع لونه متغيّرًا واحدًا.
+   * هكذا يبقى شكل الرمز كما سُلّم بالبكسل، ويتبع لونه متغيّرًا واحدًا —
+   * أخضر عميق على الفاتح، وأخضر حيوي داخل الأشرطة المرسومة.
    *
    * دليل الهوية يمنع التدرجات والشفافية على اللوغو، فالتعبئة لون صلب من
    * ألوان الهوية دائمًا. نسبة الأبعاد من أبعاد الملف نفسه حتى يكفي تحديد
@@ -152,9 +192,6 @@
    *
    * الإخفاء مشروط بوجود `data-reveal-visible` على الأب: العنصر الذي لا
    * مجموعةَ له يُعرض كما هو، فلا يختفي محتوى بسبب صنفٍ نُسي.
-   *
-   * `--reveal-delay` للتدرّج، وسقفه منخفض عمدًا: تأخير يتجاوز جزءًا من
-   * الثانية يقرأه الزائر بطئًا في الصفحة لا أناقة فيها.
    */
   [data-reveal-visible] .reveal {
     opacity: 0;
