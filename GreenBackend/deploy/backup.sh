@@ -1,76 +1,10 @@
 #!/usr/bin/env bash
 #
-# نسخة احتياطية من قاعدة Neon بصيغة pg_dump المخصصة (مضغوطة وقابلة
-# للاسترجاع الجزئي عبر pg_restore).
+# المسار السابق لمهمة cron، يحوّل إلى database/backup.sh.
 #
-#   0 3 * * * /opt/greencities/GreenBackend/deploy/backup.sh >> /var/log/greencities-backup.log 2>&1
-#
-# Neon يوفّر رجوعًا زمنيًا خاصًا به، وهذا لا يغني عن نسخة تملكها أنت:
-# الرجوع الزمني يحميك من خطأ في البيانات، لا من فقدان الحساب نفسه.
-#
-# متغيرات اختيارية:
-#   BACKUP_DIR=/var/backups/greencities
-#   BACKUP_RETENTION_DAYS=14
+# النسخ صار من القاعدة المحلية لا من Neon. والنشر يفك أرشيفًا فوق الشجرة ولا
+# يحذف ما ليس فيه، فلو حُذف هذا الملف من المستودع لبقيت نسخته القديمة على
+# الخادم تحاول Neon كل ليلة وتفشل في سجل لا يقرؤه أحد — ومهمة cron ضُبطت على
+# هذا المسار تظن أن النسخ يعمل.
 
-set -euo pipefail
-
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env"
-
-BACKUP_DIR="${BACKUP_DIR:-/var/backups/greencities}"
-RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
-
-# نسخة pg_dump يجب ألا تكون أقدم من الخادم. الصورة تُشغَّل مؤقتًا ثم تُزال،
-# فلا حاجة إلى تثبيت عميل PostgreSQL على المضيف.
-PG_IMAGE="${PG_IMAGE:-postgres:18-alpine}"
-
-fail() { printf '✗ %s\n' "$*" >&2; exit 1; }
-
-[ -f "${ENV_FILE}" ] || fail "الملف ${ENV_FILE} غير موجود."
-
-# قراءة المتغير المطلوب بدل `source` للملف كاملًا: قيم مثل
-# `MAIL_FROM=Green Cities <no-reply@…>` صالحة عند Compose، لكن الصدفة
-# تقرأ `<` كإعادة توجيه فتنكسر عليها.
-read_env() {
-  grep -E "^$1=" "${ENV_FILE}" | tail -1 | cut -d= -f2- | tr -d '\r'
-}
-
-# النقطة المباشرة أولى: النسخ عبر PgBouncer يعمل، لكن الاتصال المباشر
-# أنسب لعملية طويلة تقرأ المخطط كاملًا.
-DB_URL="$(read_env DIRECT_URL)"
-[ -n "${DB_URL}" ] || DB_URL="$(read_env DATABASE_URL)"
-[ -n "${DB_URL}" ] || fail 'لا DIRECT_URL ولا DATABASE_URL في .env'
-
-DB_NAME="$(printf '%s' "${DB_URL}" | sed -E 's|.*/([^/?]+)(\?.*)?$|\1|')"
-[ -n "${DB_NAME}" ] || fail 'تعذّر استخراج اسم القاعدة من الرابط.'
-
-mkdir -p "${BACKUP_DIR}"
-
-STAMP="$(date -u +%Y%m%d-%H%M%S)"
-TARGET="${BACKUP_DIR}/${DB_NAME}-${STAMP}.dump"
-
-# الكتابة إلى ملف مؤقت ثم النقل: انقطاع في المنتصف لا يترك ملفًا يبدو نسخة
-# صالحة ويُعتمد عليه يوم الحاجة.
-trap 'rm -f "${TARGET}.partial"' EXIT
-
-# الرابط عبر متغير بيئة لا وسيطًا: الوسائط تظهر في `ps` على المضيف.
-docker run --rm -e PGURL="${DB_URL}" "${PG_IMAGE}" \
-  sh -c 'pg_dump "$PGURL" --format=custom --no-owner --no-acl' \
-  > "${TARGET}.partial"
-
-SIZE="$(stat -c '%s' "${TARGET}.partial")"
-
-# ملف أصغر من كيلوبايت واحد ليس نسخة بل رسالة خطأ التُقطت من الأنبوب.
-[ "${SIZE}" -gt 1024 ] || fail "النسخة فارغة (${SIZE} بايت)."
-
-mv "${TARGET}.partial" "${TARGET}"
-chmod 600 "${TARGET}"
-trap - EXIT
-
-printf '✓ %s (%s بايت)\n' "${TARGET}" "${SIZE}"
-
-# الحذف بعد نجاح النسخة الجديدة لا قبلها: فشل اليوم لا يُفقد نسخ الأمس.
-find "${BACKUP_DIR}" -name "${DB_NAME}-*.dump" -mtime "+${RETENTION_DAYS}" -delete
-
-# نسخة على قرص الخادم وحده لا تحمي من فقده. أضف هنا نقلًا خارجيًا —
-# rsync إلى خادم آخر أو رفعًا إلى تخزين كائنات — وإلا فالحماية ناقصة.
+exec "$(dirname "$(readlink -f "$0")")/database/backup.sh" "$@"

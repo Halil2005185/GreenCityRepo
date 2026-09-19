@@ -1,6 +1,6 @@
 # نشر الباك‌اند على الـVPS
 
-هذا المجلد يحمل كل ما يلزم لتشغيل `gc-service.evavolunteer.com`: صورة Docker، ملف Compose، إعداد Nginx، وسكربتَي النشر والنسخ الاحتياطي.
+هذا المجلد يحمل كل ما يلزم لتشغيل `gc-service.evavolunteer.com`: صورة Docker، ملف Compose، إعداد Nginx، والقاعدة ونسخها.
 
 | الملف | الدور |
 |---|---|
@@ -9,9 +9,14 @@
 | `nginx/gc-service.bootstrap.conf` | إعداد مؤقت لاستصدار أول شهادة |
 | `nginx/gc-service.conf` | الإعداد النهائي: HTTPS ووكالة إلى `127.0.0.1:4100` |
 | `deploy.sh` | بناء، ترحيل، تشغيل، فحص جاهزية |
-| `backup.sh` | `pg_dump` يومي من Neon مع مدة احتفاظ |
+| `database/` | تجهيز PostgreSQL على الخادم، النقل من Neon، النسخ والاستعادة — يدوية كلها |
+| `backup.sh` | المسار السابق لمهمة cron، يحوّل إلى `database/backup.sh` |
 
-القاعدة على **Neon** لا على الخادم: النسخ والرجوع الزمني وترقيات الإصدار من عندهم، ولا تزاحم على موارد خادم يحمل مشاريع أخرى. الخادم في فرانكفورت والقاعدة في `eu-central-1`، فزمن الاتصال أرقام آحاد بالملّي ثانية.
+القاعدة **على الخادم نفسه**: عنقود PostgreSQL 18 أصلي تحت systemd باسم `18/greencities`، لا حاوية. الـAPI يصله عبر مقبس Unix مركَّب في الحاوية، فلا تستمع القاعدة على أي واجهة شبكة.
+
+كانت على Neon حتى سقط الإنتاج كله حين نفدت حصة الخطة المجانية. حوسبته لا تنام أصلًا — العامل يسأل صندوق البريد كل خمس ثوانٍ — فالخطة المجانية ستنفد كل شهر، والتجاوز يوقف كل شيء دون إنذار. هنا لا حصة، ولا استيقاظ بارد، والاتصال مقبس لا شبكة. الثمن أن النسخ الاحتياطي مسؤوليتنا — [القسم أدناه](#النسخ-الاحتياطي) ليس اختياريًا.
+
+العنقود مخصص لا الافتراضي `main` لأن الخادم يحمل مشاريع أخرى: يُضبط ويُعاد تشغيله دون أن يمس غيره.
 
 ## خريطة النطاقات
 
@@ -121,11 +126,10 @@ openssl rand -base64 32   # JWT_ACCESS_SECRET
 | المتغير | القيمة |
 |---|---|
 | `JWT_ACCESS_SECRET` | مخرجات `openssl` أعلاه |
-| `DATABASE_URL` | رابط Neon المُجمَّع (`-pooler` في الاسم) لفرع **الإنتاج** |
-| `DIRECT_URL` | رابط Neon المباشر للفرع نفسه — يستعمله الترحيل |
+| `DATABASE_URL` | رابط المقبس المحلي — يطبعه `migrate-from-neon.sh` بعد النقل. الخطوة 7 |
 | `API_PORT` | منفذ حرّ على المضيف؛ غيّره إن كان `4000` مشغولًا |
 
-استعمل فرع Neon مخصصًا للإنتاج لا الفرع الذي تطوّر عليه. واقرأ تعليقات الملف قبل تغيير `AUTH_COOKIE_DOMAIN` أو `TRUST_PROXY`.
+لا `DIRECT_URL`: كان للنقطة المباشرة في Neon. واقرأ تعليقات الملف قبل تغيير `AUTH_COOKIE_DOMAIN` أو `TRUST_PROXY`.
 
 ### 6. تخزين الملفات — Cloudflare R2
 
@@ -170,6 +174,60 @@ openssl rand -base64 32   # JWT_ACCESS_SECRET
 ثم املأ في `.env`: `R2_ACCOUNT_ID` و`R2_BUCKET` و`R2_ACCESS_KEY_ID`
 و`R2_SECRET_ACCESS_KEY` و`R2_PUBLIC_BASE_URL`، وأعد تشغيل الحاوية. وقبل ذلك
 يعمل النظام كاملًا، ويردّ مسار الرفع وحده بأن التخزين غير مهيّأ.
+
+### 7. قاعدة البيانات — PostgreSQL على الخادم ونقل بيانات Neon
+
+سكربتات `database/` تُشغَّل يدويًا بـ`sudo`، ولا يشغّل النشر منها شيئًا. إعداداتها في `database/.env` منفصلًا عن `deploy/.env`: ذاك يُحمَّل في حاويات التطبيق، ومفاتيح سطل النسخ ورابط Neon لا مكان لهما هناك.
+
+```bash
+cd /opt/greencities/GreenBackend/deploy/database
+cp .env.example .env && chmod 600 .env
+nano .env                  # NEON_DATABASE_URL يكفي الآن — النقطة المباشرة بلا -pooler
+sudo ./setup-native.sh
+```
+
+`setup-native.sh` متكرر بلا ضرر، ويفعل:
+
+- يثبّت PostgreSQL 18 من `apt.postgresql.org` إن لم يوجد — توزيعة Ubuntu تحمل 16، وNeon على 18، و`pg_dump` أقدم من الخادم يرفض القراءة منه.
+- ينشئ العنقود `18/greencities` بإعدادات لغة Neon نفسها (مزوّد `builtin` و`C.UTF-8`)، فيبقى ترتيب الأسماء العربية كما كان.
+- مجلد مقبس دائم في `/var/lib/greencities-pgsocket` تركّبه الحاويات، لأن `/var/run/postgresql` يُمحى عند كل إقلاع.
+- `conf.d/greencities.conf` بإعدادات لخادم صغير، وقاعدة `pg_hba` تسمح لدور التطبيق بكلمة مرور عبر المقبس.
+- الدور والقاعدة وملكيتهما. كلمة المرور يولّدها ويكتبها في `database/.env` إن تركتها فارغة.
+- ويثبت في آخره أن الدور يتصل فعلًا بالطريق الذي سيسلكه الـAPI.
+
+ثم البيانات:
+
+```bash
+sudo ./migrate-from-neon.sh
+```
+
+يقرأ من Neon ولا يكتب فيه، ويوقف الـAPI والعامل طوال النقل كي تثبت الأرقام. يفرّغ، ثم يستعيد بصفة دور التطبيق **في معاملة واحدة** — الفشل لا يترك شيئًا نصف منقول — ثم يعدّ صفوف كل جدول على الجهتين، ولا يعلن النجاح إلا إن تطابقت كلها. جدول ترحيلات drizzle ينتقل مع البيانات، فيكمل النشر التالي من حيث توقف Neon.
+
+**إن كان Neon يرفض الاتصال** (نفاد الحصة): إما ترقية خطته يومًا لإتمام النقل الحي، أو النقل من آخر نسخة أخذها `backup.sh` السابق:
+
+```bash
+ls -lh /var/backups/greencities/
+sudo ./migrate-from-neon.sh --from-dump /var/backups/greencities/<أحدث ملف>.dump
+```
+
+ما كُتب في Neon بعد وقت النسخة لا يصل، والسكربت يطبع ذلك الوقت ويطلب التأكيد قبل أن يبدأ.
+
+**النقل إلى القاعدة المحلية** — بعد أن يعلن السكربت التحقق، لا قبله. في `deploy/.env`:
+
+```ini
+DATABASE_URL=postgresql://greencities:<DB_PASSWORD>@localhost:5432/greencities?host=/var/run/postgresql&sslmode=disable
+DATABASE_SSL=false
+```
+
+**واحذف سطر `DIRECT_URL` كله.** drizzle-kit يفضّله على `DATABASE_URL`، فبقاؤه على Neon يجعل الترحيل يجري هناك والتطبيق يقرأ من هنا. `deploy.sh` يرفض النشر في هذه الحالة، ويرفضه أيضًا إن لم يجد المقبس.
+
+المنفذ والرابط كاملًا يطبعهما `migrate-from-neon.sh`. أما كلمة المرور فلا يطبعها — المخرجات تُنسخ إلى محادثات وتذاكر — وتقرأ من `database/.env`. و`localhost` في الرابط ليس اتصال شبكة: `host=` بعده يوجّه pg إلى المقبس، لكنه شرط لأن التحقق من المتغيرات يرفض رابطًا بمضيف فارغ.
+
+```bash
+/opt/greencities/GreenBackend/deploy/deploy.sh
+```
+
+**لا تحذف مشروع Neon الآن.** اتركه أيامًا احتياطًا حتى يثبت الموقع على البيانات المحلية، ثم امسح `NEON_DATABASE_URL` من `database/.env`.
 
 ## النشر
 
@@ -227,26 +285,49 @@ docker compose -f compose.prod.yml run --rm -e SEED_ADMIN_EMAIL=... -e SEED_ADMI
 
 ## النسخ الاحتياطي
 
-Neon يوفّر رجوعًا زمنيًا، وهذا لا يغني عن نسخة تملكها أنت: الرجوع الزمني يحميك من خطأ في البيانات لا من فقدان الحساب.
+Neon كان يحفظ نسخه بنفسه. لا شيء يفعل ذلك الآن، فهذا القسم ليس اختياريًا: حتى تعمل مهمة cron، النسخة الوحيدة من البيانات ملفات عنقود واحد على خادم واحد.
+
+**نسخة خارج الخادم أولًا.** نسخة على قرص القاعدة نفسه لا تنجو من فقدان الخادم. أنشئ في R2 سطلًا **جديدًا خاصًا** بلا نطاق عام، لا سطل الملفات المرفوعة: ذاك يُخدَم للعموم، فنسخة تُكتب فيه تُنزَّل لمن يخمّن اسمها. ثم مفتاح API بصلاحية *Object Read & Write* على هذا السطل وحده، واملأ `BACKUP_R2_*` في `database/.env`.
+
+جرّب قبل أن تثق:
+
+```bash
+cd /opt/greencities/GreenBackend/deploy/database
+sudo ./backup.sh
+```
+
+ثم الجدولة:
 
 ```bash
 sudo crontab -e
 ```
 
 ```cron
-0 3 * * * /opt/greencities/GreenBackend/deploy/backup.sh >> /var/log/greencities-backup.log 2>&1
+17 3 * * * /opt/greencities/GreenBackend/deploy/database/backup.sh >> /var/log/greencities-backup.log 2>&1
 ```
-
-`backup.sh` يشغّل `pg_dump` في حاوية مؤقتة على النقطة المباشرة، فلا يحتاج المضيف عميل PostgreSQL. النسخة تبقى على قرص الخادم، وهذا لا يحمي من فقده — أضف نقلًا خارجيًا في نهاية السكربت.
-
-الاسترجاع إلى فرع Neon جديد (لا فوق الإنتاج مباشرة):
 
 ```bash
-docker run --rm -i -e PGURL='<رابط الفرع الجديد>' postgres:18-alpine \
-  sh -c 'pg_restore -d "$PGURL" --clean --if-exists --no-owner' < نسخة.dump
+sudo install -m 644 logrotate-greencities-backup /etc/logrotate.d/greencities-backup
 ```
 
-جرّب الاسترجاع مرة قبل أن تحتاجه فعلًا. نسخة لم تُجرَّب ليست نسخة.
+مهمة cron قديمة على `deploy/backup.sh` تبقى تعمل — الملف يحوّل إلى السكربت الجديد — لكن حدّثها إلى المسار أعلاه.
+
+`backup.sh` يفرّغ بـ`pg_dump -Fc`، ثم **يقرأ الأرشيف من جديد** ليثبت أنه كامل: تفريغ انقطع يفشل الليلة لا بعد ثلاثة أشهر يوم الحاجة إليه. يحتفظ محليًا بأيام `BACKUP_KEEP_DAYS` ويرفع نسخة إلى R2 ويدوّرها هناك. ويرفض العمل تحت 10% مساحة حرة، لأن امتلاء القرص يوقف Postgres عن قبول الكتابة. آخر نجاح:
+
+```bash
+sudo cat /var/backups/greencities/.last-success
+```
+
+**جرّب الاستعادة مرة** بعد التجهيز. نسخة لم تُجرَّب تخمين:
+
+```bash
+sudo ./restore.sh                                   # يعرض النسخ
+sudo ./restore.sh /var/backups/greencities/<ملف>.dump
+```
+
+يأخذ نسخة أمان من الحالة الحالية، ويوقف الـAPI والعامل، ويستعيد **في معاملة واحدة بصفة دور التطبيق** — الفشل يترك البيانات كما كانت، وما يُستعاد يملكه الدور الذي يستعمله الـAPI — ثم يعيد تشغيلهما.
+
+ما يحمي منه هذا وما لا يحمي: نسخ ليلية منطقية تعني خسارة يوم كتابة على الأكثر. لا رجوع إلى دقيقة بعينها؛ إن احتيج إليه يومًا فالخطوة التالية أرشفة WAL لا cron أقصر.
 
 ## التشخيص
 
@@ -255,14 +336,24 @@ cd /opt/greencities/GreenBackend/deploy
 
 docker compose -f compose.prod.yml ps
 docker compose -f compose.prod.yml logs -f api
-docker compose -f compose.prod.yml logs --tail 100 migrate
 curl -s http://127.0.0.1:4100/api/health/ready
+
+# القاعدة
+systemctl status postgresql@18-greencities
+journalctl -u postgresql@18-greencities -n 50
+sudo -u postgres psql --cluster 18/greencities -d greencities
 ```
 
 | العَرَض | الأرجح |
 |---|---|
-| `migrate` يخرج بخطأ | `DIRECT_URL` خاطئ أو ناقص، أو فرع Neon موقوف |
-| بطء أول طلب بعد سكون | Neon يوقف الحوسبة عند الخمول ويوقظها عند أول اتصال |
+| النشر يتوقف عند «الترحيل والمزامنة» | المخرجات فوقه في سجل Actions. القاعدة متوقفة، أو `DATABASE_URL` خاطئ |
+| `لا مقبس PostgreSQL في …` من `deploy.sh` | العنقود متوقف: `systemctl start postgresql@18-greencities` |
+| `DIRECT_URL … يشير إلى قاعدة غير DATABASE_URL` | احذف سطر `DIRECT_URL` من `deploy/.env` |
+| `Invalid environment variables … DATABASE_URL` | رابط بمضيف فارغ (`…@/greencities`). ضع `localhost` قبل المنفذ |
+| `ENOENT … .s.PGSQL.5432` | المنفذ في الرابط غير منفذ العنقود (`pg_lsclusters`)، أو المقبس غير مركَّب في الحاوية |
+| `no pg_hba.conf entry … no encryption` | `DATABASE_SSL=true` أو `sslmode=disable` ناقص: المقبس لا يحمل TLS |
+| `password authentication failed` | كلمة المرور في الرابط غير التي في `database/.env` |
+| `Peer authentication failed` | قاعدة الدور في `pg_hba.conf` بعد القاعدة العامة — أعد `setup-native.sh` |
 | الـAPI يسقط عند البدء | فشل فحص Zod للمتغيرات — الرسالة تسمّي المتغير الناقص |
 | `502` من Nginx | الحاوية لم تبدأ، أو `HOST` ليس `0.0.0.0` داخلها |
 | دعوات لا تصل | `MAIL_ENABLED=false`، أو نطاق المرسل غير متحقَّق في Resend. الرسائل محفوظة في صندوق الصادر وتُرسل عند التفعيل |

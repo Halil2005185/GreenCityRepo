@@ -7,11 +7,12 @@
 #   docker compose -f compose.prod.yml run --rm -T migrate
 #   docker compose -f compose.prod.yml up -d --no-deps api worker
 #
-# لا خدمة PostgreSQL هنا: القاعدة على Neon في المنطقة نفسها (فرانكفورت)،
-# فالنسخ والرجوع الزمني وترقيات الإصدار من عندهم، ولا تزاحم على نواة
-# الخادم الواحدة. الاتصال عبر TLS بضبط `DATABASE_SSL=true`.
+# لا خدمة PostgreSQL هنا عمدًا. القاعدة عنقود أصلي على المضيف تحت systemd
+# (`18/greencities`)، لا حاوية: لا أمر `docker` يصلها — لا `down -v` ولا
+# `volume prune` — وترقيات الإصدار تجري بـ`pg_upgradecluster` في مكانها.
+# التجهيز والنقل من Neon والنسخ في `database/`، ولا يشغّلها شيء في النشر.
 #
-# لا Nginx هنا أيضًا: هو على المضيف لأنه المدخل المشترك لهذا النطاق
+# ولا Nginx هنا أيضًا: هو على المضيف لأنه المدخل المشترك لهذا النطاق
 # ولنطاقَي اللوحة والموقع لاحقًا.
 
 name: greencities
@@ -21,6 +22,18 @@ x-logging: &logging
   options:
     max-size: "10m"
     max-file: "5"
+
+# مقبس القاعدة يُركَّب في كل حاوية تتصل بها، فلا تستمع القاعدة على أي واجهة
+# شبكة. داخل الحاوية يظهر في `/var/run/postgresql`، وDATABASE_URL يشير إليه بـ
+# `?host=/var/run/postgresql`.
+#
+# المسار على المضيف ليس `/var/run/postgresql`: ذاك على tmpfs يُعاد إنشاؤه عند
+# الإقلاع، فيبقى التركيب يشير إلى مجلد محذوف ويضيع المقبس بصمت. التفاصيل في
+# database/greencities.conf.
+#
+# قبل الانتقال عن Neon يُركَّب ولا يُستعمل، وهذا لا يضر: Docker ينشئ المجلد
+# فارغًا إن لم يوجد، وsetup-native.sh يضبط ملكيته لاحقًا.
+x-pg-socket: &pg-socket "${PG_SOCKET_DIR:-/var/lib/greencities-pgsocket}:/var/run/postgresql"
 
 services:
   # وظيفة تنتهي، لا خدمة تعمل: الترحيل ثم مزامنة الأدوار وقدراتها والمرجعيات
@@ -33,8 +46,9 @@ services:
   # فشل. لذلك يشغّل `deploy.sh` هذه الخدمة بـ`run --rm` أولًا ثم يرفع api
   # وworker بـ`--no-deps`، وهكذا يجب أن يُفعل يدويًا أيضًا.
   #
-  # يستعمل `DIRECT_URL` لا النقطة المُجمَّعة: تنفيذ DDL عبر PgBouncer في
-  # وضع المعاملات يعمل أحيانًا ويفشل أحيانًا. الاختيار في drizzle.config.ts.
+  # drizzle-kit يستعمل `DIRECT_URL` إن وُجد وإلا `DATABASE_URL`. على القاعدة
+  # المحلية لا فرق بينهما، فيُحذف الأول — وبقاؤه على Neon يجعل الترحيل يجري
+  # هناك والتطبيق يقرأ من هنا، ولذلك يرفض deploy.sh النشر في تلك الحالة.
   migrate:
     build:
       context: ..
@@ -43,6 +57,8 @@ services:
     restart: "no"
     logging: *logging
     env_file: .env
+    volumes:
+      - *pg-socket
 
   api:
     build:
@@ -56,6 +72,8 @@ services:
     # فلا يصله شيء إلا عبر Nginx.
     ports:
       - "127.0.0.1:${API_PORT:-4000}:4000"
+    volumes:
+      - *pg-socket
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -78,6 +96,8 @@ services:
     logging: *logging
     env_file: .env
     command: ["node", "dist/worker.js"]
+    volumes:
+      - *pg-socket
     depends_on:
       migrate:
         condition: service_completed_successfully
