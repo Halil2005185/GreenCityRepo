@@ -45,10 +45,13 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7fdfa" },
-    { media: "(prefers-color-scheme: dark)", color: "#14201a" },
-  ],
+  /**
+   * لون واحد لأن السمة واحدة. و`colorScheme: "dark"` ليست تكرارًا له: بها
+   * يرسم المتصفح ما لا نملكه — شريط التمرير، ومنتقي التاريخ، والتعبئة
+   * التلقائية في الاستمارة — داكنًا. بدونها يظهر حقلٌ أبيض وسط صفحة خضراء.
+   */
+  themeColor: "#103900",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

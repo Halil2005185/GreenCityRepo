@@ -1,94 +1,80 @@
 @import "tailwindcss";
 
 /**
- * اللوحة اللونية نفسها المستعملة في `GreenAdminDash`، لأن الموقع واللوحة
- * وجهان لهوية واحدة. القيم بـ oklch لأن تفتيح لون أو تغميقه فيها يحافظ
- * على الإشباع المُدرَك، بخلاف hsl التي تنتج درجات باهتة عند الأطراف.
+ * سمة واحدة داكنة، لا مبدّل ولا `prefers-color-scheme`.
+ *
+ * الهوية البصرية للموقع سطحٌ أخضر عميق ونصّ بيج، وهذا ليس «وضعًا داكنًا»
+ * لسمة فاتحة بل هو التصميم نفسه: خلفيات الأقسام لوحات خضراء داكنة، ولا
+ * نسخة فاتحة منها تُعرض. سمة فاتحة هنا تعني نصف الموقع بصور لا تلائمه.
  */
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.995 0.003 145);
-  --foreground: oklch(0.22 0.02 155);
-
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-
-  --primary: oklch(0.52 0.13 152);
-  --primary-foreground: oklch(0.99 0.01 145);
-
-  --secondary: oklch(0.96 0.02 150);
-  --secondary-foreground: oklch(0.32 0.05 155);
-
-  --muted: oklch(0.96 0.01 150);
-  --muted-foreground: oklch(0.52 0.02 155);
-
-  --accent: oklch(0.94 0.04 150);
-  --accent-foreground: oklch(0.3 0.06 155);
-
-  --destructive: oklch(0.58 0.21 27);
-  --destructive-foreground: oklch(0.99 0.01 145);
-
-  --success: oklch(0.6 0.14 150);
-  --warning: oklch(0.75 0.15 75);
-
-  --border: oklch(0.9 0.01 150);
-  --input: oklch(0.9 0.01 150);
-  --ring: oklch(0.52 0.13 152);
-
-  /*
-   * ألوان الهوية بقيمها الحرفية من «Brand Identity/colors/color.md». هي
-   * وحدها بالـhex لا بالـoklch: دليل الهوية يعتمد قيمة محدَّدة للوغو، وأي
-   * تحويل يزيحها ولو قليلًا. لا تُستعمل خارج الشعار.
+  /**
+   * ألوان الهوية بقيمها الحرفية من «Brand Identity/colors/color.md». تبقى
+   * بالـhex لا بالـoklch: دليل الهوية يعتمد قيمة محدَّدة، وأي تحويل يزيحها
+   * ولو قليلًا. لا تُستعمل هذه المتغيرات في المكوّنات مباشرة — المكوّنات
+   * تستعمل الدلالية أدناه، فيبقى تغيير لون واحد تغييرًا في ملف واحد.
    */
   --brand-deep-green: #103900;
-  --brand-life-green: #89EF19;
+  --brand-life-green: #89ef19;
+  --brand-warm-beige: #fef0e7;
+  --brand-urban-charcoal: #1f2c35;
+  --brand-brown: #7a4018;
 
-  --logo: var(--brand-deep-green);
-}
+  /**
+   * الأسطح تدرّجات من الأخضر العميق وحده (تفتيح بالأبيض)، لا مزج لونَي
+   * هوية لتوليد ثالث — دليل الهوية يمنع ذلك صراحةً ويجيز الدرجات المخفَّفة
+   * للمساحات. النسبة المئوية بعد كل قيمة هي مقدار التفتيح، ورقم التباين
+   * محسوب مقابل نص البيج `--foreground`.
+   */
+  --background: var(--brand-deep-green);
+  --surface: #214712; /* +7% — 9.56:1 */
+  --surface-strong: #284d1a; /* +10% — 8.72:1 */
 
-/**
- * لا مبدّل سمة في الموقع العام: الزائر لا يبقى ليضبط تفضيلًا. تفضيل
- * النظام وحده هو المصدر، وكل لون معرّف مرتين فلا يبقى لون بلا مقابل داكن.
- */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.19 0.02 155);
-    --foreground: oklch(0.96 0.01 145);
+  --foreground: var(--brand-warm-beige); /* 11.72:1 على الخلفية */
+  /**
+   * النص الثانوي بيجٌ مشوبٌ بالخلفية لا بيج شفّاف: الشفافية فوق صورة
+   * القسم تعطي تباينًا متغيّرًا بتغيّر البكسل تحتها. القيمة الصلبة تُقاس
+   * مرة: 6.80:1 على الخلفية و5.55:1 على السطح — كلاهما فوق 4.5:1.
+   */
+  --muted-foreground: #bbbda6;
 
-    --card: oklch(0.23 0.02 155);
-    --card-foreground: var(--foreground);
+  --card: var(--surface);
+  --card-foreground: var(--foreground);
 
-    --primary: oklch(0.68 0.14 152);
-    --primary-foreground: oklch(0.18 0.03 155);
+  --primary: var(--brand-life-green); /* 8.97:1 على الخلفية */
+  --primary-foreground: var(--brand-deep-green); /* 8.97:1 داخل الزر */
 
-    --secondary: oklch(0.28 0.02 155);
-    --secondary-foreground: oklch(0.94 0.01 145);
+  --secondary: var(--surface-strong);
+  --secondary-foreground: var(--foreground);
 
-    --muted: oklch(0.28 0.02 155);
-    --muted-foreground: oklch(0.7 0.02 150);
+  --muted: var(--surface);
+  --accent: #315524; /* +14% — سطح التمرير والحالة النشطة */
+  --accent-foreground: var(--foreground);
 
-    --accent: oklch(0.32 0.04 152);
-    --accent-foreground: oklch(0.95 0.01 145);
+  /* حالات محسوبة على السطح الداكن، كلها فوق 5:1 على الخلفية والبطاقة. */
+  --destructive: #ff9b8a;
+  --destructive-foreground: var(--brand-deep-green);
+  --success: #7bd8a4;
+  --warning: #f5c451;
 
-    --destructive: oklch(0.65 0.19 27);
-    --destructive-foreground: oklch(0.18 0.03 155);
+  --border: #315524;
+  --input: #315524;
+  --ring: var(--brand-life-green);
 
-    --success: oklch(0.7 0.13 150);
-    --warning: oklch(0.8 0.14 75);
-
-    --border: oklch(0.32 0.02 155);
-    --input: oklch(0.34 0.02 155);
-    --ring: oklch(0.68 0.14 152);
-
-    /* الأخضر العميق يغيب على خلفية داكنة، فيتبدّل إلى الأخضر الحيوي. */
-    --logo: var(--brand-life-green);
-  }
+  /**
+   * الشعار أخضر حيوي ثابتًا: لا سمة فاتحة تستدعي تبديله، ودليل الهوية
+   * يوجب لونًا كاملًا من النظام بلا تدرّج ولا شفافية.
+   */
+  --logo: var(--brand-life-green);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
@@ -125,6 +111,11 @@
     font-feature-settings: "kern";
   }
 
+  ::selection {
+    background-color: var(--primary);
+    color: var(--primary-foreground);
+  }
+
   /**
    * النصوص عربية، لكن الأرقام المعلنة (أثر، أهداف، سنوات) تبقى لاتينية
    * لأنها تُقارَن بصريًا وتُنسخ. العزل يمنع محرك BiDi من قلب ترتيب
@@ -140,8 +131,7 @@
 @layer components {
   /*
    * رمز الهوية: الملف نقطي، فيُستعمل قناعًا وتأتي التعبئة من `--logo`.
-   * هكذا يتبع الرمز السمة بملف واحد دون نسختين، وشكله يبقى المعتمد
-   * بالبكسل.
+   * هكذا يبقى شكل الرمز كما سُلّم بالبكسل، ويتبع لونه متغيّرًا واحدًا.
    *
    * دليل الهوية يمنع التدرجات والشفافية على اللوغو، فالتعبئة لون صلب من
    * ألوان الهوية دائمًا. نسبة الأبعاد من أبعاد الملف نفسه حتى يكفي تحديد
@@ -156,20 +146,38 @@
   }
 
   /**
-   * خلفية القسم البطل: تدرّج خفيف من الأخضر يعطي عمقًا دون صورة تُحمَّل.
-   * `--primary` مصدره واحد، فيتبع التدرّج السمة الداكنة تلقائيًا.
+   * الكشف عند التمرير: الحركة كلها في CSS و«رأيتُه» وحدها في JS، فيبقى
+   * المحتوى ظاهرًا كاملًا لو لم يعمل السكربت — العنصر المخفي أبدًا أسوأ
+   * من عنصر بلا حركة.
+   *
+   * `--reveal-delay` يضبطه المستدعي للتدرّج، وسقفه منخفض عمدًا: تأخير
+   * يتجاوز جزءًا من الثانية يقرأه الزائر بطئًا في الصفحة لا أناقة فيها.
    */
-  .hero-surface {
-    background-image:
-      radial-gradient(
-        60rem 30rem at 85% -10%,
-        color-mix(in oklch, var(--primary) 18%, transparent),
-        transparent
-      ),
-      radial-gradient(
-        45rem 25rem at 0% 0%,
-        color-mix(in oklch, var(--accent) 55%, transparent),
-        transparent
-      );
+  .reveal {
+    opacity: 0;
+    transform: translateY(1.25rem);
+    transition:
+      opacity 400ms ease-out,
+      transform 400ms ease-out;
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  .reveal[data-visible="true"] {
+    opacity: 1;
+    transform: none;
+  }
+
+  /**
+   * من ضبط نظامه على تقليل الحركة يرى المحتوى مستقرًا من أول لحظة: لا
+   * إزاحة ولا تلاشٍ ولا تأخير.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .reveal,
+    .reveal[data-visible="true"] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+      transition-delay: 0ms;
+    }
   }
 }
