@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Logo } from "@/components/layout/logo";
+import { BrandLockup } from "@/components/layout/logo";
 
 /**
  * صفحة الاستمارة وحدها: الشعار ثم الاستمارة، بلا شريط تنقّل ولا تذييل.
@@ -13,13 +13,17 @@ import { Logo } from "@/components/layout/logo";
 export default function FormLayout({ children }: LayoutProps<"/">) {
   return (
     <div className="flex min-h-dvh flex-col">
-      <header className="border-b border-border">
+      <header className="border-b border-border bg-background">
         <div className="mx-auto flex max-w-2xl items-center px-4 py-4 sm:px-6">
+          {/*
+            الاسم مع الرمز لا الرمز وحده: رمزٌ مجرّد فوق استمارة تسأل عن
+            بيانات لا يقول لمن يملأها مَن يسأله.
+          */}
           <Link
             href="/"
-            className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
           >
-            <Logo className="h-8" />
+            <BrandLockup />
           </Link>
         </div>
       </header>

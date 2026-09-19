@@ -60,7 +60,7 @@ function isVisible(field: PublicFormField, values: Values): boolean {
 }
 
 const FIELD_CLASS =
-  "w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-[invalid=true]:border-destructive";
+  "w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground shadow-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-[invalid=true]:border-destructive";
 
 /** أنواع النص التي يفهمها المتصفح فيتحقق منها ويعرض لوحة الإدخال المناسبة. */
 const INPUT_TYPES: Partial<Record<PublicFormField["type"], string>> = {
@@ -280,7 +280,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
 
   if (sentTo) {
     return (
-      <div className="rounded-xl border border-primary/30 bg-primary/5 p-6">
+      <div className="rounded-xl border border-primary/40 bg-primary/10 p-6">
         <h2 className="text-lg font-bold text-primary">وصلنا طلبك</h2>
         <p className="mt-2 text-sm leading-loose text-muted-foreground">
           شكرًا لك. سنراجع ما أرسلته ونتواصل معك إن احتجنا تفاصيل أكثر.
@@ -301,7 +301,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
 
   if (!form.isAccepting) {
     return (
-      <div className="rounded-xl border border-border bg-muted/40 p-6">
+      <div className="rounded-xl border border-border bg-surface p-6">
         <h2 className="text-lg font-bold">الاستمارة مغلقة حاليًا</h2>
         <p className="mt-2 text-sm leading-loose text-muted-foreground">
           لا تستقبل هذه الاستمارة طلبات في الوقت الحالي. تابعنا لتعرف موعد
@@ -316,7 +316,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
       {failure ? (
         <p
           role="alert"
-          className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+          className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
         >
           {failure}
         </p>
@@ -371,7 +371,7 @@ export function PublicFormRenderer({ form }: { form: PublicForm }) {
       })}
 
       {emailField ? (
-        <div className="rounded-lg border border-border bg-muted/30 p-4">
+        <div className="rounded-xl border border-border bg-surface p-4">
           <label className="flex items-start gap-2 text-sm">
             <input
               type="checkbox"
@@ -476,7 +476,7 @@ function FieldControl({
       <div
         role="group"
         aria-describedby={describedBy}
-        className="space-y-2 rounded-lg border border-border p-3"
+        className="space-y-2 rounded-lg border border-border bg-background p-3"
       >
         {field.options.map((option) => (
           <label

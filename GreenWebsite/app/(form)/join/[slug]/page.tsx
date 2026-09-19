@@ -71,7 +71,7 @@ export default async function PublicFormPage({
               </h1>
 
               {form.descriptionAr ? (
-                <p className="leading-relaxed text-muted-foreground">
+                <p className="leading-loose text-muted-foreground">
                   {form.descriptionAr}
                 </p>
               ) : null}
