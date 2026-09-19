@@ -45,6 +45,33 @@ else
   log 'الإصدار: غير معروف (نشر يدوي بلا ملف REVISION)'
 fi
 
+# ─────────────────────── القاعدة على هذا الخادم ───────────────────────
+
+# قراءة متغير بعينه لا `source` للملف: قيم مثل `MAIL_FROM=Green Cities <…>`
+# صالحة عند Compose، والصدفة تقرأ `<` فيها إعادة توجيه.
+read_env() { grep -E "^$1=" "${ENV_FILE}" | tail -1 | cut -d= -f2- | tr -d '\r' || true; }
+
+DB_URL_VALUE="$(read_env DATABASE_URL)"
+
+# فحصان قبل البناء لا بعده، حين تكون القاعدة المحلية هي المقصودة. كلاهما
+# يفشل بعد دقيقتين من البناء برسالة لا تشير إلى السبب لو تُرك للترحيل:
+if [[ "${DB_URL_VALUE}" == *'host=/var/run/postgresql'* ]]; then
+  SOCKET_DIR="$(read_env PG_SOCKET_DIR)"
+  SOCKET_DIR="${SOCKET_DIR:-/var/lib/greencities-pgsocket}"
+
+  # 1. العنقود يعمل ومقبسه حيث تركّبه الحاويات.
+  compgen -G "${SOCKET_DIR}/.s.PGSQL.*" >/dev/null ||
+    fail "لا مقبس PostgreSQL في ${SOCKET_DIR}. هل العنقود يعمل؟  systemctl status 'postgresql@18-*'"
+
+  # 2. لا قاعدتان. drizzle-kit يفضّل DIRECT_URL على DATABASE_URL، فـDIRECT_URL
+  # باقٍ على Neon يجعل الترحيل يجري هناك والتطبيق يقرأ من هنا: جداول جديدة
+  # لا يراها الـAPI، وفشل يظهر بعد أيام في غير موضعه.
+  DIRECT_URL_VALUE="$(read_env DIRECT_URL)"
+  if [ -n "${DIRECT_URL_VALUE}" ] && [ "${DIRECT_URL_VALUE}" != "${DB_URL_VALUE}" ]; then
+    fail "DIRECT_URL في ${ENV_FILE} يشير إلى قاعدة غير DATABASE_URL. احذف سطر DIRECT_URL — القاعدة المحلية لا تحتاجه."
+  fi
+fi
+
 # ─────────────────────────────── البناء ───────────────────────────────
 
 # وسم الصورة القائمة قبل استبدالها: يتيح إرجاع الكود إن فشل الإصدار الجديد.

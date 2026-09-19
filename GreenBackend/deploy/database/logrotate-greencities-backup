@@ -1,0 +1,17 @@
+# يُثبَّت في /etc/logrotate.d/greencities-backup:
+#
+#   sudo install -m 644 logrotate-greencities-backup /etc/logrotate.d/greencities-backup
+#
+# cron يُلحق كل تشغيل بهذا الملف إلى الأبد، ولا شيء غيره يقتطعه.
+#
+# copytruncate لا create: مهمة cron تُبقي الملف مفتوحًا بإعادة توجيه الصدفة
+# طوال التشغيل، فإعادة تسميته من تحتها ترسل بقية المخرجات إلى ملف لا يجده أحد.
+/var/log/greencities-backup.log {
+    weekly
+    rotate 12
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+}
