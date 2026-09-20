@@ -71,7 +71,7 @@ export default async function PublicFormPage({
               </h1>
 
               {form.descriptionAr ? (
-                <p className="leading-relaxed text-muted-foreground">
+                <p className="leading-loose text-muted-foreground">
                   {form.descriptionAr}
                 </p>
               ) : null}
@@ -88,7 +88,7 @@ export default async function PublicFormPage({
             لست متأكدًا أن هذه استمارتك؟{" "}
             <Link
               href="/join"
-              className="font-medium text-primary underline-offset-4 hover:underline"
+              className="font-medium text-accent-ink underline-offset-4 hover:underline"
             >
               طرق المشاركة كلها
             </Link>

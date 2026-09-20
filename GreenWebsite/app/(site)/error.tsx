@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 
+import { Backdrop } from "@/components/ui/backdrop";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 
@@ -21,16 +22,23 @@ export default function GlobalError({
   }, [error]);
 
   return (
-    <Container>
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-4 py-20 text-center">
-        <h1 className="text-2xl font-bold tracking-tight">حدث خطأ غير متوقع</h1>
-        <p className="max-w-md text-base leading-relaxed text-muted-foreground">
-          تعذّر عرض هذه الصفحة. حاول مجددًا، وإن تكرر الأمر فأخبرنا به.
-        </p>
-        <Button onClick={reset} className="mt-2">
-          أعد المحاولة
-        </Button>
-      </div>
-    </Container>
+    <div className="on-painted relative isolate">
+      <Backdrop src="/bg/section.webp" />
+
+      <Container>
+        {/* النص هنا بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css. */}
+        <div className="flex min-h-[60vh] flex-col items-center justify-center gap-5 py-24 text-center">
+          <h1 className="text-2xl font-bold tracking-tight text-foreground">
+            حدث خطأ غير متوقع
+          </h1>
+          <p className="max-w-md text-base leading-loose text-foreground">
+            تعذّر عرض هذه الصفحة. حاول مجددًا، وإن تكرر الأمر فأخبرنا به.
+          </p>
+          <Button onClick={reset} className="mt-2">
+            أعد المحاولة
+          </Button>
+        </div>
+      </Container>
+    </div>
   );
 }

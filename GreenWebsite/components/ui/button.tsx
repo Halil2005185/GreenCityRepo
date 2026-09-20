@@ -6,23 +6,32 @@ import { cn } from "@/lib/utils";
  * أدوات Tailwind المنطقية وحدها (`ms-*`, `pe-*`, `text-start`) — لا
  * `ml-*` ولا `text-left`. تحت `dir="rtl"` تنعكس المنطقية تلقائيًا،
  * بينما الفيزيائية تبقى مثبتة على اليسار وتكسر التخطيط.
+ *
+ * الحواف دائرية كاملة في كل الأنواع: هذه مفردة التصميم الأساسية في
+ * الهوية الجديدة — الأزرار والشارات وحبّات التنقل كلها حبّات.
+ *
+ * الارتفاع الطفيف عند التمرير تحت `motion-safe` وحده: هو زينة، ومن طلب
+ * تقليل الحركة طلبها في الزينة قبل غيرها.
  */
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full text-sm font-semibold transition duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:pointer-events-none disabled:opacity-50 [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
+        /** الأخضر الحيوي على الأخضر العميق: 8.97:1. */
+        default:
+          "bg-primary text-primary-foreground hover:bg-primary/85 motion-safe:hover:-translate-y-0.5",
         secondary:
-          "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+          "bg-secondary text-secondary-foreground hover:bg-accent motion-safe:hover:-translate-y-0.5",
+        /** سطحٌ شفيف بحدّ: يقرأ زرًا ثانويًا دون منافسة الأخضر الحيوي. */
         outline:
-          "border border-border bg-background hover:bg-accent hover:text-accent-foreground",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
-        link: "text-primary underline-offset-4 hover:underline",
+          "border border-input bg-foreground/5 text-foreground backdrop-blur-sm hover:bg-foreground hover:text-background motion-safe:hover:-translate-y-0.5",
+        ghost: "text-foreground hover:bg-primary/10",
+        link: "text-accent-ink underline-offset-4 hover:underline",
       },
       size: {
-        sm: "h-8 px-3 text-xs",
-        default: "h-10 px-5",
+        sm: "h-9 px-4 text-xs",
+        default: "h-11 px-6",
         lg: "h-12 px-7 text-base",
       },
     },

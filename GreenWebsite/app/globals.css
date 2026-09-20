@@ -1,98 +1,123 @@
 @import "tailwindcss";
 
 /**
- * اللوحة اللونية نفسها المستعملة في `GreenAdminDash`، لأن الموقع واللوحة
- * وجهان لهوية واحدة. القيم بـ oklch لأن تفتيح لون أو تغميقه فيها يحافظ
- * على الإشباع المُدرَك، بخلاف hsl التي تنتج درجات باهتة عند الأطراف.
+ * سمة واحدة، لا مبدّل ولا `prefers-color-scheme`.
+ *
+ * وهي سمة التصميم المُسلَّم كما هو: صفحةٌ بيج فاتحة
+ * (`Frontend/src/index.css` يضبط الجسم على `rgba(254,240,231,.3)`)، وفوقها
+ * أشرطة خضراء داكنة تحمل اللوحات المرسومة — الشريط العلوي، والبطل، ورؤوس
+ * الصفحات، وشريط الدعوة، والتذييل. الأخضر العميق لهجة الأشرطة لا لون
+ * الموقع كله؛ وجعلُه سطحًا عامًّا يُسطّح التصميم ويطمس اللوحات.
  */
 :root {
   --radius: 0.75rem;
 
-  --background: oklch(0.995 0.003 145);
-  --foreground: oklch(0.22 0.02 155);
-
-  --card: oklch(1 0 0);
-  --card-foreground: var(--foreground);
-
-  --primary: oklch(0.52 0.13 152);
-  --primary-foreground: oklch(0.99 0.01 145);
-
-  --secondary: oklch(0.96 0.02 150);
-  --secondary-foreground: oklch(0.32 0.05 155);
-
-  --muted: oklch(0.96 0.01 150);
-  --muted-foreground: oklch(0.52 0.02 155);
-
-  --accent: oklch(0.94 0.04 150);
-  --accent-foreground: oklch(0.3 0.06 155);
-
-  --destructive: oklch(0.58 0.21 27);
-  --destructive-foreground: oklch(0.99 0.01 145);
-
-  --success: oklch(0.6 0.14 150);
-  --warning: oklch(0.75 0.15 75);
-
-  --border: oklch(0.9 0.01 150);
-  --input: oklch(0.9 0.01 150);
-  --ring: oklch(0.52 0.13 152);
-
-  /*
-   * ألوان الهوية بقيمها الحرفية من «Brand Identity/colors/color.md». هي
-   * وحدها بالـhex لا بالـoklch: دليل الهوية يعتمد قيمة محدَّدة للوغو، وأي
-   * تحويل يزيحها ولو قليلًا. لا تُستعمل خارج الشعار.
+  /**
+   * ألوان الهوية بقيمها الحرفية من «Brand Identity/colors/color.md». تبقى
+   * بالـhex لا بالـoklch: دليل الهوية يعتمد قيمة محدَّدة، وأي تحويل يزيحها
+   * ولو قليلًا. لا تُستعمل في المكوّنات مباشرة — المكوّنات تستعمل الدلالية
+   * أدناه، فيبقى تغيير لون واحد تغييرًا في ملف واحد.
    */
   --brand-deep-green: #103900;
-  --brand-life-green: #89EF19;
+  --brand-life-green: #89ef19;
+  --brand-warm-beige: #fef0e7;
+  --brand-urban-charcoal: #1f2c35;
+  --brand-brown: #7a4018;
+
+  /* الأسطح الفاتحة: بيج مائل إلى الدفء، بنسبة 60% «خلفيات هادئة». */
+  --background: #fffbf8;
+  --surface: #fdf3ec;
+  --surface-strong: #f7eae0;
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+
+  --foreground: var(--brand-urban-charcoal); /* 13.88:1 على الخلفية */
+  --muted-foreground: #566068; /* 6.24:1 على الخلفية، 5.45:1 على أغمق سطح */
+
+  /**
+   * الأخضر الحيوي **تعبئة لا نص**: على سطح فاتح تباينه 1.41:1 — أي أنه غير
+   * مقروء نصًّا مهما كبر. فالزر يملؤه ويكتب عليه بالأخضر العميق (8.97:1)،
+   * والنص واللمسات تأخذ `--accent-ink`.
+   */
+  --primary: var(--brand-life-green);
+  --primary-foreground: var(--brand-deep-green);
+  --accent-ink: var(--brand-deep-green); /* 12.70:1 على الخلفية */
+
+  --secondary: #f7eae0;
+  --secondary-foreground: var(--brand-deep-green);
+  --muted: #fdf3ec;
+  --accent: #f2e4d8;
+  --accent-foreground: var(--brand-deep-green);
+
+  --destructive: #b3261e; /* 6.35:1 */
+  --destructive-foreground: #ffffff;
+  --success: #1e7a46; /* 5.20:1 */
+  --warning: #8a5a00; /* 5.76:1 */
+
+  --border: #ebdccf;
+  /** حدّ الحقل أغمق من حدّ البطاقة: 3.27:1 — حدّ الإدخال عنصر واجهة يُشترط تمييزه. */
+  --input: #9e8b7a;
+  --ring: var(--brand-deep-green);
 
   --logo: var(--brand-deep-green);
 }
 
 /**
- * لا مبدّل سمة في الموقع العام: الزائر لا يبقى ليضبط تفضيلًا. تفضيل
- * النظام وحده هو المصدر، وكل لون معرّف مرتين فلا يبقى لون بلا مقابل داكن.
+ * نطاق الشريط المرسوم: كل ما يعلو لوحةً خضراء داكنة يُلفّ بهذا الصنف،
+ * فتنقلب المتغيّرات داخله وتتبعها المكوّنات دون أن تعرف أين هي. هكذا يبقى
+ * `text-muted-foreground` مثلًا صحيحًا في الموضعين، ولا يُكتب لون صريح.
+ *
+ * **قاعدة لا تُخرق: النص داخل الشريط المرسوم بيجٌ كامل (`text-foreground`)
+ * لا `text-muted-foreground`.** في اللوحتين بكسلات أوراق مُشمسة تقارب
+ * الأبيض داخل مساحة النص لا في أطرافها وحدها؛ قيست أسوأ حالة عند حجاب
+ * 78%: البيج 5.99:1 والنص الثانوي 3.48:1. التدرّج هنا بالحجم والوزن لا
+ * باللون — وهو أيضًا ما يوجبه دليل الهوية: «النصوص الأساسية لا تُستخدم
+ * بدرجات لونية مخففة».
  */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: oklch(0.19 0.02 155);
-    --foreground: oklch(0.96 0.01 145);
+.on-painted {
+  --background: var(--brand-deep-green);
+  --surface: #214712;
+  --surface-strong: #284d1a;
+  --card: #214712;
 
-    --card: oklch(0.23 0.02 155);
-    --card-foreground: var(--foreground);
+  --foreground: var(--brand-warm-beige); /* 11.72:1 على الأخضر العميق */
+  --muted-foreground: #bbbda6;
 
-    --primary: oklch(0.68 0.14 152);
-    --primary-foreground: oklch(0.18 0.03 155);
+  --primary: var(--brand-life-green);
+  --primary-foreground: var(--brand-deep-green);
+  --accent-ink: var(--brand-life-green); /* 8.97:1 على الأخضر العميق */
 
-    --secondary: oklch(0.28 0.02 155);
-    --secondary-foreground: oklch(0.94 0.01 145);
+  --secondary: #284d1a;
+  --secondary-foreground: var(--brand-warm-beige);
+  --muted: #214712;
+  --accent: #315524;
+  --accent-foreground: var(--brand-warm-beige);
 
-    --muted: oklch(0.28 0.02 155);
-    --muted-foreground: oklch(0.7 0.02 150);
+  --destructive: #ff9b8a;
+  --destructive-foreground: var(--brand-deep-green);
+  --success: #7bd8a4;
+  --warning: #f5c451;
 
-    --accent: oklch(0.32 0.04 152);
-    --accent-foreground: oklch(0.95 0.01 145);
+  /* حدود الأشرطة زخرفية لا حدود إدخال، فالبيج الشفيف أنسب من لون صلب. */
+  --border: rgb(254 240 231 / 0.24);
+  --input: rgb(254 240 231 / 0.32);
+  --ring: var(--brand-life-green);
 
-    --destructive: oklch(0.65 0.19 27);
-    --destructive-foreground: oklch(0.18 0.03 155);
+  --logo: var(--brand-life-green);
 
-    --success: oklch(0.7 0.13 150);
-    --warning: oklch(0.8 0.14 75);
-
-    --border: oklch(0.32 0.02 155);
-    --input: oklch(0.34 0.02 155);
-    --ring: oklch(0.68 0.14 152);
-
-    /* الأخضر العميق يغيب على خلفية داكنة، فيتبدّل إلى الأخضر الحيوي. */
-    --logo: var(--brand-life-green);
-  }
+  color: var(--foreground);
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-strong: var(--surface-strong);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-accent-ink: var(--accent-ink);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -125,6 +150,11 @@
     font-feature-settings: "kern";
   }
 
+  ::selection {
+    background-color: var(--brand-life-green);
+    color: var(--brand-deep-green);
+  }
+
   /**
    * النصوص عربية، لكن الأرقام المعلنة (أثر، أهداف، سنوات) تبقى لاتينية
    * لأنها تُقارَن بصريًا وتُنسخ. العزل يمنع محرك BiDi من قلب ترتيب
@@ -140,8 +170,8 @@
 @layer components {
   /*
    * رمز الهوية: الملف نقطي، فيُستعمل قناعًا وتأتي التعبئة من `--logo`.
-   * هكذا يتبع الرمز السمة بملف واحد دون نسختين، وشكله يبقى المعتمد
-   * بالبكسل.
+   * هكذا يبقى شكل الرمز كما سُلّم بالبكسل، ويتبع لونه متغيّرًا واحدًا —
+   * أخضر عميق على الفاتح، وأخضر حيوي داخل الأشرطة المرسومة.
    *
    * دليل الهوية يمنع التدرجات والشفافية على اللوغو، فالتعبئة لون صلب من
    * ألوان الهوية دائمًا. نسبة الأبعاد من أبعاد الملف نفسه حتى يكفي تحديد
@@ -156,20 +186,49 @@
   }
 
   /**
-   * خلفية القسم البطل: تدرّج خفيف من الأخضر يعطي عمقًا دون صورة تُحمَّل.
-   * `--primary` مصدره واحد، فيتبع التدرّج السمة الداكنة تلقائيًا.
+   * الكشف عند التمرير: الحركة في CSS و«صار مرئيًا» وحدها في JS — مراقبٌ
+   * واحد للمجموعة كلها لا مراقب لكل عنصر، فالعناصر الداخلية تبقى مكوّنات
+   * خادم ولا يُدفع إلى المتصفح إلا الغلاف.
+   *
+   * الإخفاء مشروط بوجود `data-reveal-visible` على الأب: العنصر الذي لا
+   * مجموعةَ له يُعرض كما هو، فلا يختفي محتوى بسبب صنفٍ نُسي.
    */
-  .hero-surface {
-    background-image:
-      radial-gradient(
-        60rem 30rem at 85% -10%,
-        color-mix(in oklch, var(--primary) 18%, transparent),
-        transparent
-      ),
-      radial-gradient(
-        45rem 25rem at 0% 0%,
-        color-mix(in oklch, var(--accent) 55%, transparent),
-        transparent
-      );
+  [data-reveal-visible] .reveal {
+    opacity: 0;
+    transform: translateY(1.25rem);
+    transition:
+      opacity 400ms ease-out,
+      transform 400ms ease-out;
+    transition-delay: var(--reveal-delay, 0ms);
+  }
+
+  [data-reveal-visible="true"] .reveal {
+    opacity: 1;
+    transform: none;
+  }
+
+  /**
+   * بلا JavaScript لا مراقب يقلب السمة، فيبقى المحتوى مخفيًا إلى الأبد.
+   * هذه القاعدة تُلغي الإخفاء أصلًا في تلك الحالة.
+   */
+  @media (scripting: none) {
+    [data-reveal-visible] .reveal {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /**
+   * من ضبط نظامه على تقليل الحركة يرى المحتوى مستقرًا من أول لحظة: لا
+   * إزاحة ولا تلاشٍ ولا تأخير.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    [data-reveal-visible] .reveal,
+    [data-reveal-visible="true"] .reveal {
+      opacity: 1;
+      transform: none;
+      transition: none;
+      transition-delay: 0ms;
+    }
   }
 }

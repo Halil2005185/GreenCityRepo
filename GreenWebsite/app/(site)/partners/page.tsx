@@ -2,16 +2,15 @@ import { Check } from "lucide-react";
 import type { Metadata } from "next";
 
 import { CtaBand } from "@/components/sections/cta-band";
+import { PartnershipJourney } from "@/components/sections/partnership-journey";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RevealGroup } from "@/components/ui/reveal";
 import { PageHeader, Section } from "@/components/ui/section";
 import { listPartners } from "@/lib/api/public";
-import {
-  PARTNERSHIP_JOURNEY,
-  PARTNERSHIP_TYPES,
-  SUPPORT_FORMS,
-} from "@/lib/content/partnership";
+import { PARTNERSHIP_TYPES, SUPPORT_FORMS } from "@/lib/content/partnership";
+import { revealDelay } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "الشركاء",
@@ -40,18 +39,20 @@ export default async function PartnersPage() {
         title="خمسة أنواع"
         description="يمكن للجهة الواحدة أن تحمل أكثر من نوع، ويرتبط نوع شراكة الفعالية بمبادرة بعينها."
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {PARTNERSHIP_TYPES.map((item) => (
-            <Card key={item.type}>
-              <CardHeader>
-                <CardTitle>{item.label}</CardTitle>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.description}
-                </p>
-              </CardHeader>
-            </Card>
+        <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {PARTNERSHIP_TYPES.map((item, index) => (
+            <div key={item.type} className="reveal" style={revealDelay(index)}>
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>{item.label}</CardTitle>
+                  <p className="text-sm leading-loose text-muted-foreground">
+                    {item.description}
+                  </p>
+                </CardHeader>
+              </Card>
+            </div>
           ))}
-        </div>
+        </RevealGroup>
       </Section>
 
       <Section
@@ -60,56 +61,54 @@ export default async function PartnersPage() {
         title="كيف يمكن أن تشارك جهتك"
         description="لا يشترط الدعم المالي. أكثر ما نحتاجه غالبًا خبرة أو مساحة أو أيادٍ تعمل."
       >
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {SUPPORT_FORMS.map((form) => (
-            <li
-              key={form}
-              className="flex items-start gap-3 rounded-lg border border-border bg-card p-4"
-            >
-              <Check className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
-              <span className="text-sm leading-relaxed">{form}</span>
-            </li>
-          ))}
-        </ul>
+        <RevealGroup>
+          <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {SUPPORT_FORMS.map((form, index) => (
+              <li
+                key={form}
+                className="reveal flex items-start gap-3 rounded-xl border border-border bg-card p-4"
+                style={revealDelay(index)}
+              >
+                <Check
+                  className="mt-1 size-4 shrink-0 text-accent-ink"
+                  aria-hidden
+                />
+                <span className="text-sm leading-loose text-foreground">
+                  {form}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </RevealGroup>
       </Section>
 
       <Section eyebrow="المسار" title="من التواصل إلى الشراكة">
-        <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {PARTNERSHIP_JOURNEY.map((step, index) => (
-            <li key={step.title} className="space-y-2">
-              <span className="numeric flex size-9 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-                {index + 1}
-              </span>
-              <h3 className="text-base font-semibold">{step.title}</h3>
-              <p className="text-sm leading-relaxed text-muted-foreground">
-                {step.description}
-              </p>
-            </li>
-          ))}
-        </ol>
+        <PartnershipJourney />
       </Section>
 
       <Section muted eyebrow="شركاؤنا" title="جهات نعمل معها">
         {partners.length > 0 ? (
-          <ul className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {partners.map((partner) => (
-              <li key={partner.id}>
-                <Card className="h-full">
-                  <CardHeader>
-                    <CardTitle>{partner.nameAr}</CardTitle>
-                    <div className="flex flex-wrap gap-2">
-                      {partner.partnershipTypes.map((type) => (
-                        <Badge key={type} tone="outline">
-                          {PARTNERSHIP_TYPES.find((item) => item.type === type)
-                            ?.label ?? type}
-                        </Badge>
-                      ))}
-                    </div>
-                  </CardHeader>
-                </Card>
-              </li>
-            ))}
-          </ul>
+          <RevealGroup>
+            <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              {partners.map((partner, index) => (
+                <li key={partner.id} className="reveal" style={revealDelay(index)}>
+                  <Card className="h-full">
+                    <CardHeader>
+                      <CardTitle>{partner.nameAr}</CardTitle>
+                      <div className="flex flex-wrap gap-2">
+                        {partner.partnershipTypes.map((type) => (
+                          <Badge key={type} tone="outline">
+                            {PARTNERSHIP_TYPES.find((item) => item.type === type)
+                              ?.label ?? type}
+                          </Badge>
+                        ))}
+                      </div>
+                    </CardHeader>
+                  </Card>
+                </li>
+              ))}
+            </ul>
+          </RevealGroup>
         ) : (
           <EmptyState
             title="قائمة الشركاء قيد الإعداد"

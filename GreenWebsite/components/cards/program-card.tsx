@@ -11,11 +11,11 @@ export function ProgramCard({ program }: { program: PublicProgram }) {
       href={`/programs/${program.slug}`}
       className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
     >
-      <Card className="group h-full transition-colors hover:border-primary/40">
+      <Card className="group h-full transition-colors hover:border-primary/60 hover:bg-surface-strong">
         <CardHeader>
           <CardTitle>{program.nameAr}</CardTitle>
           {program.descriptionAr && (
-            <p className="line-clamp-3 text-sm leading-relaxed text-muted-foreground">
+            <p className="line-clamp-3 text-sm leading-loose text-muted-foreground">
               {program.descriptionAr}
             </p>
           )}
@@ -29,7 +29,7 @@ export function ProgramCard({ program }: { program: PublicProgram }) {
           </span>
           {/* السهم إلى اليسار لأن اتجاه التقدّم في RTL يسار لا يمين. */}
           <ArrowLeft
-            className="size-4 text-primary transition-transform group-hover:-translate-x-1"
+            className="size-4 text-accent-ink transition-transform group-hover:-translate-x-1"
             aria-hidden
           />
         </CardContent>

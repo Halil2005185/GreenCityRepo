@@ -39,11 +39,11 @@ export default function ContactPage() {
                 {contactChannels.email && (
                   <Card>
                     <CardHeader>
-                      <Mail className="size-5 text-primary" aria-hidden />
+                      <Mail className="size-5 text-accent-ink" aria-hidden />
                       <CardTitle>البريد الإلكتروني</CardTitle>
                       <a
                         href={`mailto:${contactChannels.email}`}
-                        className="text-sm text-primary underline-offset-4 hover:underline"
+                        className="text-sm text-accent-ink underline-offset-4 hover:underline"
                       >
                         {contactChannels.email}
                       </a>
@@ -53,11 +53,11 @@ export default function ContactPage() {
                 {contactChannels.phone && (
                   <Card>
                     <CardHeader>
-                      <Phone className="size-5 text-primary" aria-hidden />
+                      <Phone className="size-5 text-accent-ink" aria-hidden />
                       <CardTitle>الهاتف</CardTitle>
                       <a
                         href={`tel:${contactChannels.phone}`}
-                        className="numeric text-sm text-primary underline-offset-4 hover:underline"
+                        className="numeric text-sm text-accent-ink underline-offset-4 hover:underline"
                       >
                         {contactChannels.phone}
                       </a>
@@ -100,7 +100,7 @@ export default function ContactPage() {
           <Card className="h-fit">
             <CardHeader>
               <CardTitle>هل أنت شريك حالي؟</CardTitle>
-              <p className="text-sm leading-relaxed text-muted-foreground">
+              <p className="text-sm leading-loose text-muted-foreground">
                 لممثلي الجهات الشريكة بوابة خاصة لمتابعة المبادرات والمهام
                 والمساهمات. يُفتح الحساب بدعوة من فريق المشروع لا بتسجيل عام.
               </p>

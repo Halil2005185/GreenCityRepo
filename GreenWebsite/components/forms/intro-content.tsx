@@ -39,7 +39,7 @@ function Marked({ node }: { node: PublicIntroInline }) {
         // الرابط كتبه موظف لا الموقع: `noopener` تقطع وصول الصفحة المفتوحة
         // إلى هذه، و`nofollow` تمنع أن يصير حقل مقدّمة بابًا لتمرير الترتيب.
         rel="noopener noreferrer nofollow"
-        className="text-primary underline underline-offset-4"
+        className="text-accent-ink underline underline-offset-4"
       >
         {content}
       </a>
@@ -63,7 +63,7 @@ function Inline({ nodes }: { nodes: PublicIntroInline[] | undefined }) {
 
 export function IntroContent({ doc }: { doc: PublicIntroDoc }) {
   return (
-    <div className="space-y-4 text-base leading-relaxed text-muted-foreground">
+    <div className="space-y-4 text-base leading-loose text-muted-foreground">
       {doc.content.map((node, index) => {
         if (node.type === "paragraph") {
           return (

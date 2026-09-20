@@ -2,8 +2,9 @@ import type { Metadata } from "next";
 
 import { CtaBand } from "@/components/sections/cta-band";
 import { ImpactMetrics } from "@/components/sections/impact-metrics";
-import { Card, CardHeader, CardTitle } from "@/components/ui/card";
+import { RevealGroup } from "@/components/ui/reveal";
 import { PageHeader, Section } from "@/components/ui/section";
+import { revealDelay } from "@/lib/utils";
 
 export const metadata: Metadata = {
   title: "الأثر",
@@ -50,18 +51,25 @@ export default function ImpactPage() {
         title="كيف نقيس"
         description="القياس جزء من تصميم النظام لا تقريرًا يُكتب في النهاية."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          {METHOD.map((item) => (
-            <Card key={item.title}>
-              <CardHeader>
-                <CardTitle>{item.title}</CardTitle>
-                <p className="text-sm leading-relaxed text-muted-foreground">
-                  {item.body}
-                </p>
-              </CardHeader>
-            </Card>
+        <RevealGroup className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+          {METHOD.map((item, index) => (
+            <div
+              key={item.title}
+              className="reveal space-y-3"
+              style={revealDelay(index, 80)}
+            >
+              <span className="numeric flex size-10 items-center justify-center rounded-full bg-accent-ink/10 text-sm font-bold text-accent-ink">
+                {index + 1}
+              </span>
+              <h3 className="text-lg font-bold leading-[1.6] text-foreground">
+                {item.title}
+              </h3>
+              <p className="text-sm leading-loose text-muted-foreground">
+                {item.body}
+              </p>
+            </div>
           ))}
-        </div>
+        </RevealGroup>
       </Section>
 
       <CtaBand />

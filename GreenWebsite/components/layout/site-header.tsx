@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
-import { Logo } from "@/components/layout/logo";
+import { BrandLockup } from "@/components/layout/logo";
 import { buttonVariants } from "@/components/ui/button";
 import { Container } from "@/components/ui/container";
 import { mainNav, siteConfig } from "@/lib/site";
@@ -31,16 +31,15 @@ export function SiteHeader() {
     pathname === href || pathname.startsWith(`${href}/`);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/85 backdrop-blur">
+    <header className="on-painted sticky top-0 z-50 border-b border-border bg-background backdrop-blur-md">
       <Container>
-        <div className="flex h-16 items-center justify-between gap-4">
+        <div className="flex h-16 items-center justify-between gap-4 lg:h-20">
           <Link
             href="/"
-            className="flex items-center gap-2.5 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
             aria-label={`${siteConfig.name} — الصفحة الرئيسية`}
           >
-            <Logo className="h-8" />
-            <span className="text-base font-bold">{siteConfig.name}</span>
+            <BrandLockup />
           </Link>
 
           <nav
@@ -53,10 +52,11 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-3 py-2 text-sm font-medium transition-colors",
+                  "rounded-full px-4 py-2.5 text-sm font-medium transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   isActive(item.href)
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                    ? "bg-primary/20 text-foreground"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground",
                 )}
               >
                 {item.label}
@@ -65,10 +65,7 @@ export function SiteHeader() {
           </nav>
 
           <div className="flex items-center gap-2">
-            <Link
-              href="/join"
-              className={cn(buttonVariants({ size: "sm" }), "hidden sm:inline-flex")}
-            >
+            <Link href="/join" className={cn(buttonVariants({ size: "sm" }))}>
               انضم إلينا
             </Link>
 
@@ -78,7 +75,7 @@ export function SiteHeader() {
               aria-expanded={open}
               aria-controls="mobile-nav"
               aria-label={open ? "إغلاق القائمة" : "فتح القائمة"}
-              className="inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
+              className="inline-flex size-10 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-primary/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring lg:hidden"
             >
               {open ? <X className="size-5" /> : <Menu className="size-5" />}
             </button>
@@ -94,24 +91,23 @@ export function SiteHeader() {
         >
           <Container>
             <ul className="flex flex-col py-2">
-              {[...mainNav, { href: "/join", label: "انضم إلينا" }].map(
-                (item) => (
-                  <li key={item.href}>
-                    <Link
-                      href={item.href}
-                      aria-current={isActive(item.href) ? "page" : undefined}
-                      className={cn(
-                        "block rounded-md px-3 py-3 text-sm font-medium",
-                        isActive(item.href)
-                          ? "text-primary"
-                          : "text-muted-foreground",
-                      )}
-                    >
-                      {item.label}
-                    </Link>
-                  </li>
-                ),
-              )}
+              {mainNav.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    aria-current={isActive(item.href) ? "page" : undefined}
+                    className={cn(
+                      "block rounded-lg px-4 py-3 text-sm font-medium transition-colors",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      isActive(item.href)
+                        ? "bg-primary/20 text-foreground"
+                        : "text-muted-foreground hover:bg-primary/10 hover:text-foreground",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
             </ul>
           </Container>
         </nav>

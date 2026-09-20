@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import { CtaBand } from "@/components/sections/cta-band";
+import { Backdrop } from "@/components/ui/backdrop";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle } from "@/components/ui/card";
 import { Container } from "@/components/ui/container";
@@ -46,7 +47,10 @@ export default async function InitiativePage({
 
   return (
     <>
-      <div className="hero-surface border-b border-border py-14 sm:py-20">
+      {/* النص هنا بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css. */}
+      <div className="on-painted relative isolate border-b border-border py-16 sm:py-24">
+        <Backdrop src="/bg/section.webp" priority />
+
         <Container>
           <div className="max-w-3xl space-y-4">
             <div className="flex flex-wrap items-center gap-2">
@@ -66,17 +70,17 @@ export default async function InitiativePage({
               )}
             </div>
 
-            <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+            <h1 className="text-3xl font-bold leading-[1.25] tracking-tight text-foreground sm:text-4xl">
               {initiative.nameAr}
             </h1>
 
             {initiative.descriptionAr && (
-              <p className="text-lg leading-relaxed text-muted-foreground">
+              <p className="text-lg leading-loose text-foreground">
                 {initiative.descriptionAr}
               </p>
             )}
 
-            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted-foreground">
+            <div className="flex flex-wrap gap-x-6 gap-y-2 text-sm text-foreground">
               {initiative.areaNamesAr.length > 0 && (
                 <span className="flex items-center gap-2">
                   <MapPin className="size-4" aria-hidden />
@@ -112,7 +116,7 @@ export default async function InitiativePage({
 
       {initiative.storyAr && (
         <Section muted title="عن المبادرة">
-          <div className="max-w-3xl space-y-4 text-base leading-relaxed text-muted-foreground">
+          <div className="max-w-3xl space-y-4 text-base leading-loose text-muted-foreground">
             {initiative.storyAr.split("\n\n").map((paragraph) => (
               <p key={paragraph}>{paragraph}</p>
             ))}

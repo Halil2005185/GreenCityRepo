@@ -1,5 +1,7 @@
 import { ProgramCard } from "@/components/cards/program-card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { RevealGroup } from "@/components/ui/reveal";
+import { revealDelay } from "@/lib/utils";
 import { listPrograms } from "@/lib/api/public";
 
 export async function ProgramsGrid({ limit }: { limit?: number }) {
@@ -16,10 +18,12 @@ export async function ProgramsGrid({ limit }: { limit?: number }) {
   }
 
   return (
-    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-      {shown.map((program) => (
-        <ProgramCard key={program.id} program={program} />
+    <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      {shown.map((program, index) => (
+        <div key={program.id} className="reveal" style={revealDelay(index)}>
+          <ProgramCard program={program} />
+        </div>
       ))}
-    </div>
+    </RevealGroup>
   );
 }

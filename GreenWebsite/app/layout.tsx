@@ -45,10 +45,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f7fdfa" },
-    { media: "(prefers-color-scheme: dark)", color: "#14201a" },
-  ],
+  /**
+   * لون واحد لأن السمة واحدة، وهو لون الشريط العلوي لا لون الصفحة: هذا ما
+   * يصبغ شريط المتصفح على الهاتف، وهو ملاصق للشريط فيبدو امتدادًا له.
+   *
+   * و`colorScheme: "light"` ليست تكرارًا: بها يرسم المتصفح ما لا نملكه —
+   * شريط التمرير، ومنتقي التاريخ، والتعبئة التلقائية في الاستمارة — فاتحًا،
+   * فلا يظهر حقلٌ داكن وسط صفحة بيج عند من ضبط نظامه على الوضع الداكن.
+   */
+  themeColor: "#103900",
+  colorScheme: "light",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
