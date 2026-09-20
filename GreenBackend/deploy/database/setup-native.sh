@@ -49,9 +49,19 @@ if [[ ! -x "$PGBIN/postgres" ]]; then
   log "تثبيت PostgreSQL $PG_MAJOR من apt.postgresql.org"
   # مستودع المشروع لا مستودع التوزيعة: Ubuntu 24.04 يحمل 16، وNeon على 18،
   # وpg_dump أقدم من الخادم يرفض القراءة منه من أساسه.
-  apt-get update -y
-  apt-get install -y postgresql-common openssl
+  # لا سؤال تفاعليًا في منتصف سكربت: الواجهة الصامتة تُبقي أي ملف إعداد
+  # مُعدَّل كما هو بدل انتظار جواب لا يأتي، ومعها dpkg وucf لكلا نوعي الملفات.
+  export DEBIAN_FRONTEND=noninteractive UCF_FORCE_CONFFOLD=1
+  APT=(apt-get -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold)
+
+  "${APT[@]}" update
+  "${APT[@]}" install postgresql-common openssl
   /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+
+  # ترقية postgresql-common إلى نسخة المستودع الجديد قبل تعديل ملفه لا بعده.
+  # تثبيت postgresql-18 يجرّها على كل حال، فلو كان الملف معدَّلًا حينها لوجده
+  # ucf «محرَّرًا محليًا» وسأل أيّ النسختين تُبقى — سؤال يوقف السكربت.
+  "${APT[@]}" install postgresql-common
 
   # الحزمة تنشئ عنقود `18/main` تلقائيًا ولن يستعمله أحد: عنقود فارغ يأكل
   # ذاكرة ويحجز منفذًا. الإنشاء التلقائي يُعطَّل طوال تثبيتنا وحده ثم يعود
@@ -63,7 +73,7 @@ if [[ ! -x "$PGBIN/postgres" ]]; then
   grep -qE '^create_main_cluster = false' "$CREATECLUSTER" ||
     printf 'create_main_cluster = false\n' >> "$CREATECLUSTER"
 
-  apt-get install -y "postgresql-$PG_MAJOR"
+  "${APT[@]}" install "postgresql-$PG_MAJOR"
 
   mv -f "$CREATECLUSTER.greencities-orig" "$CREATECLUSTER"
   trap - EXIT
