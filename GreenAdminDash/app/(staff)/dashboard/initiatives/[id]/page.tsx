@@ -1,297 +1,194 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Pencil, Settings2, Sprout, User } from "lucide-react";
-import Link from "next/link";
+import { useQuery } from "@tanstack/react-query";
+import { MapPin, Pencil, Settings2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Alert, Card, CardContent } from "@/components/ui/card";
-import { Field, Input } from "@/components/ui/field";
+import { StoryDialog } from "@/components/initiatives/initiative-dialogs";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { DetailSkeleton, EmptyState, ErrorState } from "@/components/ui/states";
+import { StatusBadge } from "@/components/ui/status-badge";
 import { ApiError } from "@/lib/api/client";
-import {
-  INITIATIVE_STATUS_LABELS,
-  type InitiativeDetail,
-  getInitiative,
-  updateInitiativeStory,
-} from "@/lib/api/initiatives";
-import { CONTRIBUTOR_KIND_LABELS, POINT_KIND_LABELS } from "@/lib/api/map";
-import { useAuth } from "@/lib/auth/auth-context";
+import { getInitiative } from "@/lib/api/initiatives";
+import { CONTRIBUTOR_KIND_LABELS } from "@/lib/api/map";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
-import { cn, formatDateTime } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+
+const BREADCRUMB_ROOT = { label: "المبادرات", href: "/dashboard/initiatives" };
+
+function formatValue(value: number, decimals = 0) {
+  return value.toLocaleString("en-US", { maximumFractionDigits: decimals });
+}
 
 /**
  * صفحة المبادرة كما تُقرأ، لا كما تُدار.
  *
- * القادم من الخريطة يريد القصة والأرقام لا أزرار التشغيل، والنقطة
- * الخضراء لا إدارة لها أصلًا. الإدارة تعيش في `/manage` ويصل إليها من
- * يملك صلاحيتها وحده.
+ * القادم من الخريطة يريد القصة والأرقام لا أزرار التشغيل، والنقطة الخضراء
+ * لا إدارة لها أصلًا. الإدارة تعيش في `/manage` ويصل إليها من يملك صلاحيتها
+ * من زر الترويسة؛ وتحرير القصة نافذة بدل نموذج يُفتح داخل النص.
  */
 export default function InitiativeStoryPage() {
   const params = useParams<{ id: string }>();
   const initiativeId = params.id;
-  const queryClient = useQueryClient();
-  const { can } = useAuth();
-
-  const [editing, setEditing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [storyOpen, setStoryOpen] = useState(false);
 
   const initiative = useQuery({
     queryKey: ["initiative", initiativeId],
     queryFn: () => getInitiative(initiativeId),
   });
 
-  const save = useMutation({
-    mutationFn: (body: { storyAr?: string; coverImageUrl?: string }) =>
-      updateInitiativeStory(initiativeId, body),
-    onSuccess: (updated: InitiativeDetail) => {
-      queryClient.setQueryData(["initiative", initiativeId], updated);
-      setEditing(false);
-      setError(null);
-    },
-    onError: (caught) =>
-      setError(
-        caught instanceof ApiError ? caught.message : "تعذّر الحفظ. حاول مجددًا.",
-      ),
-  });
+  if (initiative.isPending) return <DetailSkeleton />;
 
-  if (initiative.isPending) {
-    return <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>;
-  }
+  if (initiative.isError) {
+    const notFound = initiative.error instanceof ApiError && initiative.error.status === 404;
 
-  if (initiative.isError || !initiative.data) {
-    return <Alert>تعذّر تحميل المبادرة.</Alert>;
+    return (
+      <div className="space-y-6">
+        <PageHeader breadcrumbs={[BREADCRUMB_ROOT]} title="صفحة المبادرة" />
+        <div className="rounded-xl border border-border bg-card">
+          <ErrorState
+            title={notFound ? "لا توجد مبادرة بهذا الرابط." : "تعذّر تحميل المبادرة."}
+            error={notFound ? undefined : initiative.error}
+            onRetry={notFound ? undefined : () => void initiative.refetch()}
+          />
+        </div>
+      </div>
+    );
   }
 
   const data = initiative.data;
   const isGreenPoint = data.kind === "GREEN_POINT";
-  const canManage = can(CAPABILITIES.initiativesManage);
   const counted = data.progress.filter((row) => row.actual > 0);
+  const place = data.areas[0]?.areaNameAr ?? data.sites[0]?.areaNameAr ?? data.sites[0]?.nameAr;
+  const contributor = data.contributorNameAr
+    ? `${data.contributorNameAr}${data.contributorKind ? ` (${CONTRIBUTOR_KIND_LABELS[data.contributorKind]})` : ""}`
+    : null;
+
+  const editStory = {
+    key: "story",
+    label: "تعديل القصة",
+    icon: Pencil,
+    requires: [CAPABILITIES.initiativesManage],
+    onSelect: () => setStoryOpen(true),
+  };
+  const manage = {
+    key: "manage",
+    label: "إدارة المبادرة",
+    icon: Settings2,
+    href: `/dashboard/initiatives/${data.id}/manage`,
+    requires: [CAPABILITIES.initiativesManage],
+  };
+  const onMap = {
+    key: "map",
+    label: "عرض على الخريطة",
+    icon: MapPin,
+    href: "/dashboard/map",
+  };
 
   return (
-    <article className="mx-auto max-w-3xl space-y-6">
-      {error ? <Alert>{error}</Alert> : null}
-
-      <header className="space-y-3">
-        <div className="flex flex-wrap items-center gap-2 text-xs">
-          <span
-            className={cn(
-              "rounded-full px-2.5 py-1 font-medium",
-              isGreenPoint
-                ? "bg-cyan-500/15 text-cyan-700 dark:text-cyan-300"
-                : "bg-primary/10 text-primary",
-            )}
-          >
-            {POINT_KIND_LABELS[data.kind]}
-          </span>
-          <span className="rounded-full bg-secondary px-2.5 py-1 text-secondary-foreground">
-            {INITIATIVE_STATUS_LABELS[data.status]}
-          </span>
-          <span className="text-muted-foreground">{data.programNameAr}</span>
-        </div>
-
-        <h1 className="text-3xl font-bold leading-tight">{data.nameAr}</h1>
-
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-          {data.contributorNameAr ? (
-            <span className="inline-flex items-center gap-1.5">
-              <User className="size-4" />
-              {data.contributorNameAr}
-              {data.contributorKind
-                ? ` · ${CONTRIBUTOR_KIND_LABELS[data.contributorKind]}`
-                : ""}
-            </span>
-          ) : null}
-
-          {data.areas.length > 0 || data.sites.length > 0 ? (
-            <span className="inline-flex items-center gap-1.5">
-              <MapPin className="size-4" />
-              {data.areas[0]?.areaNameAr ??
-                data.sites[0]?.areaNameAr ??
-                data.sites[0]?.nameAr}
-            </span>
-          ) : null}
-
-          {data.startsAt ? <span>{formatDateTime(data.startsAt)}</span> : null}
-        </div>
-      </header>
-
-      {data.coverImageUrl ? (
-        // صورة خارجية بلا معالجة: رفع الملفات لم يُبنَ بعد، فلا مجال
-        // لتحسينها. تُستبدل بمكوّن الصورة عند وصل التخزين.
-        // eslint-disable-next-line @next/next/no-img-element
-        <img
-          src={data.coverImageUrl}
-          alt={data.nameAr}
-          className="w-full rounded-xl border border-border object-cover"
-        />
-      ) : null}
-
-      {counted.length > 0 ? (
-        <div className="grid gap-3 sm:grid-cols-3">
-          {counted.map((row) => (
-            <Card key={row.metricId}>
-              <CardContent className="p-4">
-                <p className="text-2xl font-bold">
-                  {row.actual.toLocaleString("ar-SY")}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {row.metricNameAr} ({row.unitAr})
-                  {row.initiativeTarget !== null
-                    ? ` · الهدف ${row.initiativeTarget.toLocaleString("ar-SY")}`
-                    : ""}
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : null}
-
-      {data.summaryAr ? (
-        <p className="text-lg leading-relaxed text-muted-foreground">
-          {data.summaryAr}
-        </p>
-      ) : null}
-
-      {editing ? (
-        <Card>
-          <CardContent className="p-4">
-            <form
-              className="space-y-3"
-              onSubmit={(event) => {
-                event.preventDefault();
-                const form = new FormData(event.currentTarget);
-                save.mutate({
-                  storyAr: String(form.get("storyAr") ?? ""),
-                  coverImageUrl: String(form.get("coverImageUrl") ?? ""),
-                });
-              }}
-            >
-              <Field
-                id="coverImageUrl"
-                label="رابط صورة الغلاف"
-                hint="مؤقت حتى يُبنى رفع الملفات."
-              >
-                {(props) => (
-                  <Input
-                    {...props}
-                    name="coverImageUrl"
-                    type="url"
-                    dir="ltr"
-                    className="text-start"
-                    defaultValue={data.coverImageUrl ?? ""}
-                  />
-                )}
-              </Field>
-
-              <Field id="storyAr" label="التفاصيل">
-                {(props) => (
-                  <textarea
-                    {...props}
-                    name="storyAr"
-                    rows={10}
-                    defaultValue={data.storyAr ?? ""}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed"
-                  />
-                )}
-              </Field>
-
-              <div className="flex gap-2">
-                <Button type="submit" loading={save.isPending}>
-                  حفظ
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  onClick={() => setEditing(false)}
-                >
-                  إلغاء
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      ) : data.storyAr ? (
-        // الفقرات مفصولة بسطر فارغ — أبسط ما يكفي قبل محرّر نصوص.
-        <div className="space-y-4 text-base leading-loose">
-          {data.storyAr.split(/\n{2,}/).map((paragraph, index) => (
-            <p key={index}>{paragraph}</p>
-          ))}
-        </div>
-      ) : (
-        <p className="text-sm text-muted-foreground">
-          لا تفاصيل مكتوبة بعد.
-        </p>
-      )}
-
-      {!isGreenPoint && data.sites.length > 0 ? (
-        <section className="space-y-2">
-          <h2 className="text-lg font-bold">مواقع التنفيذ</h2>
-          <ul className="grid gap-2 sm:grid-cols-2">
-            {data.sites.map((site) => (
-              <li
-                key={site.id}
-                className="rounded-md border border-border p-3 text-sm"
-              >
-                <p className="font-medium">{site.nameAr}</p>
-                <p className="text-xs text-muted-foreground">
-                  {site.areaNameAr ?? "—"}
-                  {site.targets.length > 0
-                    ? ` · ${site.targets
-                        .map((target) => `${target.value} ${target.unitAr}`)
-                        .join("، ")}`
-                    : ""}
-                </p>
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
-
-      <footer className="flex flex-wrap gap-2 border-t border-border pt-4">
-        <Link
-          href="/dashboard/map"
-          className={buttonVariants({ variant: "outline", className: "gap-2" })}
-        >
-          <MapPin className="size-4" />
-          على الخريطة
-        </Link>
-
-        {canManage ? (
+    <div className="space-y-6">
+      <PageHeader
+        breadcrumbs={[BREADCRUMB_ROOT, { label: data.nameAr }]}
+        title={data.nameAr}
+        description={[data.programNameAr, contributor, place, data.startsAt && formatDate(data.startsAt)]
+          .filter(Boolean)
+          .join(" · ")}
+        badges={
           <>
-            <Button
-              variant="outline"
-              className="gap-2"
-              onClick={() => setEditing((current) => !current)}
-            >
-              <Pencil className="size-4" />
-              تحرير التفاصيل
-            </Button>
-
-            {!isGreenPoint ? (
-              <Link
-                href={`/dashboard/initiatives/${initiativeId}/manage`}
-                className={buttonVariants({
-                  variant: "outline",
-                  className: "gap-2",
-                })}
-              >
-                <Settings2 className="size-4" />
-                إدارة المبادرة
-              </Link>
-            ) : null}
+            <StatusBadge kind="pointKind" value={data.kind} />
+            <StatusBadge kind="initiativeStatus" value={data.status} />
           </>
+        }
+        primaryAction={isGreenPoint ? editStory : manage}
+        secondaryActions={isGreenPoint ? [onMap] : [editStory, onMap]}
+      />
+
+      {/* عمود قراءة بعرض مريح للنص، في جهة البداية تحت العنوان. */}
+      <article className="max-w-3xl space-y-6">
+        {data.coverImageUrl ? (
+          // صورة مرفوعة إلى التخزين بأبعاد حرة؛ مكوّن الصورة يطلب أبعادًا لا نعرفها.
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={data.coverImageUrl}
+            alt={data.nameAr}
+            className="w-full rounded-xl border border-border object-cover"
+          />
         ) : null}
 
-        <Link
-          href="/dashboard/initiatives"
-          className={buttonVariants({ variant: "ghost", className: "gap-2" })}
-        >
-          <Sprout className="size-4" />
-          كل المبادرات
-        </Link>
-      </footer>
-    </article>
+        {counted.length > 0 ? (
+          <dl className="grid gap-3 sm:grid-cols-3">
+            {counted.map((row) => (
+              <div key={row.metricId} className="rounded-xl border border-border bg-card p-4">
+                <dt className="text-xs text-muted-foreground">
+                  {row.metricNameAr} ({row.unitAr})
+                </dt>
+                <dd className="mt-1">
+                  <span className="numeric text-2xl font-bold">
+                    {formatValue(row.actual, row.decimals)}
+                  </span>
+                  {row.initiativeTarget !== null ? (
+                    <span className="ms-2 text-xs text-muted-foreground">
+                      من <span className="numeric">{formatValue(row.initiativeTarget, row.decimals)}</span>
+                    </span>
+                  ) : null}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
+
+        {data.summaryAr ? (
+          <p className="text-lg leading-relaxed text-muted-foreground">{data.summaryAr}</p>
+        ) : null}
+
+        {data.storyAr ? (
+          // الفقرات مفصولة بسطر فارغ — أبسط ما يكفي قبل محرّر نصوص.
+          <div className="space-y-4 text-base leading-loose">
+            {data.storyAr.split(/\n{2,}/).map((paragraph, index) => (
+              <p key={index} className="whitespace-pre-line">
+                {paragraph}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-dashed border-border">
+            <EmptyState
+              title="لا تفاصيل مكتوبة بعد"
+              description="القصة وصورة الغلاف أول ما يراه القادم من الخريطة."
+              action={editStory}
+            />
+          </div>
+        )}
+
+        {!isGreenPoint && data.sites.length > 0 ? (
+          <Section title="مواقع التنفيذ">
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {data.sites
+                .filter((site) => site.status !== "CANCELLED")
+                .map((site) => (
+                  <li key={site.id} className="rounded-xl border border-border bg-card p-3 text-sm">
+                    <p className="flex flex-wrap items-center gap-2 font-medium">
+                      {site.nameAr}
+                      <StatusBadge kind="siteStatus" value={site.status} />
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      {site.areaNameAr ?? "بلا منطقة محددة"}
+                      {site.targets.length > 0
+                        ? ` · ${site.targets
+                            .map((target) => `${formatValue(target.value, target.decimals)} ${target.unitAr}`)
+                            .join("، ")}`
+                        : ""}
+                    </p>
+                  </li>
+                ))}
+            </ul>
+          </Section>
+        ) : null}
+      </article>
+
+      <StoryDialog initiative={data} open={storyOpen} onOpenChange={setStoryOpen} />
+    </div>
   );
 }

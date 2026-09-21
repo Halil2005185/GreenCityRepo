@@ -360,6 +360,9 @@ export function DataTable<T extends RowData>({
     [rowActions, rowsData, actionsFor],
   );
 
+  // دعوة الفراغ فعل كغيره: تُخفى عمّن لا يملك صلاحيته.
+  const [emptyAction] = visible([empty.action]);
+
   const rows = table.getRowModel().rows;
   const headerGroups = table.getHeaderGroups();
   const columnCount = columns.length + (hasActions ? 1 : 0);
@@ -391,7 +394,7 @@ export function DataTable<T extends RowData>({
     body = filtered ? (
       <NoResultsState onClear={onClearFilters} />
     ) : (
-      <EmptyState title={empty.title} description={empty.description} action={empty.action} />
+      <EmptyState title={empty.title} description={empty.description} action={emptyAction} />
     );
   } else {
     body = (
@@ -450,7 +453,11 @@ export function DataTable<T extends RowData>({
           <tbody className="divide-y divide-border">
             {rows.map((row) => {
               const actions = hasActions ? actionsFor(row.original) : [];
-              const quick = actions.find((action) => action.quick);
+              // فعل واحد ظاهر (غالبًا لمن صلاحيته اطلاع فقط) يُعرض زرًا مباشرًا:
+              // قائمة ⋯ لبند واحد نقرة زائدة بلا فائدة.
+              const quick =
+                actions.find((action) => action.quick) ??
+                (actions.length === 1 && !actions[0].destructive ? actions[0] : undefined);
               const rest = quick ? actions.filter((action) => action !== quick) : actions;
 
               return (

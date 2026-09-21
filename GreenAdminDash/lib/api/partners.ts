@@ -13,24 +13,6 @@ export type PartnershipType = Partnership["type"];
 export type OrganizationKind = PartnerSummary["organizationKind"];
 export type SupportForm = PartnerDetail["supportForms"][number];
 
-/**
- * التسميات العربية للقيم المجمّدة تعيش في الواجهة لا في القاعدة.
- *
- * إضافة قيمة إلى enum في الخادم تعني تعديل هذه القوائم أيضًا — وهو
- * مقصود: القيمة عقد برمجي، ونصها العربي قرار تحريري.
- */
-export const STAGE_LABELS: Record<PartnerStage, string> = {
-  NEW: "جديدة",
-  CONTACTED: "تم التواصل",
-  QUALIFIED: "مؤهلة",
-  NEGOTIATION: "تفاوض",
-  PENDING_APPROVAL: "بانتظار الاعتماد",
-  ACTIVE: "نشطة",
-  ON_HOLD: "معلّقة التفاوض",
-  REJECTED: "مرفوضة",
-  ENDED: "منتهية",
-};
-
 /** المراحل التي ينقلها مكتب العلاقات؛ الباقي قرارات لها مساراتها. */
 export const PIPELINE_STAGES = [
   "NEW",
@@ -41,6 +23,13 @@ export const PIPELINE_STAGES = [
   "ON_HOLD",
 ] as const satisfies readonly PartnerStage[];
 
+/**
+ * التسميات العربية للقيم المجمّدة تعيش في الواجهة لا في القاعدة، والحالات
+ * منها (المرحلة، حالة الشراكة) في `lib/status.ts` مع ألوانها.
+ *
+ * إضافة قيمة إلى enum في الخادم تعني تعديل هذه القوائم أيضًا — وهو
+ * مقصود: القيمة عقد برمجي، ونصها العربي قرار تحريري.
+ */
 export const ORGANIZATION_KIND_LABELS: Record<OrganizationKind, string> = {
   COMPANY: "شركة",
   NGO: "جمعية أو منظمة أهلية",
@@ -59,13 +48,6 @@ export const PARTNERSHIP_TYPE_LABELS: Record<PartnershipType, string> = {
   TECHNICAL: "شريك تقني",
   MEDIA: "شريك إعلامي",
   EVENT: "شريك فعالية ونشاط",
-};
-
-export const PARTNERSHIP_STATUS_LABELS: Record<Partnership["status"], string> = {
-  PROPOSED: "مقترحة",
-  APPROVED: "معتمدة",
-  PAUSED: "معلّقة",
-  ENDED: "منتهية",
 };
 
 /** أشكال المشاركة والدعم السبعة كما وردت في الميثاق. */
@@ -253,10 +235,11 @@ export function createCharterVersion(body: {
   });
 }
 
-export function publishCharterVersion(id: string) {
+/** بلا تاريخ يسري الإصدار فور النشر؛ التاريخ يؤجّل سريانه أو يسنده. */
+export function publishCharterVersion(id: string, effectiveFrom?: string) {
   return apiFetch<CharterVersion>(`/admin/charter/versions/${id}/publish`, {
     method: "POST",
-    body: {},
+    body: effectiveFrom ? { effectiveFrom } : {},
   });
 }
 
@@ -264,6 +247,16 @@ export function publishCharterVersion(id: string) {
 
 export function getMyOrganization() {
   return apiFetch<PartnerSelf>("/partner/me");
+}
+
+/** تحرير ممثل الجهة لملفها العلني — المسار قائم في الـAPI ولم تكن له واجهة. */
+export function updateMyOrganization(body: {
+  displayNameAr?: string;
+  nameEn?: string;
+  websiteUrl?: string;
+  summaryAr?: string;
+}) {
+  return apiFetch<PartnerSelf>("/partner/me", { method: "PATCH", body });
 }
 
 export function updateMyDisplayConsent(body: {

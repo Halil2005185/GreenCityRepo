@@ -32,6 +32,21 @@ const nextConfig: NextConfig = {
     return [{ source: "/api/:path*", destination: `${apiOrigin}/api/:path*` }];
   },
 
+  /**
+   * كانت الإضافة صفحات `new` كاملة؛ صارت نافذة في صفحة القائمة يفتحها
+   * `?new=1`. الروابط القديمة المحفوظة تصل النافذة نفسها بلا صفحات وسيطة.
+   * مؤقتة (307) كما كان `redirect()` في تلك الصفحات، فلا يحفظها المتصفح.
+   */
+  async redirects() {
+    return [
+      {
+        source: "/dashboard/:section(partners|media|initiatives)/new",
+        destination: "/dashboard/:section?new=1",
+        permanent: false,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {

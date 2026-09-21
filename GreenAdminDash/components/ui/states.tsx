@@ -2,7 +2,7 @@
 
 import { type LucideIcon, RotateCw, SearchX } from "lucide-react";
 
-import { ActionButton, type ActionDef } from "@/components/ui/actions";
+import { ActionButton, type ActionDef, useVisibleActions } from "@/components/ui/actions";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "@/lib/api/errors";
@@ -25,6 +25,10 @@ export function EmptyState({
   action?: ActionDef | React.ReactNode;
   className?: string;
 }) {
+  const visible = useVisibleActions();
+  // دعوة لفعل لا يملكه المستخدم تُخفى هنا أيضًا، لا في الجدول وحده.
+  const shown = isActionDef(action) ? visible([action])[0] : action;
+
   return (
     <div
       className={cn(
@@ -41,9 +45,9 @@ export function EmptyState({
       {description ? (
         <p className="max-w-md text-sm text-muted-foreground">{description}</p>
       ) : null}
-      {action ? (
+      {shown ? (
         <div className="mt-2">
-          {isActionDef(action) ? <ActionButton action={action} size="sm" /> : action}
+          {isActionDef(shown) ? <ActionButton action={shown} size="sm" /> : shown}
         </div>
       ) : null}
     </div>

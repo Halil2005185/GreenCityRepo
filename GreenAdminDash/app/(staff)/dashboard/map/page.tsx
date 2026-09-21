@@ -1,397 +1,277 @@
 "use client";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MapPin, Sprout } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
+import { MapPinPlus, Sprout, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 
+import { InitiativeCreateDialog } from "@/components/initiatives/initiative-dialogs";
+import { GreenPointDialog } from "@/components/map/green-point-dialog";
 import { MapClient } from "@/components/map/map-client";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Alert, Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Field, Input, Label } from "@/components/ui/field";
-import { ImageField } from "@/components/ui/image-field";
-import { ApiError } from "@/lib/api/client";
-import { listMetrics } from "@/lib/api/initiatives";
-import {
-  CONTRIBUTOR_KIND_LABELS,
-  POINT_KIND_LABELS,
-  type MapArea,
-  type MapPoint,
-  createGreenPoint,
-  deleteGreenPoint,
-  listMapAreas,
-  listMapPoints,
-} from "@/lib/api/map";
-import { useAuth } from "@/lib/auth/auth-context";
+import { KIND_COLORS, MAPBOX_TOKEN } from "@/components/map/map-config";
+import { PointSheet } from "@/components/map/point-sheet";
+import { IconButton } from "@/components/ui/actions";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select, type SelectOption } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ErrorState } from "@/components/ui/states";
+import { FilterChips, type ChipOption } from "@/components/ui/toolbar";
+import { type MapArea, listMapAreas, listMapPoints } from "@/lib/api/map";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
-import { cn } from "@/lib/utils";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import type { Coordinates } from "@/lib/map/geometry";
 
-const greenPointFormSchema = z.object({
-  nameAr: z
-    .string()
-    .trim()
-    .min(3, "عنوان النقطة يجب ألا يقل عن 3 أحرف.")
-    .max(200, "عنوان النقطة طويل جدًا."),
-  contributorNameAr: z
-    .string()
-    .trim()
-    .min(2, "اسم المنفّذ يجب ألا يقل عن حرفين.")
-    .max(200, "اسم المنفّذ طويل جدًا."),
-  contributorKind: z.string().min(1, "اختر صفة المنفّذ."),
-  trees: z
-    .unknown()
-    .transform((val) =>
-      val === "" || val === undefined || val === null ? 0 : Number(val),
-    )
-    .refine((num) => Number.isFinite(num) && num >= 0 && Number.isInteger(num), {
-      message: "العدد يجب أن يكون رقمًا صحيحًا غير سالب.",
-    }),
-  storyAr: z.string().trim().max(20000, "القصة طويلة جدًا.").optional(),
-});
+const MANAGE = [CAPABILITIES.initiativesManage];
+
+/** توثيق نقطة خطوتان: تحديد موقعها على الخريطة، ثم نافذة بياناتها. */
+type Documenting = { step: "picking" } | { step: "form"; location: Coordinates | null };
+
+/** بطاقة عائمة فوق الخريطة: تلتقط النقر وحدها، وما حولها يبقى للخريطة. */
+const FLOATING =
+  "pointer-events-auto rounded-lg border border-border bg-card/95 shadow-md backdrop-blur-sm";
+
+function AreaPanel({ area, onClose }: { area: MapArea; onClose: () => void }) {
+  return (
+    <section aria-labelledby="selected-area" className={`${FLOATING} p-3`}>
+      <div className="flex items-start justify-between gap-2">
+        <h2 id="selected-area" className="pt-0.5 font-semibold">
+          {area.nameAr}
+        </h2>
+        <IconButton
+          label="إلغاء تحديد المحافظة"
+          icon={X}
+          variant="ghost"
+          size="icon-sm"
+          onClick={onClose}
+        />
+      </div>
+
+      <dl className="mt-2 grid grid-cols-2 gap-3 text-sm">
+        {(
+          [
+            ["حملات التشجير", area.campaignCount, KIND_COLORS.CAMPAIGN],
+            ["النقاط الخضراء", area.greenPointCount, KIND_COLORS.GREEN_POINT],
+          ] as const
+        ).map(([label, count, color]) => (
+          <div key={label} className="space-y-0.5">
+            <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span aria-hidden className="size-2 rounded-full" style={{ backgroundColor: color }} />
+              {label}
+            </dt>
+            <dd className="numeric font-semibold">{count}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
+  );
+}
 
 export default function MapPage() {
-  const { can } = useAuth();
-  const queryClient = useQueryClient();
-
-  const [selected, setSelected] = useState<MapArea | null>(null);
-  const [picking, setPicking] = useState(false);
-  const [pin, setPin] = useState<{ lat: number; lng: number } | null>(null);
-  const [image, setImage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [kindFilter, setKindFilter] = useState("");
-  const [pointErrors, setPointErrors] = useState<Record<string, string>>({});
+  const [filters, setFilters] = useUrlState({ kind: "", area: "", point: "" });
+  const [documenting, setDocumenting] = useState<Documenting | null>(null);
+  const [creatingCampaign, setCreatingCampaign] = useState(false);
 
   const areas = useQuery({ queryKey: ["map-areas"], queryFn: listMapAreas });
-  const points = useQuery({
-    queryKey: ["map-points", kindFilter],
-    queryFn: () => listMapPoints(kindFilter ? { kind: kindFilter } : {}),
-  });
-  const metrics = useQuery({ queryKey: ["metrics"], queryFn: listMetrics });
+  // النقاط كلها في طلب واحد والتصفية بالنوع هنا: التبديل بين الرقائق فوري،
+  // ولوحة نقطة مفتوحة برابط لا تسقط لأن المرشح لا يشملها.
+  const points = useQuery({ queryKey: ["map-points"], queryFn: () => listMapPoints() });
 
-  /** أول مؤشر يقيس بالشجرة هو الافتراضي — يُقرأ من الكتالوج لا من الكود. */
-  const treeMetric = metrics.data?.find((metric) => metric.unitAr === "شجرة");
+  const areaList = areas.data?.data;
+  const selectedArea = areaList?.find((area) => area.slug === filters.area) ?? null;
+  const selectedPoint = points.data?.find((point) => point.siteId === filters.point) ?? null;
 
-  const create = useMutation({
-    mutationFn: createGreenPoint,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["map-points"] });
-      void queryClient.invalidateQueries({ queryKey: ["map-areas"] });
-      setPin(null);
-      setImage(null);
-      setPicking(false);
-      setError(null);
-      setPointErrors({});
-    },
-    onError: (caught) =>
-      setError(
-        caught instanceof ApiError
-          ? caught.message
-          : "تعذّر توثيق النقطة. حاول مجددًا.",
-      ),
-  });
+  const visiblePoints = useMemo(
+    () => (points.data ?? []).filter((point) => !filters.kind || point.kind === filters.kind),
+    [points.data, filters.kind],
+  );
+
+  const kindChips = useMemo<ChipOption[]>(() => {
+    const count = (kind: string) => points.data?.filter((point) => point.kind === kind).length;
+
+    return [
+      { value: "", label: "الكل", count: points.data?.length },
+      {
+        value: "CAMPAIGN",
+        label: "حملات التشجير",
+        count: count("CAMPAIGN"),
+        swatch: KIND_COLORS.CAMPAIGN,
+      },
+      {
+        value: "GREEN_POINT",
+        label: "النقاط الخضراء",
+        count: count("GREEN_POINT"),
+        swatch: KIND_COLORS.GREEN_POINT,
+      },
+    ];
+  }, [points.data]);
+
+  const areaOptions = useMemo<SelectOption[]>(
+    () => (areaList ?? []).map((area) => ({ value: area.slug, label: area.nameAr })),
+    [areaList],
+  );
 
   /**
-   * الحذف محوٌ لا تراجع عنه، والتأكيد يحمل اسم النقطة لا سؤالًا عامًّا:
-   * «هل أنت متأكد؟» تُنقر بلا قراءة، والاسم يوقف اليد على النقطة الخطأ.
+   * الوصول برابط إلى نقطة (من جدول مواقع المبادرة): تطير الخريطة إليها
+   * مرة واحدة حين تصل النقاط. النقر على نقطة ظاهرة لا يحرّك الخريطة.
    */
-  const remove = useMutation({
-    mutationFn: (point: MapPoint) => deleteGreenPoint(point.siteId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ["map-points"] });
-      void queryClient.invalidateQueries({ queryKey: ["map-areas"] });
-      setError(null);
-    },
-    onError: (caught) =>
-      setError(
-        caught instanceof ApiError ? caught.message : "تعذّر حذف النقطة.",
-      ),
-  });
+  const [linkedPointId] = useState(filters.point);
+  const linkedPoint = linkedPointId
+    ? points.data?.find((point) => point.siteId === linkedPointId)
+    : undefined;
+  const focus = linkedPoint ? { lat: linkedPoint.lat, lng: linkedPoint.lng } : null;
 
-  const canManage = can(CAPABILITIES.initiativesManage);
+  const picking = documenting?.step === "picking";
+
+  useEffect(() => {
+    if (!picking) return;
+
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setDocumenting(null);
+    };
+
+    window.addEventListener("keydown", cancel);
+    return () => window.removeEventListener("keydown", cancel);
+  }, [picking]);
 
   return (
-    <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">خريطة سورية</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            الحملات والنقاط الخضراء على خريطة واحدة. مرّر على محافظة لتمييزها،
-            وانقرها للتقريب وفتح خياراتها.
-          </p>
-        </div>
+    <div className="flex flex-1 flex-col gap-4">
+      <PageHeader
+        title="خريطة سورية"
+        description="الحملات والنقاط الخضراء على خريطة واحدة. مرّر على محافظة لتمييزها، وانقرها للتقريب."
+        primaryAction={{
+          key: "document",
+          label: "توثيق نقطة خضراء",
+          icon: MapPinPlus,
+          requires: MANAGE,
+          disabled: picking || !areas.isSuccess,
+          disabledReason: picking
+            ? "انقر موقع النقطة على الخريطة، أو اضغط Esc للإلغاء."
+            : "تُحمَّل حدود المحافظات…",
+          // بلا رمز Mapbox لا خريطة يُنقر فيها، فتُفتح النافذة لكتابة الإحداثيات.
+          onSelect: () =>
+            setDocumenting(MAPBOX_TOKEN ? { step: "picking" } : { step: "form", location: null }),
+        }}
+        secondaryActions={[
+          {
+            key: "campaign",
+            label: "حملة تشجير جديدة",
+            icon: Sprout,
+            requires: MANAGE,
+            onSelect: () => setCreatingCampaign(true),
+          },
+        ]}
+      />
 
-        <div className="flex flex-wrap gap-1.5">
-          {[
-            { value: "", label: "الكل" },
-            { value: "CAMPAIGN", label: POINT_KIND_LABELS.CAMPAIGN },
-            { value: "GREEN_POINT", label: POINT_KIND_LABELS.GREEN_POINT },
-          ].map((filter) => (
-            <button
-              key={filter.value}
-              type="button"
-              onClick={() => setKindFilter(filter.value)}
-              className={cn(
-                "rounded-full border px-3 py-1 text-xs transition-colors",
-                kindFilter === filter.value
-                  ? "border-primary bg-primary/10 text-primary"
-                  : "border-border text-muted-foreground hover:bg-accent",
-              )}
-            >
-              {filter.label}
-            </button>
-          ))}
-        </div>
-      </header>
-
-      {error ? <Alert>{error}</Alert> : null}
-
-      {picking ? (
-        <Alert variant="info">
-          انقر على الخريطة لتحديد موقع النقطة الخضراء.
-          <Button
-            variant="ghost"
-            size="sm"
-            className="ms-2"
-            onClick={() => {
-              setPicking(false);
-              setPin(null);
-            }}
-          >
-            إلغاء
-          </Button>
-        </Alert>
-      ) : null}
-
-      <div className="grid gap-4 lg:grid-cols-4">
-        <div className="lg:col-span-3">
-          {areas.isPending ? (
-            <div className="h-[70vh] w-full animate-pulse rounded-xl bg-muted" />
-          ) : areas.isError ? (
-            <Alert>تعذّر تحميل الخريطة.</Alert>
-          ) : (
+      {/*
+        الخريطة تملأ مساحة المحتوى الباقية، واللوحات تطفو فوقها في جهة
+        البداية وأدوات التقريب في جهة النهاية — لا عمود جانبي يبقى فارغًا
+        حتى يُنقر شيء.
+      */}
+      <div className="relative flex min-h-[28rem] flex-1 flex-col overflow-hidden rounded-xl border border-border bg-muted">
+        {areas.isPending ? (
+          <Skeleton className="absolute inset-0 rounded-none" />
+        ) : areas.isError ? (
+          <div className="flex flex-1 items-center justify-center p-6">
+            <ErrorState
+              title="تعذّر تحميل الخريطة."
+              error={areas.error}
+              onRetry={() => void areas.refetch()}
+            />
+          </div>
+        ) : (
+          <div className="absolute inset-0">
             <MapClient
               areas={areas.data.data}
-              points={points.data ?? []}
               attribution={areas.data.attribution}
-              selectedAreaId={selected?.id ?? null}
-              onAreaSelect={setSelected}
+              points={visiblePoints}
+              selectedAreaId={selectedArea?.id ?? null}
+              onAreaSelect={(area) => setFilters({ area: area.slug })}
+              selectedPointId={selectedPoint?.siteId ?? null}
+              onPointSelect={(point) => setFilters({ point: point.siteId })}
               picking={picking}
-              onPick={(lat, lng) => setPin({ lat, lng })}
-              pendingPin={pin}
-              onPointDelete={
-                canManage
-                  ? (point) => {
-                      if (
-                        window.confirm(
-                          `حذف «${point.initiativeNameAr}» نهائيًا؟ يُمحى معها ما وُثّق من أثرها.`,
-                        )
-                      ) {
-                        remove.mutate(point);
-                      }
-                    }
-                  : undefined
-              }
-              deletingSiteId={remove.isPending ? remove.variables.siteId : null}
+              onPick={(location) => setDocumenting({ step: "form", location })}
+              focus={focus}
             />
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="space-y-4">
-          {selected ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">{selected.nameAr}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <dl className="grid grid-cols-2 gap-2 text-sm">
-                  <div>
-                    <dt className="text-xs text-muted-foreground">حملات</dt>
-                    <dd className="font-medium">{selected.campaignCount}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-muted-foreground">نقاط خضراء</dt>
-                    <dd className="font-medium">{selected.greenPointCount}</dd>
-                  </div>
-                </dl>
-
-                {canManage ? (
-                  <div className="space-y-2 border-t border-border pt-3">
-                    <Button
-                      className="w-full gap-2"
-                      variant={picking ? "outline" : "default"}
-                      onClick={() => {
-                        setPicking(true);
-                        setPin(null);
-                      }}
-                    >
-                      <MapPin className="size-4" />
-                      توثيق نقطة خضراء
-                    </Button>
-
-                    <Link
-                      href="/dashboard/initiatives/new"
-                      className={buttonVariants({
-                        variant: "outline",
-                        className: "w-full gap-2",
-                      })}
-                    >
-                      <Sprout className="size-4" />
-                      حملة تشجير جديدة
-                    </Link>
-                  </div>
-                ) : null}
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="p-6 text-sm text-muted-foreground">
-                انقر محافظة على الخريطة لعرض عدّاداتها وخياراتها.
-              </CardContent>
-            </Card>
-          )}
-
-          {pin ? (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">نقطة خضراء جديدة</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <form
-                  className="space-y-3"
-                  noValidate
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    if (!pin) return;
-                    setError(null);
-                    setPointErrors({});
-
-                    const form = new FormData(event.currentTarget);
-                    const raw = {
-                      nameAr: String(form.get("nameAr") ?? ""),
-                      contributorNameAr: String(form.get("contributor") ?? ""),
-                      contributorKind: String(
-                        form.get("contributorKind") ?? "INDIVIDUAL",
-                      ),
-                      trees: form.get("trees"),
-                      storyAr:
-                        String(form.get("story") ?? "").trim() || undefined,
-                    };
-
-                    const parsed = greenPointFormSchema.safeParse(raw);
-                    if (!parsed.success) {
-                      const issues: Record<string, string> = {};
-                      for (const issue of parsed.error.issues) {
-                        const key = String(issue.path[0] ?? "");
-                        if (key && !issues[key]) issues[key] = issue.message;
-                      }
-                      setPointErrors(issues);
-                      return;
-                    }
-
-                    const { data } = parsed;
-
-                    create.mutate({
-                      nameAr: data.nameAr,
-                      contributorNameAr: data.contributorNameAr,
-                      contributorKind:
-                        data.contributorKind as keyof typeof CONTRIBUTOR_KIND_LABELS,
-                      lat: pin.lat,
-                      lng: pin.lng,
-                      ...(selected ? { areaId: selected.id } : {}),
-                      ...(data.storyAr ? { storyAr: data.storyAr } : {}),
-                      ...(image ? { coverImageUrl: image } : {}),
-                      ...(treeMetric && data.trees > 0
-                        ? { metricId: treeMetric.id, metricValue: data.trees }
-                        : {}),
-                    });
-                  }}
-                >
-                  <p className="text-xs text-muted-foreground" dir="ltr">
-                    {pin.lat.toFixed(5)}, {pin.lng.toFixed(5)}
-                  </p>
-
-                  <Field
-                    id="nameAr"
-                    label="عنوان النقطة"
-                    error={pointErrors.nameAr}
-                  >
-                    {(props) => <Input {...props} name="nameAr" required />}
-                  </Field>
-
-                  <Field
-                    id="contributor"
-                    label="من نفّذها"
-                    error={pointErrors.contributorNameAr}
-                  >
-                    {(props) => (
-                      <Input {...props} name="contributor" required />
-                    )}
-                  </Field>
-
-                  <div className="space-y-1">
-                    <Label htmlFor="contributorKind">صفة المنفّذ</Label>
-                    <select
-                      id="contributorKind"
-                      name="contributorKind"
-                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
-                    >
-                      {Object.entries(CONTRIBUTOR_KIND_LABELS).map(
-                        ([value, label]) => (
-                          <option key={value} value={value}>
-                            {label}
-                          </option>
-                        ),
-                      )}
-                    </select>
-                  </div>
-
-                  <Field
-                    id="trees"
-                    label={`عدد ${treeMetric?.nameAr ?? "الأشجار"}`}
-                    hint="يدخل المجموع الوطني فور التوثيق."
-                    error={pointErrors.trees}
-                  >
-                    {(props) => (
-                      <Input {...props} name="trees" type="number" min="0" />
-                    )}
-                  </Field>
-
-                  <ImageField
-                    label="صورة النقطة"
-                    value={image}
-                    purpose="GREEN_POINT_COVER"
-                    onChange={setImage}
-                  />
-
-                  <Field
-                    id="story"
-                    label="تفاصيل"
-                    error={pointErrors.storyAr}
-                  >
-                    {(props) => (
-                      <textarea
-                        {...props}
-                        name="story"
-                        rows={3}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      />
-                    )}
-                  </Field>
-
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    loading={create.isPending}
-                  >
-                    توثيق النقطة
+        {/* بلا رمز Mapbox تحلّ رسالة محل الخريطة، ولا معنى لمرشحات فوقها. */}
+        {areas.isSuccess && MAPBOX_TOKEN ? (
+          <div className="pointer-events-none absolute start-3 top-3 z-10 flex max-w-[calc(100%-4.5rem)] flex-col items-start gap-2 sm:w-96">
+            {picking ? (
+              <div role="status" className={`${FLOATING} w-full space-y-2 border-primary/40 p-3`}>
+                <p className="text-sm font-medium">انقر موقع النقطة الخضراء على الخريطة.</p>
+                <p className="text-xs text-muted-foreground">
+                  تُفتح بعدها نافذة التوثيق، وفيها يُسحب الدبوس لضبط الموقع. مفتاح{" "}
+                  <kbd className="rounded border border-border bg-muted px-1 font-mono text-[11px]">
+                    Esc
+                  </kbd>{" "}
+                  يلغي.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button size="sm" variant="ghost" onClick={() => setDocumenting(null)}>
+                    إلغاء التحديد
                   </Button>
-                </form>
-              </CardContent>
-            </Card>
-          ) : null}
-        </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setDocumenting({ step: "form", location: null })}
+                  >
+                    كتابة الإحداثيات
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className={`${FLOATING} w-full space-y-2 p-2.5`}>
+                  <FilterChips
+                    label="نوع النقاط"
+                    value={filters.kind}
+                    onChange={(kind) => setFilters({ kind })}
+                    options={kindChips}
+                  />
+                  {/* المحافظات من لوحة المفاتيح أيضًا، لا بالنقر على الخريطة وحده. */}
+                  <Select
+                    size="sm"
+                    label="المحافظة"
+                    placeholder="الكل"
+                    clearable
+                    className="w-full"
+                    options={areaOptions}
+                    value={filters.area || null}
+                    onChange={(area) => setFilters({ area })}
+                  />
+                  {points.isError ? (
+                    <p role="alert" className="flex items-center gap-2 text-xs text-destructive">
+                      تعذّر تحميل النقاط.
+                      <Button size="xs" variant="outline" onClick={() => void points.refetch()}>
+                        إعادة المحاولة
+                      </Button>
+                    </p>
+                  ) : null}
+                </div>
+
+                {selectedArea ? (
+                  <AreaPanel area={selectedArea} onClose={() => setFilters({ area: "" })} />
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
       </div>
+
+      <PointSheet point={selectedPoint} onClose={() => setFilters({ point: "" })} />
+
+      <GreenPointDialog
+        open={documenting?.step === "form"}
+        onOpenChange={(open) => {
+          if (!open) setDocumenting(null);
+        }}
+        location={documenting?.step === "form" ? documenting.location : null}
+        areas={areaList ?? []}
+      />
+
+      <InitiativeCreateDialog open={creatingCampaign} onOpenChange={setCreatingCampaign} />
     </div>
   );
 }

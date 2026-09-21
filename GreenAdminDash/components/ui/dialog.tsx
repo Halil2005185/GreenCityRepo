@@ -98,8 +98,11 @@ export function DialogContent({
         data-slot="dialog-content"
         onOpenAutoFocus={focus.onOpenAutoFocus}
         onCloseAutoFocus={focus.onCloseAutoFocus}
+        // `overflow-clip` لا `overflow-hidden`: الثاني يقبل التمرير البرمجي،
+        // فنداء `scrollIntoView` على زر التذييل كان يزيح النافذة كلها ويُخفي
+        // ترويستها. التمرير لجسم النافذة وحده.
         className={cn(
-          "fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg outline-none duration-150",
+          "fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] flex-col overflow-clip rounded-xl border border-border bg-card text-card-foreground shadow-lg outline-none duration-150",
           "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           "max-sm:h-dvh max-sm:max-h-dvh max-sm:w-full max-sm:rounded-none max-sm:border-0",
           SIZES[size],

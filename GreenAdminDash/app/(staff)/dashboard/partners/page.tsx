@@ -1,280 +1,298 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { Plus, Search } from "lucide-react";
-import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Plus } from "lucide-react";
+import { useMemo } from "react";
 
+import { PartnerCreateDialog } from "@/components/partners/partner-dialogs";
+import { usePartnerActions } from "@/components/partners/use-partner-actions";
+import { sinceLabel } from "@/components/relations/classification";
+import { Badge } from "@/components/ui/badge";
 import {
-  PRIORITY_STYLES,
-  sinceLabel,
-} from "@/components/relations/classification";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Alert, Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
-import { PRIORITY_LABELS } from "@/lib/api/media";
+  DataTable,
+  EmptyCell,
+  PrimaryCell,
+  cells,
+  columnHelper,
+} from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
+import type { SelectOption } from "@/components/ui/select";
+import { Select } from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SearchInput, Toolbar } from "@/components/ui/toolbar";
 import {
+  ORGANIZATION_KIND_LABELS,
   PARTNERSHIP_TYPE_LABELS,
   PIPELINE_STAGES,
-  STAGE_LABELS,
-  type PartnerStage,
   listPartners,
+  type PartnerStage,
+  type PartnerSummary,
 } from "@/lib/api/partners";
-import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
-import { cn } from "@/lib/utils";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import { STATUS, statusOptions } from "@/lib/status";
+import { formatDate } from "@/lib/utils";
 
-const STAGE_STYLES: Record<PartnerStage, string> = {
-  NEW: "bg-muted text-muted-foreground",
-  CONTACTED: "bg-muted text-muted-foreground",
-  QUALIFIED: "bg-accent text-accent-foreground",
-  NEGOTIATION: "bg-warning/15 text-warning",
-  PENDING_APPROVAL: "bg-warning/20 text-warning",
-  ACTIVE: "bg-success/15 text-success",
-  ON_HOLD: "bg-muted text-muted-foreground",
-  REJECTED: "bg-destructive/10 text-destructive",
-  ENDED: "bg-muted text-muted-foreground",
-};
-
-const FILTERS = [
-  { value: "", label: "الكل" },
-  ...PIPELINE_STAGES.map((stage) => ({
-    value: stage,
-    label: STAGE_LABELS[stage],
-  })),
-  { value: "ACTIVE", label: STAGE_LABELS.ACTIVE },
-  { value: "REJECTED", label: STAGE_LABELS.REJECTED },
+/**
+ * «خط المتابعة» و«المعلّقة» مجموعتان لا مراحل: الأولى كل ما قبل الاعتماد،
+ * والثانية الجهات النشطة المعلّقة. الخادم يرشّح بمرحلة واحدة، فتُطبَّقان
+ * هنا على القائمة الكاملة — وبهما تفتح بطاقات الرئيسية قائمتها مرشّحة.
+ */
+const STAGE_FILTERS: SelectOption[] = [
+  { value: "PIPELINE", label: "خط المتابعة", group: "مجموعات" },
+  { value: "SUSPENDED", label: "المعلّقة", group: "مجموعات" },
+  ...statusOptions("partnerStage").map((option) => ({ ...option, group: "المراحل" })),
 ];
 
+const STALE_FILTERS: SelectOption[] = [
+  { value: "30", label: "لم نتواصل منذ شهر" },
+  { value: "90", label: "منذ ٣ أشهر" },
+];
+
+const col = columnHelper<PartnerSummary>();
+
 export default function PartnersPage() {
-  const { can } = useAuth();
-  const [stage, setStage] = useState("");
-  const [priority, setPriority] = useState("");
-  const [staleDays, setStaleDays] = useState(0);
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  const [filters, setFilters, resetFilters] = useUrlState({
+    q: "",
+    stage: "",
+    priority: "",
+    stale: "",
+    new: "",
+  });
+  const partnerActions = usePartnerActions();
+
+  const serverStage = Object.hasOwn(STATUS.partnerStage, filters.stage) ? filters.stage : "";
 
   const partners = useQuery({
-    queryKey: ["partners", stage, priority, staleDays, query],
+    queryKey: ["partners", { q: filters.q, stage: serverStage, priority: filters.priority, stale: filters.stale }],
     queryFn: () =>
       listPartners({
-        ...(stage ? { stage } : {}),
-        ...(priority ? { priority } : {}),
-        ...(staleDays ? { staleDays } : {}),
-        ...(query ? { q: query } : {}),
+        q: filters.q,
+        stage: serverStage,
+        priority: filters.priority,
+        ...(filters.stale ? { staleDays: Number(filters.stale) } : {}),
       }),
+    // المرشح الجديد لا يمسح الجدول حتى تصل نتائجه.
+    placeholderData: keepPreviousData,
   });
+
+  const rows = useMemo(() => {
+    const all = partners.data;
+
+    if (!all) return undefined;
+    if (filters.stage === "PIPELINE") {
+      return all.filter((partner) =>
+        (PIPELINE_STAGES as readonly PartnerStage[]).includes(partner.stage),
+      );
+    }
+    if (filters.stage === "SUSPENDED") return all.filter((partner) => partner.isSuspended);
+
+    return all;
+  }, [partners.data, filters.stage]);
+
+  const columns = useMemo(
+    () =>
+      col.columns([
+        col.accessor("displayNameAr", {
+          header: "الجهة",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              href={`/dashboard/partners/${info.row.original.id}`}
+              description={ORGANIZATION_KIND_LABELS[info.row.original.organizationKind]}
+              badge={
+                info.row.original.isSuspended ? <Badge tone="danger">معلّقة</Badge> : null
+              }
+            />
+          ),
+        }),
+        col.accessor("stage", {
+          header: "المرحلة",
+          enableSorting: false,
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => <StatusBadge kind="partnerStage" value={info.getValue()} />,
+        }),
+        col.accessor("contactPriority", {
+          header: "الأولوية",
+          enableSorting: false,
+          cell: (info) => (
+            <div className="min-w-24 space-y-1">
+              <StatusBadge kind="contactPriority" value={info.getValue()} />
+              {info.row.original.relationshipTypeNameAr ? (
+                <p className="text-xs text-muted-foreground">
+                  {info.row.original.relationshipTypeNameAr}
+                </p>
+              ) : null}
+            </div>
+          ),
+        }),
+        col.accessor("partnershipTypes", {
+          header: "أنواع الشراكة",
+          enableSorting: false,
+          cell: (info) =>
+            info.getValue().length > 0 ? (
+              <div className="flex max-w-56 flex-wrap gap-1">
+                {info.getValue().map((type) => (
+                  <Badge key={type} tone="info">
+                    {PARTNERSHIP_TYPE_LABELS[type]}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <EmptyCell />
+            ),
+        }),
+        // القيم الفارغة `undefined` لا `null` كي تُرتَّب آخرًا لا كنص «null».
+        col.accessor((partner) => partner.primaryContactNameAr ?? undefined, {
+          id: "primaryContact",
+          header: "جهة الاتصال",
+          sortUndefined: "last",
+          cell: (info) => cells.text(info.getValue()),
+        }),
+        col.accessor((partner) => partner.accountManagerNameAr ?? undefined, {
+          id: "accountManager",
+          header: "مسؤول العلاقة",
+          sortUndefined: "last",
+          cell: (info) => cells.text(info.getValue()),
+        }),
+        col.display({
+          id: "visibility",
+          header: "الإظهار",
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => {
+            const { publicNameConsent, publicLogoConsent } = info.row.original;
+            const parts = [publicNameConsent && "الاسم", publicLogoConsent && "الشعار"].filter(
+              Boolean,
+            );
+
+            return parts.length > 0 ? parts.join(" · ") : <EmptyCell />;
+          },
+        }),
+        col.accessor((partner) => partner.lastContactAt ?? undefined, {
+          id: "lastContactAt",
+          header: "آخر تواصل",
+          sortUndefined: "last",
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => {
+            const value = info.getValue();
+
+            return value ? (
+              <span title={formatDate(value)}>{sinceLabel(value)}</span>
+            ) : (
+              <span className="text-muted-foreground">لم يُسجَّل</span>
+            );
+          },
+        }),
+      ]),
+    [],
+  );
+
+  const activeCount = [filters.stage, filters.priority, filters.stale].filter(Boolean).length;
+  const hasFilters = Boolean(filters.q) || activeCount > 0;
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">سجل الشركاء</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            من جهة محتملة إلى شراكة معتمدة. الاعتماد النهائي للمدير العام.
-          </p>
-        </div>
+      <PageHeader
+        title="سجل الشركاء"
+        description="من جهة محتملة إلى شراكة معتمدة. الاعتماد النهائي للمدير العام."
+        primaryAction={{
+          key: "create",
+          label: "تسجيل جهة",
+          icon: Plus,
+          requires: [CAPABILITIES.partnersManage],
+          onSelect: () => setFilters({ new: "1" }, { keepPage: true }),
+        }}
+      />
 
-        {/* رابط لا زر: التنقل يجب أن يبقى قابلًا للفتح في تبويب جديد. */}
-        {can(CAPABILITIES.partnersManage) ? (
-          <Link
-            href="/dashboard/partners/new"
-            className={buttonVariants({ className: "gap-2" })}
-          >
-            <Plus className="size-4" />
-            تسجيل جهة
-          </Link>
-        ) : null}
-      </header>
-
-      <div className="flex flex-wrap items-center gap-2">
-        {FILTERS.map((filter) => (
-          <button
-            key={filter.value}
-            type="button"
-            onClick={() => setStage(filter.value)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs transition-colors",
-              stage === filter.value
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-accent",
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
-
-        <select
-          value={priority}
-          onChange={(event) => setPriority(event.target.value)}
-          className="h-9 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="أولوية التواصل"
+      <div className="space-y-3">
+        <Toolbar
+          search={
+            <SearchInput
+              value={filters.q}
+              onChange={(q) => setFilters({ q })}
+              placeholder="ابحث بالاسم…"
+              label="البحث في الشركاء"
+            />
+          }
+          hasActiveFilters={hasFilters}
+          activeCount={activeCount}
+          onReset={resetFilters}
         >
-          <option value="">كل الأولويات</option>
-          {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={staleDays}
-          onChange={(event) => setStaleDays(Number(event.target.value))}
-          className="h-9 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          aria-label="آخر تواصل"
-        >
-          <option value={0}>أي تاريخ تواصل</option>
-          <option value={30}>لم نتواصل منذ شهر</option>
-          <option value={90}>منذ ٣ أشهر</option>
-        </select>
-
-        <form
-          className="ms-auto flex items-center gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setQuery(search.trim());
-          }}
-        >
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="ابحث بالاسم…"
-            className="h-9 w-56"
-            aria-label="بحث بالاسم"
+          <Select
+            size="sm"
+            label="المرحلة"
+            placeholder="الكل"
+            className="w-52"
+            clearable
+            options={STAGE_FILTERS}
+            value={filters.stage || null}
+            onChange={(stage) => setFilters({ stage })}
           />
-          <Button type="submit" variant="outline" size="sm">
-            <Search className="size-4" />
-            بحث
-          </Button>
-        </form>
+          <Select
+            size="sm"
+            label="الأولوية"
+            placeholder="الكل"
+            className="w-44"
+            clearable
+            options={statusOptions("contactPriority")}
+            value={filters.priority || null}
+            onChange={(priority) => setFilters({ priority })}
+          />
+          <Select
+            size="sm"
+            label="آخر تواصل"
+            placeholder="أي تاريخ"
+            className="w-56"
+            clearable
+            options={STALE_FILTERS}
+            value={filters.stale || null}
+            onChange={(stale) => setFilters({ stale })}
+          />
+        </Toolbar>
+
+        <DataTable
+          caption="سجل الشركاء"
+          columns={columns}
+          data={rows}
+          getRowId={(partner) => partner.id}
+          isLoading={partners.isPending}
+          error={partners.error}
+          onRetry={() => void partners.refetch()}
+          urlState
+          filtered={hasFilters}
+          onClearFilters={resetFilters}
+          empty={{
+            title: "لا شركاء بعد",
+            description: "سجّل أول جهة محتملة لتبدأ متابعتها من هنا.",
+            action: {
+              key: "create",
+              label: "تسجيل جهة",
+              icon: Plus,
+              requires: [CAPABILITIES.partnersManage],
+              onSelect: () => setFilters({ new: "1" }, { keepPage: true }),
+            },
+          }}
+          rowHref={(partner) => `/dashboard/partners/${partner.id}`}
+          rowActions={(partner) => {
+            const actions = partnerActions.actions(partner);
+
+            return [
+              { ...actions.open, quick: true },
+              actions.classification,
+              actions.stage,
+              actions.invite,
+              actions.restore,
+              actions.suspend,
+            ];
+          }}
+        />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {partners.isPending ? (
-            <p className="p-6 text-sm text-muted-foreground">جارٍ التحميل…</p>
-          ) : partners.isError ? (
-            <div className="p-6">
-              <Alert>تعذّر تحميل سجل الشركاء.</Alert>
-            </div>
-          ) : partners.data.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">
-              لا توجد جهات مطابقة.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-3 text-start font-medium">الجهة</th>
-                    <th className="p-3 text-start font-medium">المرحلة</th>
-                    <th className="p-3 text-start font-medium">أنواع الشراكة</th>
-                    <th className="p-3 text-start font-medium">جهة الاتصال</th>
-                    <th className="p-3 text-start font-medium">الأولوية</th>
-                    <th className="p-3 text-start font-medium">آخر تواصل</th>
-                    <th className="p-3 text-start font-medium">مسؤول العلاقة</th>
-                    <th className="p-3 text-start font-medium">الإظهار</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {partners.data.map((partner) => (
-                    <tr
-                      key={partner.id}
-                      className="border-b border-border/60 hover:bg-accent/40"
-                    >
-                      <td className="p-3">
-                        <Link
-                          href={`/dashboard/partners/${partner.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {partner.displayNameAr}
-                        </Link>
-                        {partner.isSuspended ? (
-                          <span className="ms-2 rounded bg-destructive/10 px-1.5 py-0.5 text-xs text-destructive">
-                            معلّقة
-                          </span>
-                        ) : null}
-                      </td>
-
-                      <td className="p-3">
-                        <span
-                          className={cn(
-                            "rounded px-2 py-0.5 text-xs",
-                            STAGE_STYLES[partner.stage],
-                          )}
-                        >
-                          {STAGE_LABELS[partner.stage]}
-                        </span>
-                      </td>
-
-                      <td className="p-3">
-                        {partner.partnershipTypes.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {partner.partnershipTypes.map((type) => (
-                              <span
-                                key={type}
-                                className="rounded bg-secondary px-1.5 py-0.5 text-xs text-secondary-foreground"
-                              >
-                                {PARTNERSHIP_TYPE_LABELS[type]}
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </td>
-
-                      <td className="p-3 text-muted-foreground">
-                        {partner.primaryContactNameAr ?? "—"}
-                      </td>
-
-                      <td className="p-3">
-                        <span
-                          className={cn(
-                            "rounded-full px-2 py-0.5 text-xs",
-                            PRIORITY_STYLES[partner.contactPriority],
-                          )}
-                        >
-                          {PRIORITY_LABELS[partner.contactPriority]}
-                        </span>
-                        {partner.relationshipTypeNameAr ? (
-                          <span className="mt-0.5 block text-xs text-muted-foreground">
-                            {partner.relationshipTypeNameAr}
-                          </span>
-                        ) : null}
-                      </td>
-
-                      <td className="p-3 text-xs">
-                        {partner.lastContactAt ? (
-                          sinceLabel(partner.lastContactAt)
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </td>
-
-                      <td className="p-3 text-muted-foreground">
-                        {partner.accountManagerNameAr ?? "—"}
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground">
-                        {partner.publicNameConsent ? "الاسم" : ""}
-                        {partner.publicNameConsent && partner.publicLogoConsent
-                          ? " · "
-                          : ""}
-                        {partner.publicLogoConsent ? "الشعار" : ""}
-                        {!partner.publicNameConsent && !partner.publicLogoConsent
-                          ? "—"
-                          : ""}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <PartnerCreateDialog
+        open={filters.new === "1"}
+        onOpenChange={(open) => setFilters({ new: open ? "1" : null }, { keepPage: true })}
+      />
+      {partnerActions.dialogs}
     </div>
   );
 }

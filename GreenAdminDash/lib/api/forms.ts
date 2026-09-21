@@ -198,13 +198,6 @@ export type SubmissionSummary = components["schemas"]["FormSubmissionSummary"];
 export type SubmissionDetail = components["schemas"]["FormSubmissionDetail"];
 export type SubmissionStatus = SubmissionSummary["status"];
 
-export const SUBMISSION_STATUS_LABELS: Record<SubmissionStatus, string> = {
-  NEW: "جديد",
-  IN_REVIEW: "قيد المراجعة",
-  ACCEPTED: "مقبول",
-  REJECTED: "مرفوض",
-};
-
 /** مرشّح على إجابة سؤال: مفتاح السؤال والقيمة المطلوبة. */
 export type AnswerFilter = { key: string; value: string };
 

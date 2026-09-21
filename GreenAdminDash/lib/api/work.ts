@@ -4,25 +4,10 @@ import type { components } from "./types.gen";
 export type WorkItemSummary = components["schemas"]["WorkItemSummary"];
 export type WorkItemDetail = components["schemas"]["WorkItemDetail"];
 export type AuditEntry = components["schemas"]["AuditEntry"];
+export type WorkItemComment = components["schemas"]["WorkItemComment"];
 
 export type WorkStatus = WorkItemSummary["status"];
 export type WorkPriority = WorkItemSummary["priority"];
-
-export const WORK_STATUS_LABELS: Record<WorkStatus, string> = {
-  TODO: "لم تبدأ",
-  IN_PROGRESS: "قيد التنفيذ",
-  BLOCKED: "محجوبة",
-  IN_REVIEW: "بانتظار الاعتماد",
-  DONE: "منجزة",
-  CANCELLED: "ملغاة",
-};
-
-export const PRIORITY_LABELS: Record<WorkPriority, string> = {
-  LOW: "منخفضة",
-  NORMAL: "عادية",
-  HIGH: "عالية",
-  URGENT: "عاجلة",
-};
 
 /** الحالات التي يعني الانتقال إليها أن العمل ما زال حيًّا. */
 export const OPEN_STATUSES: readonly WorkStatus[] = [
@@ -82,6 +67,41 @@ export function createTask(
   });
 }
 
+export function getTask(taskId: string) {
+  return apiFetch<WorkItemDetail>(`/admin/work/tasks/${taskId}`);
+}
+
+/**
+ * تحرير بيانات المهمة — المسار نفسه للإسناد. `null` يمسح الحقل و`undefined`
+ * يتركه.
+ */
+export function updateTask(
+  taskId: string,
+  body: {
+    titleAr?: string;
+    descriptionAr?: string | null;
+    priority?: WorkPriority;
+    dueAt?: string | null;
+    assigneeUserId?: string | null;
+  },
+) {
+  return apiFetch<WorkItemDetail>(`/admin/work/tasks/${taskId}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+/**
+ * تعليق الفريق داخلي افتراضًا؛ إظهاره للجهة الشريكة لمن يملك `work.manage`
+ * وحده، والخادم يُنزله إلى الداخلي لغيره بدل أن يرفضه.
+ */
+export function addTaskComment(taskId: string, body: { bodyAr: string; isInternal: boolean }) {
+  return apiFetch<WorkItemDetail>(`/admin/work/tasks/${taskId}/comments`, {
+    method: "POST",
+    body,
+  });
+}
+
 /**
  * إسناد المهمة وسحبها بمسار واحد: `null` يعيدها إلى بركة مكتبها بلا مسؤول،
  * والتقاطها لنفسك إسنادٌ إليك لا حالة ثالثة.
@@ -104,20 +124,14 @@ export function changeTaskStatus(
   });
 }
 
-export const AUDIT_SEVERITY_LABELS = {
-  INFO: "عادي",
-  NOTICE: "ملحوظ",
-  WARNING: "تنبيه",
-  CRITICAL: "حرج",
-} as const;
-
 export function listAuditLogs(
-  filters: { severity?: string; q?: string; before?: string } = {},
+  filters: { severity?: string; q?: string; entityType?: string; before?: string } = {},
 ) {
   const params = new URLSearchParams();
 
   if (filters.severity) params.set("severity", filters.severity);
   if (filters.q) params.set("q", filters.q);
+  if (filters.entityType) params.set("entityType", filters.entityType);
   if (filters.before) params.set("before", filters.before);
 
   const query = params.toString();

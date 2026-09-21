@@ -1,396 +1,368 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { AlertTriangle, Plus, Search, Settings2 } from "lucide-react";
-import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Plus, Settings2 } from "lucide-react";
+import { useMemo } from "react";
 
+import { DueFollowUps } from "@/components/media/due-follow-ups";
+import { MediaContactCreateDialog } from "@/components/media/media-dialogs";
+import { useMediaActions } from "@/components/media/use-media-actions";
 import {
-  PRIORITY_STYLES,
   sinceLabel,
   useMediaChannels,
   useRelationshipTypes,
 } from "@/components/relations/classification";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { Alert, Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
+import { Badge } from "@/components/ui/badge";
+import {
+  DataTable,
+  EmptyCell,
+  PrimaryCell,
+  columnHelper,
+} from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select, type SelectOption } from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterChips, SearchInput, Toolbar } from "@/components/ui/toolbar";
 import {
   HORIZON_LABELS,
   MEDIA_STAGES,
-  MEDIA_STAGE_LABELS,
-  PRIORITY_LABELS,
-  type MediaContactSummary,
-  type MediaStage,
-  listFollowUps,
   listMediaContacts,
+  type MediaContactSummary,
 } from "@/lib/api/media";
-import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
-import { cn, formatDate } from "@/lib/utils";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import { statusOptions } from "@/lib/status";
+import { countAr } from "@/lib/text/plural-ar";
+import { formatDate } from "@/lib/utils";
 
-const STAGE_STYLES: Record<MediaStage, string> = {
-  NEW: "bg-muted text-muted-foreground",
-  CONTACTED: "bg-accent text-accent-foreground",
-  INTERESTED: "bg-warning/15 text-warning",
-  COLLABORATING: "bg-success/15 text-success",
-  DORMANT: "bg-muted text-muted-foreground",
-  DECLINED: "bg-destructive/10 text-destructive",
-};
-
-/** «متأخر التواصل» فرز جاهز لا رقم يكتبه المستخدم في كل مرة. */
-const STALE_PRESETS = [
-  { value: 0, label: "الكل" },
-  { value: 30, label: "لم نكلّمه منذ شهر" },
-  { value: 90, label: "منذ ٣ أشهر" },
+const STALE_FILTERS: SelectOption[] = [
+  { value: "30", label: "لم نكلّمه منذ شهر" },
+  { value: "90", label: "منذ ٣ أشهر" },
 ];
 
-function selectClass() {
-  return "h-9 rounded-md border border-input bg-background px-2 text-xs focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+const col = columnHelper<MediaContactSummary>();
+
+const FOLLOW_UPS = {
+  one: "متابعة واحدة",
+  two: "متابعتان",
+  few: "متابعات",
+  many: "متابعة",
+  other: "متابعة",
+};
+
+/** «جهاز» الشخص في سطر واحد: المسمى ثم جهته الشريكة أو جهة عمله. */
+function affiliation(contact: MediaContactSummary) {
+  const place = contact.partnerNameAr ?? contact.outletNameAr;
+
+  return [contact.jobTitleAr, place].filter(Boolean).join(" — ") || null;
 }
 
-/**
- * المتابعات المستحقة أعلى الشاشة لا في صفحة منفصلة.
- *
- * هي السبب الذي يفتح لأجله مكتب العلاقات هذه الشاشة صباحًا؛ دفنها خلف
- * نقرة يجعلها تُنسى، وهو بالضبط ما يفعله دفتر الورق الذي جاءت لتحلّ محلّه.
- */
-function FollowUpPanel() {
-  const followUps = useQuery({
-    queryKey: ["media", "follow-ups"],
-    queryFn: () => listFollowUps(),
+export default function MediaPage() {
+  const [filters, setFilters, resetFilters] = useUrlState({
+    q: "",
+    stage: "",
+    priority: "",
+    channel: "",
+    relationship: "",
+    stale: "",
+    followUp: "",
+    new: "",
   });
-
-  const rows = followUps.data ?? [];
-
-  if (rows.length === 0) return null;
-
-  return (
-    <Card className="border-warning/40">
-      <CardContent className="space-y-2 p-4">
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="size-4 text-warning" aria-hidden />
-          <h2 className="text-sm font-semibold">
-            متابعات مستحقة ({rows.length})
-          </h2>
-        </div>
-
-        <ul className="divide-y divide-border">
-          {rows.slice(0, 6).map((item) => (
-            <li key={item.id} className="py-2 text-sm">
-              <Link
-                href={`/dashboard/media/${item.contactId}`}
-                className="flex flex-wrap items-center gap-2 hover:underline"
-              >
-                <span className="font-medium">{item.contactNameAr}</span>
-                <span className="text-muted-foreground">{item.summaryAr}</span>
-                <span
-                  className={cn(
-                    "ms-auto shrink-0 text-xs",
-                    item.isOverdue ? "text-destructive" : "text-muted-foreground",
-                  )}
-                >
-                  {item.isOverdue ? "فات موعدها — " : ""}
-                  {formatDate(item.dueAt)}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-
-        {rows.length > 6 ? (
-          <p className="text-xs text-muted-foreground">
-            و{rows.length - 6} متابعة أخرى.
-          </p>
-        ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function ContactRow({ contact }: { contact: MediaContactSummary }) {
-  return (
-    <tr className="border-t border-border align-top hover:bg-accent/40">
-      <td className="p-3">
-        <Link
-          href={`/dashboard/media/${contact.id}`}
-          className="font-medium hover:underline"
-        >
-          {contact.fullNameAr}
-        </Link>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {[contact.jobTitleAr, contact.partnerNameAr ?? contact.outletNameAr]
-            .filter(Boolean)
-            .join(" — ") || "—"}
-        </p>
-        {contact.openFollowUps > 0 ? (
-          <span className="mt-1 inline-block rounded-full bg-warning/15 px-2 py-0.5 text-[11px] text-warning">
-            {contact.openFollowUps} متابعة مستحقة
-          </span>
-        ) : null}
-      </td>
-
-      <td className="p-3">
-        <div className="flex flex-wrap gap-1">
-          {contact.channels.length === 0 ? (
-            <span className="text-xs text-muted-foreground">—</span>
-          ) : (
-            contact.channels.map((channel) => (
-              <span
-                key={channel.id}
-                className="rounded-full bg-accent px-2 py-0.5 text-[11px] text-accent-foreground"
-              >
-                {channel.nameAr}
-              </span>
-            ))
-          )}
-        </div>
-      </td>
-
-      <td className="p-3 text-xs">
-        {contact.relationshipTypeNameAr ?? "—"}
-        {contact.horizon ? (
-          <span className="block text-muted-foreground">
-            {HORIZON_LABELS[contact.horizon]}
-          </span>
-        ) : null}
-      </td>
-
-      <td className="p-3">
-        <span
-          className={cn(
-            "rounded-full px-2 py-0.5 text-xs",
-            PRIORITY_STYLES[contact.priority],
-          )}
-        >
-          {PRIORITY_LABELS[contact.priority]}
-        </span>
-      </td>
-
-      <td className="p-3">
-        <span
-          className={cn(
-            "rounded-full px-2 py-0.5 text-xs",
-            STAGE_STYLES[contact.stage],
-          )}
-        >
-          {MEDIA_STAGE_LABELS[contact.stage]}
-        </span>
-      </td>
-
-      <td className="p-3 text-xs">
-        {contact.lastContactAt ? (
-          sinceLabel(contact.lastContactAt)
-        ) : (
-          <span className="text-destructive">لم يُتواصل بعد</span>
-        )}
-      </td>
-
-      <td className="p-3 text-xs" dir="ltr">
-        <div className="flex flex-col items-start gap-0.5">
-          {contact.phone ? <span>{contact.phone}</span> : null}
-          {contact.email ? (
-            <span className="text-muted-foreground">{contact.email}</span>
-          ) : null}
-          {!contact.phone && !contact.email ? "—" : null}
-        </div>
-      </td>
-    </tr>
-  );
-}
-
-export default function MediaNetworkPage() {
-  const { can } = useAuth();
+  const mediaActions = useMediaActions();
   const channels = useMediaChannels();
   const relationshipTypes = useRelationshipTypes();
-
-  const [stage, setStage] = useState("");
-  const [priority, setPriority] = useState("");
-  const [channelId, setChannelId] = useState("");
-  const [relationshipTypeId, setRelationshipTypeId] = useState("");
-  const [staleDays, setStaleDays] = useState(0);
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
 
   const contacts = useQuery({
     queryKey: [
       "media",
       "contacts",
-      { stage, priority, channelId, relationshipTypeId, staleDays, query },
+      {
+        q: filters.q,
+        stage: filters.stage,
+        priority: filters.priority,
+        channel: filters.channel,
+        relationship: filters.relationship,
+        stale: filters.stale,
+        followUp: filters.followUp,
+      },
     ],
     queryFn: () =>
       listMediaContacts({
-        ...(stage ? { stage } : {}),
-        ...(priority ? { priority } : {}),
-        ...(channelId ? { channelId } : {}),
-        ...(relationshipTypeId ? { relationshipTypeId } : {}),
-        ...(staleDays ? { staleDays } : {}),
-        ...(query ? { q: query } : {}),
+        q: filters.q,
+        stage: filters.stage,
+        priority: filters.priority,
+        channelId: filters.channel,
+        relationshipTypeId: filters.relationship,
+        hasOpenFollowUp: filters.followUp === "1",
+        ...(filters.stale ? { staleDays: Number(filters.stale) } : {}),
       }),
+    placeholderData: keepPreviousData,
   });
+
+  const columns = useMemo(
+    () =>
+      col.columns([
+        col.accessor("fullNameAr", {
+          header: "الاسم",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              href={`/dashboard/media/${info.row.original.id}`}
+              description={affiliation(info.row.original)}
+              badge={
+                info.row.original.openFollowUps > 0 ? (
+                  <Badge tone="warning">{countAr(info.row.original.openFollowUps, FOLLOW_UPS)}</Badge>
+                ) : null
+              }
+            />
+          ),
+        }),
+        col.accessor("stage", {
+          header: "المرحلة",
+          enableSorting: false,
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => <StatusBadge kind="mediaStage" value={info.getValue()} />,
+        }),
+        col.accessor("priority", {
+          header: "الأولوية",
+          enableSorting: false,
+          cell: (info) => {
+            const { relationshipTypeNameAr, horizon } = info.row.original;
+            const detail = [relationshipTypeNameAr, horizon && HORIZON_LABELS[horizon]]
+              .filter(Boolean)
+              .join(" · ");
+
+            return (
+              <div className="min-w-24 space-y-1">
+                <StatusBadge kind="contactPriority" value={info.getValue()} />
+                {detail ? <p className="text-xs text-muted-foreground">{detail}</p> : null}
+              </div>
+            );
+          },
+        }),
+        col.accessor("channels", {
+          header: "شكل العمل",
+          enableSorting: false,
+          cell: (info) =>
+            info.getValue().length > 0 ? (
+              <div className="flex max-w-56 flex-wrap gap-1">
+                {info.getValue().map((channel) => (
+                  <Badge key={channel.id} tone="accent">
+                    {channel.nameAr}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <EmptyCell />
+            ),
+        }),
+        col.display({
+          id: "reach",
+          header: "التواصل",
+          cell: (info) => {
+            const { phone, email } = info.row.original;
+
+            if (!phone && !email) return <EmptyCell />;
+
+            // الحاوية باتجاه الصفحة والروابط وحدها `ltr`: كانت الحاوية كلها
+            // `ltr` فتلتصق الأرقام بطرف العمود المقابل لعنوانه.
+            return (
+              <div className="space-y-0.5 text-xs">
+                {phone ? (
+                  <a href={`tel:${phone}`} dir="ltr" className="block w-fit hover:underline">
+                    {phone}
+                  </a>
+                ) : null}
+                {email ? (
+                  <a href={`mailto:${email}`} dir="ltr" className="block w-fit text-primary hover:underline">
+                    {email}
+                  </a>
+                ) : null}
+              </div>
+            );
+          },
+        }),
+        col.accessor((contact) => contact.lastContactAt ?? undefined, {
+          id: "lastContactAt",
+          header: "آخر تواصل",
+          sortUndefined: "last",
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => {
+            const value = info.getValue();
+
+            return value ? (
+              <span title={formatDate(value)}>{sinceLabel(value)}</span>
+            ) : (
+              <span className="text-destructive">لم يُتواصل بعد</span>
+            );
+          },
+        }),
+      ]),
+    [],
+  );
+
+  const activeCount = [
+    filters.stage,
+    filters.priority,
+    filters.channel,
+    filters.relationship,
+    filters.stale,
+    filters.followUp,
+  ].filter(Boolean).length;
+  const hasFilters = Boolean(filters.q) || activeCount > 0;
+
+  const openCreate = () => setFilters({ new: "1" }, { keepPage: true });
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">الشبكة الإعلامية</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            صنّاع المحتوى والإعلاميون — سجل أشخاص مستقل عن سجل الشركاء، مصنّف
-            بشكل العمل وأولوية التواصل.
-          </p>
-        </div>
+      <PageHeader
+        title="الشبكة الإعلامية"
+        description="صنّاع المحتوى والإعلاميون — سجل أشخاص مستقل عن سجل الشركاء، مصنّف بشكل العمل وأولوية التواصل."
+        primaryAction={{
+          key: "create",
+          label: "إضافة شخص",
+          icon: Plus,
+          requires: [CAPABILITIES.mediaManage],
+          onSelect: openCreate,
+        }}
+        secondaryActions={[
+          {
+            key: "taxonomy",
+            label: "المرجعيات",
+            icon: Settings2,
+            href: "/dashboard/media/taxonomy",
+            requires: [CAPABILITIES.relationsTaxonomyManage],
+          },
+        ]}
+      />
 
-        <div className="flex gap-2">
-          {can(CAPABILITIES.relationsTaxonomyManage) ? (
-            <Link
-              href="/dashboard/media/taxonomy"
-              className={buttonVariants({ variant: "outline", className: "gap-2" })}
-            >
-              <Settings2 className="size-4" />
-              المرجعيات
-            </Link>
-          ) : null}
+      <DueFollowUps />
 
-          {can(CAPABILITIES.mediaManage) ? (
-            <Link
-              href="/dashboard/media/new"
-              className={buttonVariants({ className: "gap-2" })}
-            >
-              <Plus className="size-4" />
-              إضافة شخص
-            </Link>
-          ) : null}
-        </div>
-      </header>
-
-      <FollowUpPanel />
-
-      <div className="flex flex-wrap items-center gap-2">
-        <select
-          value={stage}
-          onChange={(event) => setStage(event.target.value)}
-          className={selectClass()}
-          aria-label="المرحلة"
+      <div className="space-y-3">
+        <Toolbar
+          search={
+            <SearchInput
+              value={filters.q}
+              onChange={(q) => setFilters({ q })}
+              placeholder="اسم، جهة، هاتف…"
+              label="البحث في الشبكة الإعلامية"
+            />
+          }
+          hasActiveFilters={hasFilters}
+          activeCount={activeCount}
+          onReset={resetFilters}
         >
-          <option value="">كل المراحل</option>
-          {MEDIA_STAGES.map((value) => (
-            <option key={value} value={value}>
-              {MEDIA_STAGE_LABELS[value]}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={priority}
-          onChange={(event) => setPriority(event.target.value)}
-          className={selectClass()}
-          aria-label="الأولوية"
-        >
-          <option value="">كل الأولويات</option>
-          {Object.entries(PRIORITY_LABELS).map(([value, label]) => (
-            <option key={value} value={value}>
-              {label}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={channelId}
-          onChange={(event) => setChannelId(event.target.value)}
-          className={selectClass()}
-          aria-label="شكل العمل الإعلامي"
-        >
-          <option value="">كل أشكال العمل</option>
-          {(channels.data ?? []).map((channel) => (
-            <option key={channel.id} value={channel.id}>
-              {channel.nameAr}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={relationshipTypeId}
-          onChange={(event) => setRelationshipTypeId(event.target.value)}
-          className={selectClass()}
-          aria-label="نوع العلاقة"
-        >
-          <option value="">كل أنواع العلاقة</option>
-          {(relationshipTypes.data ?? []).map((type) => (
-            <option key={type.id} value={type.id}>
-              {type.nameAr}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={staleDays}
-          onChange={(event) => setStaleDays(Number(event.target.value))}
-          className={selectClass()}
-          aria-label="آخر تواصل"
-        >
-          {STALE_PRESETS.map((preset) => (
-            <option key={preset.value} value={preset.value}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
-
-        <form
-          className="ms-auto flex items-center gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setQuery(search.trim());
-          }}
-        >
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="اسم، جهة، هاتف…"
-            className="h-9 w-56"
-            aria-label="بحث"
+          <FilterChips
+            label="المتابعة"
+            value={filters.followUp}
+            onChange={(followUp) => setFilters({ followUp })}
+            options={[
+              { value: "", label: "الكل" },
+              { value: "1", label: "بمتابعة مفتوحة" },
+            ]}
           />
-          <Button type="submit" variant="outline" size="sm">
-            <Search className="size-4" />
-            بحث
-          </Button>
-        </form>
+          <Select
+            size="sm"
+            label="المرحلة"
+            placeholder="الكل"
+            className="w-40"
+            clearable
+            options={statusOptions("mediaStage", MEDIA_STAGES)}
+            value={filters.stage || null}
+            onChange={(stage) => setFilters({ stage })}
+          />
+          <Select
+            size="sm"
+            label="الأولوية"
+            placeholder="الكل"
+            className="w-40"
+            clearable
+            options={statusOptions("contactPriority")}
+            value={filters.priority || null}
+            onChange={(priority) => setFilters({ priority })}
+          />
+          <Select
+            size="sm"
+            label="شكل العمل"
+            placeholder="الكل"
+            className="w-44"
+            clearable
+            loading={channels.isPending}
+            options={(channels.data ?? []).map((channel) => ({
+              value: channel.id,
+              label: channel.nameAr,
+            }))}
+            value={filters.channel || null}
+            onChange={(channel) => setFilters({ channel })}
+          />
+          <Select
+            size="sm"
+            label="نوع العلاقة"
+            placeholder="الكل"
+            className="w-44"
+            clearable
+            loading={relationshipTypes.isPending}
+            options={(relationshipTypes.data ?? []).map((type) => ({
+              value: type.id,
+              label: type.nameAr,
+            }))}
+            value={filters.relationship || null}
+            onChange={(relationship) => setFilters({ relationship })}
+          />
+          <Select
+            size="sm"
+            label="آخر تواصل"
+            placeholder="أي تاريخ"
+            className="w-48"
+            clearable
+            options={STALE_FILTERS}
+            value={filters.stale || null}
+            onChange={(stale) => setFilters({ stale })}
+          />
+        </Toolbar>
+
+        <DataTable
+          caption="الشبكة الإعلامية"
+          columns={columns}
+          data={contacts.data}
+          getRowId={(contact) => contact.id}
+          isLoading={contacts.isPending}
+          error={contacts.error}
+          onRetry={() => void contacts.refetch()}
+          urlState
+          filtered={hasFilters}
+          onClearFilters={resetFilters}
+          empty={{
+            title: "لا أحد في الشبكة بعد",
+            description: "أضف أول صانع محتوى أو إعلامي لتبدأ متابعة التواصل معه.",
+            action: {
+              key: "create",
+              label: "إضافة شخص",
+              icon: Plus,
+              requires: [CAPABILITIES.mediaManage],
+              onSelect: openCreate,
+            },
+          }}
+          rowHref={(contact) => `/dashboard/media/${contact.id}`}
+          rowActions={(contact) => {
+            const actions = mediaActions.actions(contact);
+
+            return [
+              { ...actions.log, quick: true },
+              actions.open,
+              actions.edit,
+              actions.classification,
+              actions.stage,
+            ];
+          }}
+        />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {contacts.isPending ? (
-            <p className="p-6 text-sm text-muted-foreground">جارٍ التحميل…</p>
-          ) : contacts.isError ? (
-            <div className="p-6">
-              <Alert>تعذّر تحميل الشبكة الإعلامية.</Alert>
-            </div>
-          ) : (contacts.data ?? []).length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">
-              لا نتائج مطابقة.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-start text-sm">
-                <thead className="text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-3 text-start font-medium">الاسم</th>
-                    <th className="p-3 text-start font-medium">شكل العمل</th>
-                    <th className="p-3 text-start font-medium">نوع العلاقة</th>
-                    <th className="p-3 text-start font-medium">الأولوية</th>
-                    <th className="p-3 text-start font-medium">المرحلة</th>
-                    <th className="p-3 text-start font-medium">آخر تواصل</th>
-                    <th className="p-3 text-start font-medium">التواصل</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {(contacts.data ?? []).map((contact) => (
-                    <ContactRow key={contact.id} contact={contact} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <MediaContactCreateDialog
+        open={filters.new === "1"}
+        onOpenChange={(open) => setFilters({ new: open ? "1" : null }, { keepPage: true })}
+      />
+      {mediaActions.dialogs}
     </div>
   );
 }

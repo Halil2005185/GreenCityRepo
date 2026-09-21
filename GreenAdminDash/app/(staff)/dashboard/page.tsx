@@ -1,59 +1,33 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import {
-  AlertTriangle,
-  Building2,
-  CheckSquare,
-  Handshake,
-  Sprout,
-} from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import Link from "next/link";
 
-import { Alert, Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { buttonVariants } from "@/components/ui/button";
+import { Alert } from "@/components/ui/card";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { StatCard } from "@/components/ui/stat-card";
+import { ErrorState } from "@/components/ui/states";
 import { apiFetch } from "@/lib/api/client";
 import type { components } from "@/lib/api/types.gen";
 import { useAuth } from "@/lib/auth/auth-context";
-import { cn } from "@/lib/utils";
+import { countAr } from "@/lib/text/plural-ar";
 
 type Summary = components["schemas"]["DashboardSummary"];
 
-function Stat({
-  label,
-  value,
-  href,
-  tone,
-}: {
-  label: string;
-  value: number;
-  href?: string;
-  tone?: "danger" | "warning";
-}) {
-  const body = (
-    <div
-      className={cn(
-        "rounded-lg border border-border p-4 transition-colors",
-        href && "hover:bg-accent/50",
-        tone === "danger" && value > 0 && "border-destructive/40",
-        tone === "warning" && value > 0 && "border-warning/40",
-      )}
-    >
-      <p
-        className={cn(
-          "text-2xl font-bold",
-          tone === "danger" && value > 0 && "text-destructive",
-          tone === "warning" && value > 0 && "text-warning",
-        )}
-      >
-        {value.toLocaleString("ar-SY")}
-      </p>
-      <p className="mt-0.5 text-xs text-muted-foreground">{label}</p>
-    </div>
-  );
+const TASKS = { one: "مهمة واحدة", two: "مهمتان", few: "مهام", many: "مهمة", other: "مهمة" };
 
-  return href ? <Link href={href}>{body}</Link> : body;
+function formatValue(value: number) {
+  return value.toLocaleString("en-US");
 }
 
+/**
+ * الرئيسية أعداد تُفتح منها القوائم مرشّحةً بها: «متأخرة» تفتح المهام
+ * المتأخرة لا صفحة المهام عامة كما كانت كل البطاقات. البطاقة التي لا تقود
+ * إلى قائمة مرشّحة لا رابط لها.
+ */
 export default function DashboardPage() {
   const { user } = useAuth();
 
@@ -65,177 +39,185 @@ export default function DashboardPage() {
   if (!user) return null;
 
   const data = summary.data;
+  const loading = summary.isPending;
 
   return (
-    <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">أهلًا {user.fullNameAr}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {data?.officeNameAr
-            ? `${data.officeNameAr} — ما يخصّك اليوم.`
-            : "لا عضوية مكتب نشطة. راجع الإدارة لإسنادك."}
-        </p>
-      </header>
+    <div className="space-y-8">
+      <PageHeader
+        title={`أهلًا ${user.fullNameAr}`}
+        description={
+          loading
+            ? "ما يخصّك اليوم."
+            : data?.officeNameAr
+              ? `${data.officeNameAr} — ما يخصّك اليوم.`
+              : "لا عضوية مكتب نشطة. راجع الإدارة لإسنادك."
+        }
+      />
 
-      {summary.isError ? <Alert>تعذّر تحميل الملخّص.</Alert> : null}
+      {summary.isError ? (
+        <div className="rounded-xl border border-border bg-card">
+          <ErrorState title="تعذّر تحميل الملخّص." error={summary.error} onRetry={() => void summary.refetch()} />
+        </div>
+      ) : null}
 
       {data && data.myTasks.overdue > 0 ? (
-        <Alert variant="info">
-          <AlertTriangle className="me-1 inline size-4" />
-          {data.myTasks.overdue} من مهامك تجاوزت موعدها.
+        <Alert variant="warning" className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <p className="flex items-center gap-2">
+            <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
+            {/* صيغة لا يتغيّر فعلها بالعدد: «مهمتان تجاوزت» خطأ نحوي. */}
+            مهامك المتأخرة عن موعدها: {countAr(data.myTasks.overdue, TASKS)}.
+          </p>
+          <Link
+            href="/dashboard/tasks?view=overdue"
+            className={buttonVariants({ variant: "outline", size: "sm" })}
+          >
+            عرض المتأخرة
+          </Link>
         </Alert>
       ) : null}
 
-      <section className="space-y-2">
-        <h2 className="flex items-center gap-2 text-lg font-bold">
-          <CheckSquare className="size-4" />
-          مهامي
-        </h2>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <Stat label="مفتوحة" value={data?.myTasks.open ?? 0} href="/dashboard/tasks" />
-          <Stat
+      <Section title="مهامي">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="مفتوحة" value={data?.myTasks.open} loading={loading} href="/dashboard/tasks" />
+          <StatCard
             label="متأخرة"
-            value={data?.myTasks.overdue ?? 0}
-            href="/dashboard/tasks"
+            value={data?.myTasks.overdue}
+            loading={loading}
+            href="/dashboard/tasks?view=overdue"
             tone="danger"
           />
-          <Stat
+          <StatCard
             label="متعثّرة"
-            value={data?.myTasks.blocked ?? 0}
-            href="/dashboard/tasks"
+            value={data?.myTasks.blocked}
+            loading={loading}
+            href="/dashboard/tasks?view=blocked"
             tone="warning"
           />
-          <Stat
+          <StatCard
             label="بانتظار الاعتماد"
-            value={data?.myTasks.inReview ?? 0}
-            href="/dashboard/tasks"
+            value={data?.myTasks.inReview}
+            loading={loading}
+            href="/dashboard/tasks?view=review"
           />
         </div>
-      </section>
+      </Section>
 
       {data?.officeNameAr ? (
-        <section className="space-y-2">
-          <h2 className="flex items-center gap-2 text-lg font-bold">
-            <Building2 className="size-4" />
-            {data.officeNameAr}
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Stat label="مهام المكتب المفتوحة" value={data.officeTasks.open} />
-            <Stat
+        <Section title={data.officeNameAr}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
+              label="مهام المكتب المفتوحة"
+              value={data.officeTasks.open}
+              href="/dashboard/tasks?tab=office"
+            />
+            <StatCard
               label="بلا مسؤول"
               value={data.officeTasks.unassigned}
-              href="/dashboard/tasks"
+              href="/dashboard/tasks?tab=claimable"
               tone="warning"
             />
-            <Stat label="متأخرة" value={data.officeTasks.overdue} tone="danger" />
-            <Stat label="متعثّرة" value={data.officeTasks.blocked} />
+            <StatCard
+              label="متأخرة"
+              value={data.officeTasks.overdue}
+              href="/dashboard/tasks?tab=office&view=overdue"
+              tone="danger"
+            />
+            <StatCard
+              label="متعثّرة"
+              value={data.officeTasks.blocked}
+              href="/dashboard/tasks?tab=office&view=blocked"
+            />
           </div>
-        </section>
+        </Section>
       ) : null}
 
       {data?.partners ? (
-        <section className="space-y-2">
-          <h2 className="flex items-center gap-2 text-lg font-bold">
-            <Handshake className="size-4" />
-            الشركاء
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Stat
+        <Section title="الشركاء">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
               label="في خط المتابعة"
               value={data.partners.pipeline}
-              href="/dashboard/partners"
+              href="/dashboard/partners?stage=PIPELINE"
             />
-            <Stat
+            <StatCard
               label="بانتظار الاعتماد"
               value={data.partners.pendingApproval}
-              href="/dashboard/partners"
+              href="/dashboard/partners?stage=PENDING_APPROVAL"
               tone="warning"
             />
-            <Stat
-              label="نشطة"
-              value={data.partners.active}
-              href="/dashboard/partners"
-            />
-            <Stat
+            <StatCard label="نشطة" value={data.partners.active} href="/dashboard/partners?stage=ACTIVE" />
+            <StatCard
               label="معلّقة"
               value={data.partners.suspended}
+              href="/dashboard/partners?stage=SUSPENDED"
               tone="danger"
             />
           </div>
-        </section>
+        </Section>
       ) : null}
 
       {data?.initiatives ? (
-        <section className="space-y-2">
-          <h2 className="flex items-center gap-2 text-lg font-bold">
-            <Sprout className="size-4" />
-            المبادرات
-          </h2>
-          <div className="grid gap-3 sm:grid-cols-4">
-            <Stat
+        <Section title="المبادرات">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <StatCard
               label="قيد التخطيط"
               value={data.initiatives.planning}
-              href="/dashboard/initiatives"
+              href="/dashboard/initiatives?status=PLANNING"
             />
-            <Stat
+            <StatCard
               label="قيد التنفيذ"
               value={data.initiatives.active}
-              href="/dashboard/initiatives"
+              href="/dashboard/initiatives?status=ACTIVE"
             />
-            <Stat
+            <StatCard
               label="حملات"
               value={data.initiatives.campaigns}
-              href="/dashboard/map"
+              href="/dashboard/map?kind=CAMPAIGN"
             />
-            <Stat
+            <StatCard
               label="نقاط خضراء"
               value={data.initiatives.greenPoints}
-              href="/dashboard/map"
+              href="/dashboard/map?kind=GREEN_POINT"
             />
           </div>
-        </section>
+        </Section>
       ) : null}
 
       {data?.impact && data.impact.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">الأثر الموثّق</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="grid gap-3 sm:grid-cols-3">
-              {data.impact.map((row) => (
-                <li key={row.metricId}>
-                  <p className="text-2xl font-bold text-success">
-                    {row.total.toLocaleString("ar-SY")}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {row.metricNameAr} ({row.unitAr})
-                  </p>
-                </li>
-              ))}
-            </ul>
-          </CardContent>
-        </Card>
+        <Section title="الأثر الموثّق" description="ما تحقّق منه الفريق وحده يدخل هذه المجاميع.">
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {data.impact.map((row) => (
+              <div key={row.metricId} className="rounded-xl border border-border bg-card p-4">
+                <dt className="text-xs text-muted-foreground">
+                  {row.metricNameAr} ({row.unitAr})
+                </dt>
+                <dd className="mt-1 text-2xl font-bold text-success">
+                  <span className="numeric">{formatValue(row.total)}</span>
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Section>
       ) : null}
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">صلاحياتك</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <ul className="space-y-1 text-sm">
-            {user.memberships.map((membership) => (
-              <li key={membership.officeId}>
-                {membership.officeNameAr} — {membership.roleNameAr}
-                {membership.isPrimary ? " · رئيسي" : ""}
-              </li>
-            ))}
-          </ul>
-          <p className="text-xs text-muted-foreground">
-            {user.capabilities.length} قدرة محلولة من أدوارك.
-          </p>
-        </CardContent>
-      </Card>
+      <Section title="عضوياتك" variant="card">
+        <ul className="space-y-1.5 text-sm">
+          {user.memberships.map((membership) => (
+            <li key={membership.officeId} className="flex flex-wrap items-center gap-x-2">
+              <span className="font-medium">{membership.officeNameAr}</span>
+              <span className="text-muted-foreground">— {membership.roleNameAr}</span>
+              {membership.isPrimary ? (
+                <span className="rounded-full bg-accent px-2 py-0.5 text-xs text-accent-foreground">
+                  المكتب الرئيس
+                </span>
+              ) : null}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3 text-xs text-muted-foreground">
+          <span className="numeric">{user.capabilities.length}</span> صلاحية محلولة من أدوارك.
+        </p>
+      </Section>
     </div>
   );
 }

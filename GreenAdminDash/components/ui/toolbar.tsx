@@ -1,44 +1,98 @@
 "use client";
 
-import { SearchIcon, XIcon } from "lucide-react";
+import { SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetBody,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 /**
  * شريط أدوات القائمة: البحث في جهة البداية، ثم المرشحات، ثم «مسح
  * المرشحات» آخرًا. لا أفعال هنا — الأفعال في الترويسة.
+ *
+ * على الجوال تنتقل المرشحات إلى لوحة يفتحها زر بجوار البحث وعليه عدد
+ * الفعّال منها: خمس قوائم مكدّسة بعرض الشاشة كانت تدفع الجدول نفسه
+ * إلى ما تحت الطيّة. المرشحات تُطبَّق وهي تُختار، فزر اللوحة يغلقها فقط.
  */
 export function Toolbar({
   search,
   children,
   hasActiveFilters = false,
+  activeCount = 0,
+  mobile = "sheet",
   onReset,
   className,
 }: {
   search?: React.ReactNode;
   children?: React.ReactNode;
   hasActiveFilters?: boolean;
+  /** عدد المرشحات الفعّالة دون البحث — يظهر على زر لوحة الجوال. */
+  activeCount?: number;
+  /** مرشح واحد صغير (رقائق حالة) يبقى في مكانه على الجوال بلا لوحة. */
+  mobile?: "sheet" | "inline";
   onReset?: () => void;
   className?: string;
 }) {
-  return (
-    <div
-      role="search"
-      className={cn("flex flex-wrap items-center gap-2", className)}
-    >
-      {search ? <div className="w-full sm:w-72">{search}</div> : null}
+  const reset =
+    hasActiveFilters && onReset ? (
+      <Button type="button" variant="ghost" className="h-9" onClick={onReset}>
+        <XIcon aria-hidden />
+        مسح المرشحات
+      </Button>
+    ) : null;
 
-      {children || (hasActiveFilters && onReset) ? (
-        <div className="flex flex-wrap items-center gap-2 sm:ms-auto">
-          {children}
-          {hasActiveFilters && onReset ? (
-            <Button type="button" variant="ghost" className="h-9" onClick={onReset}>
-              <XIcon aria-hidden />
-              مسح المرشحات
+  return (
+    <div role="search" className={cn("flex flex-wrap items-center gap-2", className)}>
+      {search ? <div className="min-w-0 flex-1 sm:w-72 sm:flex-none">{search}</div> : null}
+
+      {children && mobile === "sheet" ? (
+        <Sheet>
+          <SheetTrigger asChild>
+            <Button type="button" variant="outline" className="h-9 sm:hidden">
+              <SlidersHorizontalIcon aria-hidden />
+              المرشحات
+              {activeCount > 0 ? (
+                <span className="numeric rounded-full bg-primary px-1.5 text-[11px] text-primary-foreground">
+                  {activeCount}
+                  <span className="sr-only"> فعّالة</span>
+                </span>
+              ) : null}
             </Button>
-          ) : null}
+          </SheetTrigger>
+          <SheetContent side="end" width="sm">
+            <SheetHeader>
+              <SheetTitle>المرشحات</SheetTitle>
+            </SheetHeader>
+            <SheetBody className="flex flex-col gap-3 *:w-full">{children}</SheetBody>
+            <SheetFooter>
+              {reset}
+              <SheetClose asChild>
+                <Button type="button">عرض النتائج</Button>
+              </SheetClose>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : null}
+
+      {children || reset ? (
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-2 sm:ms-auto",
+            mobile === "sheet" ? "max-sm:hidden" : "max-sm:w-full",
+          )}
+        >
+          {children}
+          {reset}
         </div>
       ) : null}
     </div>
@@ -129,7 +183,13 @@ export function SearchInput({
   );
 }
 
-export type ChipOption = { value: string; label: string; count?: number };
+export type ChipOption = {
+  value: string;
+  label: string;
+  count?: number;
+  /** لون يطابق ما يمثّله الخيار على الخريطة، فتصير الرقائق مفتاح ألوانها. */
+  swatch?: string;
+};
 
 /**
  * رقائق لمرشح واحد بخيارات قليلة (ستة فأقل)؛ ما زاد يأخذ `Select`.
@@ -210,6 +270,13 @@ export function FilterChips({
                 : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
+            {option.swatch ? (
+              <span
+                aria-hidden
+                className="size-2.5 rounded-full ring-2 ring-white"
+                style={{ backgroundColor: option.swatch }}
+              />
+            ) : null}
             {option.label}
             {option.count !== undefined ? (
               <span className="numeric text-[11px] opacity-70">{option.count}</span>
