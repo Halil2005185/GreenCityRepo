@@ -169,8 +169,16 @@ export default function DashboardPage() {
               value={data.initiatives.active}
               href="/dashboard/initiatives?status=ACTIVE"
             />
-            <StatCard label="حملات" value={data.initiatives.campaigns} href="/dashboard/map" />
-            <StatCard label="نقاط خضراء" value={data.initiatives.greenPoints} href="/dashboard/map" />
+            <StatCard
+              label="حملات"
+              value={data.initiatives.campaigns}
+              href="/dashboard/map?kind=CAMPAIGN"
+            />
+            <StatCard
+              label="نقاط خضراء"
+              value={data.initiatives.greenPoints}
+              href="/dashboard/map?kind=GREEN_POINT"
+            />
           </div>
         </Section>
       ) : null}
