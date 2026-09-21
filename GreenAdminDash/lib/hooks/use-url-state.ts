@@ -41,7 +41,11 @@ export function useUrlState<const T extends Record<string, string>>(defaults: T)
   }, [searchParams, stableDefaults]);
 
   const setState = useCallback(
-    (patch: Partial<Record<keyof T & string, string | null | undefined>>) => {
+    (
+      patch: Partial<Record<keyof T & string, string | null | undefined>>,
+      /** فتح نافذة عبر العنوان (`?new=1`) ليس تصفية، فلا يعيد الترقيم. */
+      options: { keepPage?: boolean } = {},
+    ) => {
       const params = new URLSearchParams(window.location.search);
       let touchesFilters = false;
 
@@ -57,7 +61,7 @@ export function useUrlState<const T extends Record<string, string>>(defaults: T)
         if (key !== "page") touchesFilters = true;
       }
 
-      if (touchesFilters && !("page" in patch)) params.delete("page");
+      if (touchesFilters && !options.keepPage && !("page" in patch)) params.delete("page");
 
       write(pathname, params);
     },

@@ -109,6 +109,8 @@ function ConfirmView({
   const [reason, setReason] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // الخطأ بعد محاولة التأكيد لا عند فقد التركيز: تنقّل التركيز بين القائمة
+  // والنافذة لحظة الفتح كان يُظهر «اكتب السبب» قبل أن يُكتب حرف.
   const [touched, setTouched] = useState(false);
   const reasonRef = useRef<HTMLTextAreaElement>(null);
 
@@ -188,7 +190,6 @@ function ConfirmView({
                   value={reason}
                   placeholder={options.reason.placeholder}
                   onChange={(event) => setReason(event.target.value)}
-                  onBlur={() => setTouched(true)}
                   aria-invalid={touched && reasonInvalid}
                   aria-describedby={touched && reasonInvalid ? `${reasonId}-error` : undefined}
                 />

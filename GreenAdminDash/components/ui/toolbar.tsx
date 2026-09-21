@@ -31,7 +31,8 @@ export function Toolbar({
       {search ? <div className="w-full sm:w-72">{search}</div> : null}
 
       {children || (hasActiveFilters && onReset) ? (
-        <div className="flex flex-wrap items-center gap-2 sm:ms-auto">
+        // على الجوال يأخذ كل مرشح عرض الشاشة بدل أعمدة متفاوتة العرض.
+        <div className="flex flex-wrap items-center gap-2 max-sm:w-full max-sm:*:w-full sm:ms-auto">
           {children}
           {hasActiveFilters && onReset ? (
             <Button type="button" variant="ghost" className="h-9" onClick={onReset}>

@@ -360,6 +360,9 @@ export function DataTable<T extends RowData>({
     [rowActions, rowsData, actionsFor],
   );
 
+  // دعوة الفراغ فعل كغيره: تُخفى عمّن لا يملك صلاحيته.
+  const [emptyAction] = visible([empty.action]);
+
   const rows = table.getRowModel().rows;
   const headerGroups = table.getHeaderGroups();
   const columnCount = columns.length + (hasActions ? 1 : 0);
@@ -391,7 +394,7 @@ export function DataTable<T extends RowData>({
     body = filtered ? (
       <NoResultsState onClear={onClearFilters} />
     ) : (
-      <EmptyState title={empty.title} description={empty.description} action={empty.action} />
+      <EmptyState title={empty.title} description={empty.description} action={emptyAction} />
     );
   } else {
     body = (
