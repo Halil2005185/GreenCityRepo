@@ -6,8 +6,8 @@
  * المنسوخة (ی ک)، والأرقام الهندية باللاتينية. يُطبَّق على النص وعلى
  * البحث معًا، فلا يغيّر ما يُعرض بل ما يُقارن.
  */
-const DIACRITICS = /[ؐ-ًؚ-ٰٟۖ-ۭ]/g;
-const TATWEEL = /ـ/g;
+const DIACRITICS = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/g;
+const TATWEEL = /\u0640/g;
 const ALEF_FORMS = /[آأإٱ]/g;
 
 export function normalizeArabic(value: string) {
