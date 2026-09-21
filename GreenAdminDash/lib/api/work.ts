@@ -4,6 +4,7 @@ import type { components } from "./types.gen";
 export type WorkItemSummary = components["schemas"]["WorkItemSummary"];
 export type WorkItemDetail = components["schemas"]["WorkItemDetail"];
 export type AuditEntry = components["schemas"]["AuditEntry"];
+export type WorkItemComment = components["schemas"]["WorkItemComment"];
 
 export type WorkStatus = WorkItemSummary["status"];
 export type WorkPriority = WorkItemSummary["priority"];
@@ -77,6 +78,41 @@ export function createTask(
   },
 ) {
   return apiFetch<WorkItemDetail>("/admin/work/tasks", {
+    method: "POST",
+    body,
+  });
+}
+
+export function getTask(taskId: string) {
+  return apiFetch<WorkItemDetail>(`/admin/work/tasks/${taskId}`);
+}
+
+/**
+ * تحرير بيانات المهمة — المسار نفسه للإسناد. `null` يمسح الحقل و`undefined`
+ * يتركه.
+ */
+export function updateTask(
+  taskId: string,
+  body: {
+    titleAr?: string;
+    descriptionAr?: string | null;
+    priority?: WorkPriority;
+    dueAt?: string | null;
+    assigneeUserId?: string | null;
+  },
+) {
+  return apiFetch<WorkItemDetail>(`/admin/work/tasks/${taskId}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
+/**
+ * تعليق الفريق داخلي افتراضًا؛ إظهاره للجهة الشريكة لمن يملك `work.manage`
+ * وحده، والخادم يُنزله إلى الداخلي لغيره بدل أن يرفضه.
+ */
+export function addTaskComment(taskId: string, body: { bodyAr: string; isInternal: boolean }) {
+  return apiFetch<WorkItemDetail>(`/admin/work/tasks/${taskId}/comments`, {
     method: "POST",
     body,
   });
