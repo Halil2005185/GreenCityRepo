@@ -148,6 +148,11 @@ const pointKind = {
   GREEN_POINT: { label: "نقطة خضراء", tone: "info" },
 } satisfies StatusMap<"CAMPAIGN" | "GREEN_POINT">;
 
+const catalogState = {
+  ACTIVE: { label: "مفعّل", tone: "success" },
+  INACTIVE: { label: "معطّل", tone: "neutral" },
+} satisfies StatusMap<"ACTIVE" | "INACTIVE">;
+
 const consent = {
   GRANTED: { label: "ممنوحة", tone: "success" },
   NOT_GRANTED: { label: "غير ممنوحة", tone: "neutral" },
@@ -171,6 +176,7 @@ export const STATUS = {
   formAccepting,
   charterState,
   pointKind,
+  catalogState,
   consent,
 } as const;
 
