@@ -187,7 +187,8 @@ export default function PartnersPage() {
     [],
   );
 
-  const hasFilters = Boolean(filters.q || filters.stage || filters.priority || filters.stale);
+  const activeCount = [filters.stage, filters.priority, filters.stale].filter(Boolean).length;
+  const hasFilters = Boolean(filters.q) || activeCount > 0;
 
   return (
     <div className="space-y-6">
@@ -214,6 +215,7 @@ export default function PartnersPage() {
             />
           }
           hasActiveFilters={hasFilters}
+          activeCount={activeCount}
           onReset={resetFilters}
         >
           <Select

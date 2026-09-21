@@ -33,7 +33,7 @@ export function AlertDialogContent({
         onOpenAutoFocus={focus.onOpenAutoFocus}
         onCloseAutoFocus={focus.onCloseAutoFocus}
         className={cn(
-          "fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md flex-col overflow-hidden rounded-xl border border-border bg-card text-card-foreground shadow-lg outline-none duration-150",
+          "fixed inset-0 z-50 m-auto flex h-fit max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] max-w-md flex-col overflow-clip rounded-xl border border-border bg-card text-card-foreground shadow-lg outline-none duration-150",
           "data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95",
           className,
         )}

@@ -55,22 +55,26 @@ export function CardFooter({
   );
 }
 
-/** تنبيه نصي للأخطاء العامة فوق النماذج. */
+const ALERT_VARIANTS = {
+  destructive: "border-destructive/30 bg-destructive/10 text-destructive",
+  info: "border-border bg-muted text-muted-foreground",
+  // ما يستدعي الانتباه قبل فعل وليس خطأ: تحذيرات المطابقة قبل الإطلاق مثلًا.
+  warning: "border-warning/40 bg-warning/10 text-foreground",
+} as const;
+
+/**
+ * تنبيه نصي للأخطاء العامة فوق النماذج، وللملاحظات والتحذيرات في الصفحة.
+ * الخطأ وحده `role="alert"` يقاطع قارئ الشاشة؛ الباقي `status` يُقرأ بهدوء.
+ */
 export function Alert({
   variant = "destructive",
   className,
   ...props
-}: React.ComponentProps<"div"> & { variant?: "destructive" | "info" }) {
+}: React.ComponentProps<"div"> & { variant?: keyof typeof ALERT_VARIANTS }) {
   return (
     <div
-      role="alert"
-      className={cn(
-        "rounded-md border px-3 py-2 text-sm text-start",
-        variant === "destructive"
-          ? "border-destructive/30 bg-destructive/10 text-destructive"
-          : "border-border bg-muted text-muted-foreground",
-        className,
-      )}
+      role={variant === "destructive" ? "alert" : "status"}
+      className={cn("rounded-md border px-3 py-2 text-sm text-start", ALERT_VARIANTS[variant], className)}
       {...props}
     />
   );

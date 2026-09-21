@@ -993,6 +993,7 @@ function PrimitivesSection() {
         </div>
 
         <Alert variant="info">تنبيه معلوماتي داخل صفحة أو نافذة.</Alert>
+        <Alert variant="warning">تحذير قبل فعل: بيانات ناقصة لا تمنع المتابعة.</Alert>
         <Alert>تنبيه خطأ داخل نافذة.</Alert>
       </div>
     </Section>

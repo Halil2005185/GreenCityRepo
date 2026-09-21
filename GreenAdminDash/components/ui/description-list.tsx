@@ -13,7 +13,7 @@ export type DescriptionItem = {
  * واحدة بدل عمود جانبي طويل. القيمة الفارغة «—».
  *
  * الأعمدة تتبع عرض الحاوية لا الشاشة (`@container`): الملخص نفسه يأخذ
- * أربعة أعمدة في الصفحة وعمودين داخل لوحة جانبية ضيقة.
+ * أربعة أعمدة في الصفحة، وعمودين على الهاتف، وعمودًا في لوحة جانبية ضيقة.
  */
 export function DescriptionList({
   items,
@@ -28,14 +28,14 @@ export function DescriptionList({
     <div className="@container">
       <dl
         className={cn(
-          "grid grid-cols-1 gap-x-6 gap-y-4 rounded-xl border border-border bg-card p-5 text-card-foreground @sm:grid-cols-2 @3xl:grid-cols-4",
+          "grid grid-cols-1 gap-x-6 gap-y-4 rounded-xl border border-border bg-card p-5 text-card-foreground @xs:grid-cols-2 @3xl:grid-cols-4",
           className,
         )}
       >
         {shown.map((item) => (
           <div
             key={item.label}
-            className={cn("min-w-0 space-y-1", item.wide && "@sm:col-span-2 @3xl:col-span-4")}
+            className={cn("min-w-0 space-y-1", item.wide && "@xs:col-span-2 @3xl:col-span-4")}
           >
           <dt className="text-xs text-muted-foreground">{item.label}</dt>
           <dd className="break-words text-sm font-medium">
