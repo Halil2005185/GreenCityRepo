@@ -9,22 +9,6 @@ export type WorkItemComment = components["schemas"]["WorkItemComment"];
 export type WorkStatus = WorkItemSummary["status"];
 export type WorkPriority = WorkItemSummary["priority"];
 
-export const WORK_STATUS_LABELS: Record<WorkStatus, string> = {
-  TODO: "لم تبدأ",
-  IN_PROGRESS: "قيد التنفيذ",
-  BLOCKED: "محجوبة",
-  IN_REVIEW: "بانتظار الاعتماد",
-  DONE: "منجزة",
-  CANCELLED: "ملغاة",
-};
-
-export const PRIORITY_LABELS: Record<WorkPriority, string> = {
-  LOW: "منخفضة",
-  NORMAL: "عادية",
-  HIGH: "عالية",
-  URGENT: "عاجلة",
-};
-
 /** الحالات التي يعني الانتقال إليها أن العمل ما زال حيًّا. */
 export const OPEN_STATUSES: readonly WorkStatus[] = [
   "TODO",
@@ -139,13 +123,6 @@ export function changeTaskStatus(
     body: blockedReasonAr ? { status, blockedReasonAr } : { status },
   });
 }
-
-export const AUDIT_SEVERITY_LABELS = {
-  INFO: "عادي",
-  NOTICE: "ملحوظ",
-  WARNING: "تنبيه",
-  CRITICAL: "حرج",
-} as const;
 
 export function listAuditLogs(
   filters: { severity?: string; q?: string; entityType?: string; before?: string } = {},

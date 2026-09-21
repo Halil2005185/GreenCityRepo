@@ -13,20 +13,6 @@ export type ContactPriority = MediaContactSummary["priority"];
 export type EngagementHorizon = NonNullable<MediaContactSummary["horizon"]>;
 export type InteractionKind = MediaInteraction["kind"];
 
-/**
- * التسميات العربية للقيم المجمّدة تعيش في الواجهة لا في القاعدة — القاعدة
- * نفسها المتبعة في سجل الشركاء. المفردات المتغيّرة (شكل العمل، نوع
- * العلاقة) تأتي من المرجعيات لا من هنا.
- */
-export const MEDIA_STAGE_LABELS: Record<MediaStage, string> = {
-  NEW: "جديد",
-  CONTACTED: "تم التواصل",
-  INTERESTED: "مهتم",
-  COLLABORATING: "تعاون قائم",
-  DORMANT: "خامل",
-  DECLINED: "اعتذر",
-};
-
 /** ترتيب العرض هو ترتيب الخط: من لم يُكلَّم بعد أولًا، والاعتذار آخرًا. */
 export const MEDIA_STAGES = [
   "NEW",
@@ -37,12 +23,11 @@ export const MEDIA_STAGES = [
   "DECLINED",
 ] as const satisfies readonly MediaStage[];
 
-export const PRIORITY_LABELS: Record<ContactPriority, string> = {
-  HIGH: "عالية",
-  MEDIUM: "متوسطة",
-  LOW: "منخفضة",
-};
-
+/**
+ * التسميات العربية للقيم المجمّدة تعيش في الواجهة لا في القاعدة — القاعدة
+ * نفسها المتبعة في سجل الشركاء، والمراحل منها في `lib/status.ts`.
+ * المفردات المتغيّرة (شكل العمل، نوع العلاقة) تأتي من المرجعيات لا من هنا.
+ */
 export const HORIZON_LABELS: Record<EngagementHorizon, string> = {
   LONG_TERM: "مدى طويل",
   SHORT_TERM: "مدى قصير",

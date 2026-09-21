@@ -76,7 +76,7 @@ const MASK_FRAME = [
 
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
-/** ألوان المحافظات كما كانت في Leaflet: عادية، وعند المرور، ومختارة. */
+/** ألوان المحافظات كما كانت قبل Mapbox: عادية، وعند المرور، ومختارة. */
 const AREA = {
   line: "#94a3b8",
   fill: "#86efac",
@@ -92,7 +92,7 @@ const AREA = {
   selectedWidth: 2.5,
 };
 
-/** المرور يغلب الاختيار كما في Leaflet: المحافظة المختارة تتلوّن أيضًا حين يمرّ عليها الماوس. */
+/** المرور يغلب الاختيار كما كان: المحافظة المختارة تتلوّن أيضًا حين يمرّ عليها الماوس. */
 function byState<T extends string | number>(hover: T, selected: T, normal: T) {
   return [
     "case",

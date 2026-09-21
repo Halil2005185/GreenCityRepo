@@ -13,26 +13,12 @@ export type TargetRollup = Program["defaultTargetRollup"];
 export type SiteStatus = InitiativeDetail["sites"][number]["status"];
 
 /**
- * التسميات العربية للقيم المجمّدة تعيش هنا لا في القاعدة.
+ * التسميات العربية للقيم المجمّدة التي ليست حالات تعيش هنا لا في القاعدة؛
+ * الحالات وألوانها في `lib/status.ts`.
  *
  * أما أسماء البرامج والمؤشرات والمناطق فتأتي من الـAPI: تلك بيانات
  * يحرّرها الفريق، وكتابتها هنا تعيد النظام إلى ما بُني ليتجاوزه.
  */
-export const INITIATIVE_STATUS_LABELS: Record<InitiativeStatus, string> = {
-  DRAFT: "مسودة",
-  PLANNING: "تخطيط",
-  ACTIVE: "قيد التنفيذ",
-  COMPLETED: "مكتملة",
-  CANCELLED: "ملغاة",
-};
-
-export const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
-  PLANNED: "مخطط",
-  IN_PROGRESS: "قيد التنفيذ",
-  COMPLETED: "مكتمل",
-  CANCELLED: "ملغى",
-};
-
 export const AREA_LEVEL_LABELS: Record<Area["level"], string> = {
   GOVERNORATE: "محافظة",
   CITY: "مدينة",
@@ -51,29 +37,6 @@ export const ROLLUP_SHORT: Record<TargetRollup, string> = {
   ADVISORY: "إرشادية",
   NONE: "بلا مطابقة",
 };
-
-export const WORK_STATUS_LABELS = {
-  TODO: "لم تبدأ",
-  IN_PROGRESS: "قيد التنفيذ",
-  BLOCKED: "محجوبة",
-  IN_REVIEW: "بانتظار الاعتماد",
-  DONE: "منجزة",
-  CANCELLED: "ملغاة",
-} as const;
-
-export const MILESTONE_STATUS_LABELS = {
-  PENDING: "لم تبدأ",
-  IN_PROGRESS: "قيد التنفيذ",
-  DONE: "مكتملة",
-  CANCELLED: "ملغاة",
-} as const;
-
-export const PRIORITY_LABELS = {
-  LOW: "منخفضة",
-  NORMAL: "عادية",
-  HIGH: "عالية",
-  URGENT: "عاجلة",
-} as const;
 
 // ── المرجعيات ──────────────────────────────────────────────────────────
 
@@ -291,18 +254,5 @@ export function recordImpact(body: {
 export function verifyImpact(entryId: string) {
   return apiFetch<{ id: string }>(`/admin/impact/entries/${entryId}/verify`, {
     method: "POST",
-  });
-}
-
-// ── العمل ──────────────────────────────────────────────────────────────
-
-export function changeTaskStatus(
-  taskId: string,
-  status: keyof typeof WORK_STATUS_LABELS,
-  blockedReasonAr?: string,
-) {
-  return apiFetch(`/admin/work/tasks/${taskId}/status`, {
-    method: "POST",
-    body: blockedReasonAr ? { status, blockedReasonAr } : { status },
   });
 }
