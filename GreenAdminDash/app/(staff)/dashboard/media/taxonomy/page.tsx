@@ -30,6 +30,7 @@ import {
 } from "@/lib/api/relations";
 import { useApiMutation } from "@/lib/api/use-api-mutation";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
+import { latinize, uniqueKey } from "@/lib/text/slug";
 
 /** المرجعيتان بشكل واحد في العقد، فالنوع الأول يصلح للاثنتين. */
 type CatalogEntry = MediaChannel;
@@ -38,41 +39,9 @@ const MANAGE = [CAPABILITIES.relationsTaxonomyManage] as const;
 
 // ── اشتقاق المفتاح ──────────────────────────────────────────────────────
 
-const LATIN: Record<string, string> = {
-  ا: "a", أ: "a", إ: "i", آ: "a", ى: "a", ب: "b", ت: "t", ث: "th", ج: "j",
-  ح: "h", خ: "kh", د: "d", ذ: "dh", ر: "r", ز: "z", س: "s", ش: "sh", ص: "s",
-  ض: "d", ط: "t", ظ: "z", ع: "a", غ: "gh", ف: "f", ق: "q", ك: "k", ل: "l",
-  م: "m", ن: "n", ه: "h", ة: "a", و: "w", ؤ: "u", ي: "y", ئ: "y",
-};
-
-/**
- * المفتاح يُشتق من الاسم العربي بحروف لاتينية.
- *
- * الاسم العربي وحده لا يصلح مفتاحًا: يتغيّر تحريريًا، والمفتاح يجب أن
- * يثبت. وطلبُه من المستخدم يعني حقلًا تقنيًا في نموذج يملؤه مكتب علاقات،
- * فالاشتقاق مع إمكانية التحرير أفضل من كليهما. كان الاشتقاق يحذف الحروف
- * العربية فيخرج «item-2» و«item-3»؛ صار يكتبها بحروف لاتينية تقريبية
- * («سؤال شارع» ← «sual-shara») فيبقى المفتاح مقروءًا.
- */
+/** المفتاح من الاسم بحروف لاتينية تقريبية (`latinize`)، بلا تكرار. */
 function suggestSlug(nameAr: string, existing: readonly string[]) {
-  const base =
-    [...nameAr.trim().toLowerCase()]
-      .map((char) => LATIN[char] ?? char)
-      .join("")
-      .replace(/[٠-٩]/g, (digit) => String("٠١٢٣٤٥٦٧٨٩".indexOf(digit)))
-      // التشكيل (علامات غير متباعدة) والتطويل والهمزة المفردة لا تقابلها حروف.
-      .replace(/[\p{Mn}ـء]/gu, "")
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 60) || "item";
-
-  if (!existing.includes(base)) return base;
-
-  let index = 2;
-
-  while (existing.includes(`${base}-${index}`)) index += 1;
-
-  return `${base}-${index}`;
+  return uniqueKey(latinize(nameAr).slice(0, 60) || "item", existing);
 }
 
 // ── نافذة الإضافة والتعديل ──────────────────────────────────────────────

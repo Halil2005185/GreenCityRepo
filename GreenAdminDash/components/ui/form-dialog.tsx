@@ -22,6 +22,15 @@ import {
   type DialogSize,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetBody,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { ApiError } from "@/lib/api/client";
 import { errorMessage } from "@/lib/api/errors";
 
@@ -31,6 +40,11 @@ type FormDialogProps<TValues extends FieldValues, TResult> = {
   title: string;
   description?: React.ReactNode;
   size?: DialogSize;
+  /**
+   * `sheet` لنموذج طويل بأقسام كثيرة: لوحة بطول الشاشة تُمرَّر وحدها،
+   * والصفحة تبقى في موضعها خلفها.
+   */
+  presentation?: "dialog" | "sheet";
   form: UseFormReturn<TValues>;
   /** القيم عند كل فتح — للتعديل. بدونها يبدأ النموذج من `defaultValues`. */
   values?: DefaultValues<TValues>;
@@ -75,6 +89,7 @@ export function FormDialog<TValues extends FieldValues, TResult>({
   title,
   description,
   size = "md",
+  presentation = "dialog",
   form,
   values,
   onSubmit,
@@ -197,57 +212,71 @@ export function FormDialog<TValues extends FieldValues, TResult>({
     }
   });
 
-  return (
-    <Dialog
-      open={open}
-      onOpenChange={(next) => {
-        if (!next) void requestClose();
-      }}
-    >
-      <DialogContent
-        size={size}
-        closeDisabled={isSubmitting}
-        {...(description ? {} : { "aria-describedby": undefined })}
-        onEscapeKeyDown={(event) => {
-          if (isSubmitting) event.preventDefault();
-        }}
-        onInteractOutside={(event) => {
-          if (isSubmitting) event.preventDefault();
-        }}
-      >
-        <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
-          <DialogHeader>
-            <DialogTitle>{title}</DialogTitle>
-            {description ? <DialogDescription>{description}</DialogDescription> : null}
-          </DialogHeader>
+  const parts =
+    presentation === "sheet"
+      ? { Header: SheetHeader, Title: SheetTitle, Description: SheetDescription, Body: SheetBody, Footer: SheetFooter }
+      : { Header: DialogHeader, Title: DialogTitle, Description: DialogDescription, Body: DialogBody, Footer: DialogFooter };
 
-          <DialogBody className="space-y-4">
-            {formError ? <Alert>{formError}</Alert> : null}
-            {result && renderSuccess ? renderSuccess(result.value) : children}
-          </DialogBody>
+  const guards = {
+    ...(description ? {} : { "aria-describedby": undefined }),
+    onEscapeKeyDown: (event: KeyboardEvent) => {
+      if (isSubmitting) event.preventDefault();
+    },
+    onInteractOutside: (event: Event) => {
+      if (isSubmitting) event.preventDefault();
+    },
+  };
 
-          <DialogFooter>
-            {result ? (
-              <Button type="button" onClick={() => onOpenChange(false)}>
-                تم
-              </Button>
-            ) : (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={isSubmitting}
-                  onClick={() => void requestClose()}
-                >
-                  إلغاء
-                </Button>
-                <Button type="submit" loading={isSubmitting}>
-                  {submitLabel}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </form>
+  const onRootOpenChange = (next: boolean) => {
+    if (!next) void requestClose();
+  };
+
+  const content = (
+    <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
+      <parts.Header>
+        <parts.Title>{title}</parts.Title>
+        {description ? <parts.Description>{description}</parts.Description> : null}
+      </parts.Header>
+
+      <parts.Body className="space-y-4">
+        {formError ? <Alert>{formError}</Alert> : null}
+        {result && renderSuccess ? renderSuccess(result.value) : children}
+      </parts.Body>
+
+      <parts.Footer>
+        {result ? (
+          <Button type="button" onClick={() => onOpenChange(false)}>
+            تم
+          </Button>
+        ) : (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isSubmitting}
+              onClick={() => void requestClose()}
+            >
+              إلغاء
+            </Button>
+            <Button type="submit" loading={isSubmitting}>
+              {submitLabel}
+            </Button>
+          </>
+        )}
+      </parts.Footer>
+    </form>
+  );
+
+  return presentation === "sheet" ? (
+    <Sheet open={open} onOpenChange={onRootOpenChange}>
+      <SheetContent side="end" width={size} {...guards}>
+        {content}
+      </SheetContent>
+    </Sheet>
+  ) : (
+    <Dialog open={open} onOpenChange={onRootOpenChange}>
+      <DialogContent size={size} closeDisabled={isSubmitting} {...guards}>
+        {content}
       </DialogContent>
     </Dialog>
   );

@@ -4,7 +4,8 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Eye, UserPlus } from "lucide-react";
 import { useMemo } from "react";
 
-import { InviteStaffDialog, officeOptions, useOffices } from "@/components/people/invite-staff-dialog";
+import { officeOptions, useOffices } from "@/components/offices/office-options";
+import { InviteStaffDialog } from "@/components/people/invite-staff-dialog";
 import {
   DataTable,
   PrimaryCell,
