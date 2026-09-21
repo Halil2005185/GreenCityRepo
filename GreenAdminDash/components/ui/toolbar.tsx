@@ -183,7 +183,13 @@ export function SearchInput({
   );
 }
 
-export type ChipOption = { value: string; label: string; count?: number };
+export type ChipOption = {
+  value: string;
+  label: string;
+  count?: number;
+  /** لون يطابق ما يمثّله الخيار على الخريطة، فتصير الرقائق مفتاح ألوانها. */
+  swatch?: string;
+};
 
 /**
  * رقائق لمرشح واحد بخيارات قليلة (ستة فأقل)؛ ما زاد يأخذ `Select`.
@@ -264,6 +270,13 @@ export function FilterChips({
                 : "border-border text-muted-foreground hover:bg-accent hover:text-accent-foreground",
             )}
           >
+            {option.swatch ? (
+              <span
+                aria-hidden
+                className="size-2.5 rounded-full ring-2 ring-white"
+                style={{ backgroundColor: option.swatch }}
+              />
+            ) : null}
             {option.label}
             {option.count !== undefined ? (
               <span className="numeric text-[11px] opacity-70">{option.count}</span>

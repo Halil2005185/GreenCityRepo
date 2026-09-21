@@ -20,6 +20,7 @@ npm run dev   # http://localhost:3000 — يمرّر /api إلى الـAPI عل�
 | `open-next.config.ts` | إعداد المحوّل — بلا cache لأن لا ISR في اللوحة |
 | `.env.production` | `API_ORIGIN` العلني الذي يُبنى عليه تمرير `/api` — قيم علنية فقط، مُودَع عمدًا |
 | `.env.production` | `NEXT_PUBLIC_SITE_URL` — عنوان الموقع العام، منه يُبنى رابط التسجيل الذي تنسخه صفحة الاستمارات. معطّل حتى يُنشر الموقع |
+| بيئة البناء | `NEXT_PUBLIC_MAPBOX_TOKEN` — رمز Mapbox العام (`pk.`) مقيّدًا بعناوين اللوحة. يُضمَّن وقت البناء، فبدونه تظهر مكان الخريطة رسالة تشرح السبب. علنيٌّ بطبيعته، فمكانه `.env.production` أو متغيرات بناء Workers Builds |
 | `public/_headers` | تخزين `/_next/static` سنة كاملة على حافة Cloudflare |
 | `middleware.ts` | الحارس — على الـedge لا على Node.js (انظر أدناه) |
 

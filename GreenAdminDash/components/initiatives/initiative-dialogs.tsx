@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
+import { LocationField, optionalLocationSchema } from "@/components/map/location-field";
 import { FormDialog } from "@/components/ui/form-dialog";
 import {
   ImageFormField,
@@ -369,13 +370,19 @@ const siteSchema = z.object({
   nameAr: z.string().trim().min(2, "اسم الموقع مطلوب.").max(200, "الاسم طويل جدًا."),
   areaId: z.string(),
   descriptionAr: z.string().trim().max(4000, "الوصف طويل جدًا."),
+  location: optionalLocationSchema,
 });
 
 type SiteValues = z.infer<typeof siteSchema>;
 
-const EMPTY_SITE: SiteValues = { nameAr: "", areaId: "", descriptionAr: "" };
+const EMPTY_SITE: SiteValues = { nameAr: "", areaId: "", descriptionAr: "", location: null };
 
-/** إضافة موقع وتعديله؛ كان التعديل غير متاح إلا بالإلغاء وإضافة موقع جديد. */
+/**
+ * إضافة موقع وتعديله؛ كان التعديل غير متاح إلا بالإلغاء وإضافة موقع جديد.
+ *
+ * والإحداثيات يقبلها الـAPI منذ البداية ولم يكن لها حقل، فلم تكن حملة
+ * تظهر على الخريطة: النقاط تُرسم من المواقع ذات الإحداثيات وحدها.
+ */
 export function SiteDialog({
   initiativeId,
   site,
@@ -396,7 +403,13 @@ export function SiteDialog({
       form={form}
       values={
         site
-          ? { nameAr: site.nameAr, areaId: site.areaId ?? "", descriptionAr: site.descriptionAr ?? "" }
+          ? {
+              nameAr: site.nameAr,
+              areaId: site.areaId ?? "",
+              descriptionAr: site.descriptionAr ?? "",
+              location:
+                site.lat !== null && site.lng !== null ? { lat: site.lat, lng: site.lng } : null,
+            }
           : EMPTY_SITE
       }
       submitLabel={site ? "حفظ الموقع" : "إضافة الموقع"}
@@ -406,15 +419,20 @@ export function SiteDialog({
               nameAr: values.nameAr,
               areaId: values.areaId || null,
               descriptionAr: values.descriptionAr || null,
+              // الإحداثيات كلاهما أو لا شيء — شرط الخادم.
+              lat: values.location?.lat ?? null,
+              lng: values.location?.lng ?? null,
             })
           : addSite(initiativeId, {
               nameAr: values.nameAr,
               ...(values.areaId ? { areaId: values.areaId } : {}),
               ...(values.descriptionAr ? { descriptionAr: values.descriptionAr } : {}),
+              ...(values.location ? { lat: values.location.lat, lng: values.location.lng } : {}),
             })
       }
       successMessage={(detail) => (site ? "حُفظ الموقع." : `أُضيف موقع إلى «${detail.nameAr}».`)}
       onSuccess={apply}
+      mapFieldPath={(path) => (path === "lat" || path === "lng" ? "location" : null)}
     >
       <TextField control={form.control} name="nameAr" label="اسم الموقع" />
       <SelectField
@@ -427,6 +445,13 @@ export function SiteDialog({
         selectedOption={
           site?.areaId ? { value: site.areaId, label: site.areaNameAr ?? "…" } : undefined
         }
+      />
+      <LocationField
+        control={form.control}
+        name="location"
+        label="الموقع على الخريطة (اختياري)"
+        hint="بلا إحداثيات لا يظهر الموقع على الخريطة. انقره على الخريطة أو اكتب إحداثياته."
+        clearable
       />
       <TextareaField control={form.control} name="descriptionAr" label="وصف (اختياري)" rows={3} />
     </FormDialog>

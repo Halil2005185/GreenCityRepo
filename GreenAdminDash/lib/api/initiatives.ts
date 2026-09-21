@@ -193,9 +193,10 @@ export function removeInitiativeArea(id: string, areaId: string) {
   });
 }
 
+/** الإحداثيات كلاهما أو لا شيء؛ بدونها لا يظهر الموقع على الخريطة. */
 export function addSite(
   id: string,
-  body: { nameAr: string; areaId?: string; descriptionAr?: string },
+  body: { nameAr: string; areaId?: string; descriptionAr?: string; lat?: number; lng?: number },
 ) {
   return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/sites`, {
     method: "POST",
@@ -211,6 +212,8 @@ export function updateSite(
     nameAr?: string;
     areaId?: string | null;
     descriptionAr?: string | null;
+    lat?: number | null;
+    lng?: number | null;
   },
 ) {
   return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/sites/${siteId}`, {

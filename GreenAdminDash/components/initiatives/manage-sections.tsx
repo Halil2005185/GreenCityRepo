@@ -4,6 +4,7 @@ import {
   Ban,
   CircleCheck,
   MapPinPlus,
+  MapPinned,
   Pencil,
   Play,
   Plus,
@@ -99,7 +100,15 @@ export function SitesSection({ initiative }: { initiative: InitiativeDetail }) {
           id: "area",
           header: "المنطقة",
           sortUndefined: "last",
-          cell: (info) => cells.text(info.getValue()),
+          cell: (info) => (
+            <div className="space-y-0.5">
+              {cells.text(info.getValue())}
+              {/* الموقع بلا إحداثيات لا يُرسم على الخريطة، والتعديل يضيفها. */}
+              {info.row.original.lat === null ? (
+                <p className="text-xs text-muted-foreground">بلا إحداثيات على الخريطة</p>
+              ) : null}
+            </div>
+          ),
         }),
         siteCol.accessor("status", {
           header: "الحالة",
@@ -174,6 +183,14 @@ export function SitesSection({ initiative }: { initiative: InitiativeDetail }) {
               icon: Pencil,
               requires: MANAGE,
               onSelect: () => setSiteDialog({ site, open: true }),
+            },
+            {
+              key: "map",
+              label: "عرض على الخريطة",
+              icon: MapPinned,
+              href: `/dashboard/map?point=${site.id}`,
+              // الملغى لا يُرسم، والموقع بلا إحداثيات لا نقطة له.
+              hidden: site.lat === null || cancelled || initiative.status === "CANCELLED",
             },
             {
               key: "start",
