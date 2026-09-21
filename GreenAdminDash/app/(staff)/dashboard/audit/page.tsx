@@ -1,138 +1,236 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { keepPreviousData, useInfiniteQuery } from "@tanstack/react-query";
+import { ExternalLink } from "lucide-react";
+import { useMemo } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Alert, Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/field";
 import {
-  AUDIT_SEVERITY_LABELS,
-  type AuditEntry,
-  listAuditLogs,
-} from "@/lib/api/work";
-import { cn, formatDateTime } from "@/lib/utils";
+  DataTable,
+  PrimaryCell,
+  cells,
+  columnHelper,
+} from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select, type SelectOption } from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterChips, SearchInput, Toolbar, type ChipOption } from "@/components/ui/toolbar";
+import { listAuditLogs, type AuditEntry } from "@/lib/api/work";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import { statusOptions } from "@/lib/status";
 
-const SEVERITY_STYLES: Record<AuditEntry["severity"], string> = {
-  INFO: "bg-muted text-muted-foreground",
-  NOTICE: "bg-primary/10 text-primary",
-  WARNING: "bg-warning/15 text-warning",
-  CRITICAL: "bg-destructive/10 text-destructive",
+const SEVERITY_CHIPS: ChipOption[] = [{ value: "", label: "الكل" }, ...statusOptions("auditSeverity")];
+
+/**
+ * أنواع الكيانات التي يسجّلها الخادم، بأسمائها العربية. نوع لا يعرفه هذا
+ * الجدول يُعرض بمفتاحه كما هو ولا يختفي.
+ */
+const ENTITY_LABELS: Record<string, string> = {
+  partner: "جهة شريكة",
+  partner_contact: "جهة اتصال شريك",
+  partner_partnership: "نوع شراكة",
+  charter_version: "إصدار الميثاق",
+  charter_acknowledgement: "إقرار بالميثاق",
+  initiative: "مبادرة",
+  initiative_site: "موقع مبادرة",
+  milestone: "مرحلة عمل",
+  work_item: "مهمة",
+  impact_entry: "قيد أثر",
+  program: "برنامج",
+  metric: "مؤشر",
+  area: "منطقة",
+  media_contact: "شخص في الشبكة الإعلامية",
+  media_channel: "شكل عمل إعلامي",
+  user: "عضو",
+  role: "دور",
+  invitation: "دعوة",
+  session: "جلسة دخول",
+  form_submission: "طلب استمارة",
 };
 
-export default function AuditPage() {
-  const [severity, setSeverity] = useState("");
-  const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+const ENTITY_OPTIONS: SelectOption[] = Object.entries(ENTITY_LABELS).map(([value, label]) => ({
+  value,
+  label,
+}));
 
-  const logs = useQuery({
-    queryKey: ["audit", severity, query],
-    queryFn: () =>
+/** صفحة الكيان في اللوحة، لما له صفحة: من السجل إلى ما جرى عليه بنقرة. */
+function entityHref(entry: AuditEntry) {
+  if (!entry.entityId) return null;
+
+  switch (entry.entityType) {
+    case "partner":
+      return `/dashboard/partners/${entry.entityId}`;
+    case "initiative":
+      return `/dashboard/initiatives/${entry.entityId}`;
+    case "media_contact":
+      return `/dashboard/media/${entry.entityId}`;
+    case "user":
+      return `/dashboard/people/${entry.entityId}`;
+    case "work_item":
+      return `/dashboard/tasks?task=${entry.entityId}`;
+    case "charter_version":
+      return "/dashboard/charter";
+    default:
+      return null;
+  }
+}
+
+const col = columnHelper<AuditEntry>();
+
+export default function AuditPage() {
+  const [filters, setFilters, resetFilters] = useUrlState({ severity: "", q: "", entity: "" });
+
+  /**
+   * السجل بمؤشّر زمني: «تحميل المزيد» يطلب ما قبل آخر صف معروض. كانت
+   * الصفحة تعرض أحدث مئة وتطلب ترشيحًا لرؤية ما قبلها.
+   */
+  const logs = useInfiniteQuery({
+    queryKey: ["audit", { severity: filters.severity, q: filters.q, entity: filters.entity }],
+    queryFn: ({ pageParam }) =>
       listAuditLogs({
-        ...(severity ? { severity } : {}),
-        ...(query ? { q: query } : {}),
+        ...(filters.severity ? { severity: filters.severity } : {}),
+        ...(filters.q ? { q: filters.q } : {}),
+        ...(filters.entity ? { entityType: filters.entity } : {}),
+        ...(pageParam ? { before: pageParam } : {}),
       }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextBefore ?? undefined,
+    placeholderData: keepPreviousData,
   });
+
+  const rows = useMemo(() => logs.data?.pages.flatMap((page) => page.data), [logs.data]);
+
+  // بلا ترتيب على العميل: القائمة تُحمَّل دفعات، وترتيب ما حُمّل وحده يوهم.
+  const columns = useMemo(
+    () =>
+      col.columns([
+        col.display({
+          id: "summary",
+          header: "ما جرى",
+          cell: (info) => {
+            const entry = info.row.original;
+
+            return (
+              <PrimaryCell
+                label={entry.summaryAr ?? entry.action}
+                href={entityHref(entry) ?? undefined}
+                description={
+                  <span dir="ltr" className="font-mono">
+                    {entry.action}
+                  </span>
+                }
+              />
+            );
+          },
+        }),
+        col.accessor("severity", {
+          header: "الأهمية",
+          enableSorting: false,
+          cell: (info) => <StatusBadge kind="auditSeverity" value={info.getValue()} />,
+        }),
+        col.display({
+          id: "entity",
+          header: "الكيان",
+          cell: (info) => {
+            const entry = info.row.original;
+
+            if (!entry.entityType) return cells.text(null);
+
+            return (
+              <div className="space-y-0.5">
+                <p>{entry.entityLabel ?? "—"}</p>
+                <p className="text-xs text-muted-foreground">
+                  {ENTITY_LABELS[entry.entityType] ?? entry.entityType}
+                </p>
+              </div>
+            );
+          },
+        }),
+        col.display({
+          id: "actor",
+          header: "بواسطة",
+          cell: (info) => cells.text(info.row.original.actorNameAr ?? (info.row.original.actorType === "SYSTEM" ? "النظام" : null)),
+        }),
+        col.accessor("createdAt", {
+          header: "الوقت",
+          enableSorting: false,
+          cell: (info) => cells.dateTime(info.getValue()),
+        }),
+      ]),
+    [],
+  );
+
+  const activeCount = [filters.severity, filters.entity].filter(Boolean).length;
+  const hasFilters = Boolean(filters.q) || activeCount > 0;
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold">سجل التدقيق</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          إضافي فقط: كل اعتماد وموافقة وتغيير حالة مسجَّل، ولا يُعدَّل ولا يُحذف.
-        </p>
-      </header>
+      <PageHeader
+        title="سجل التدقيق"
+        description="إضافي فقط: كل اعتماد وموافقة وتغيير حالة مسجَّل، ولا يُعدَّل ولا يُحذف."
+      />
 
-      <div className="flex flex-wrap items-center gap-2">
-        {[
-          { value: "", label: "الكل" },
-          ...Object.entries(AUDIT_SEVERITY_LABELS).map(([value, label]) => ({
-            value,
-            label,
-          })),
-        ].map((filter) => (
-          <button
-            key={filter.value}
-            type="button"
-            onClick={() => setSeverity(filter.value)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs transition-colors",
-              severity === filter.value
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-accent",
-            )}
-          >
-            {filter.label}
-          </button>
-        ))}
-
-        <form
-          className="ms-auto flex items-center gap-2"
-          onSubmit={(event) => {
-            event.preventDefault();
-            setQuery(search.trim());
-          }}
+      <div className="space-y-3">
+        <Toolbar
+          search={
+            <SearchInput
+              value={filters.q}
+              onChange={(q) => setFilters({ q })}
+              placeholder="ابحث في الوصف…"
+              label="البحث في سجل التدقيق"
+            />
+          }
+          hasActiveFilters={hasFilters}
+          activeCount={activeCount}
+          onReset={resetFilters}
         >
-          <Input
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="ابحث في الوصف…"
-            className="h-9 w-56"
-            aria-label="بحث في سجل التدقيق"
+          <FilterChips
+            label="الأهمية"
+            value={filters.severity}
+            onChange={(severity) => setFilters({ severity })}
+            options={SEVERITY_CHIPS}
           />
-          <Button type="submit" variant="outline" size="sm">
-            بحث
-          </Button>
-        </form>
+          {/* مرشّح نوع الكيان قائم في الـAPI ولم تكن له واجهة. */}
+          <Select
+            size="sm"
+            label="الكيان"
+            placeholder="الكل"
+            className="w-56"
+            clearable
+            options={ENTITY_OPTIONS}
+            value={filters.entity || null}
+            onChange={(entity) => setFilters({ entity })}
+          />
+        </Toolbar>
+
+        <DataTable
+          caption="سجل التدقيق"
+          columns={columns}
+          data={rows}
+          getRowId={(entry) => entry.id}
+          isLoading={logs.isPending}
+          error={logs.error}
+          onRetry={() => void logs.refetch()}
+          filtered={hasFilters}
+          onClearFilters={resetFilters}
+          empty={{ title: "لا سجلات بعد" }}
+          rowHref={(entry) => entityHref(entry) ?? undefined}
+          rowActions={(entry) => [
+            {
+              key: "open",
+              label: "فتح ما جرى عليه",
+              icon: ExternalLink,
+              href: entityHref(entry) ?? undefined,
+              hidden: !entityHref(entry),
+            },
+          ]}
+          pagination={{
+            mode: "cursor",
+            hasMore: Boolean(logs.hasNextPage),
+            onLoadMore: () => void logs.fetchNextPage(),
+            isLoadingMore: logs.isFetchingNextPage,
+          }}
+        />
       </div>
-
-      <Card>
-        <CardContent className="p-0">
-          {logs.isPending ? (
-            <p className="p-6 text-sm text-muted-foreground">جارٍ التحميل…</p>
-          ) : logs.isError ? (
-            <div className="p-6">
-              <Alert>تعذّر تحميل السجل.</Alert>
-            </div>
-          ) : logs.data.data.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">لا سجلات مطابقة.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {logs.data.data.map((entry) => (
-                <li key={entry.id} className="flex flex-wrap gap-3 p-4 text-sm">
-                  <span
-                    className={cn(
-                      "h-fit rounded px-1.5 py-0.5 text-xs",
-                      SEVERITY_STYLES[entry.severity],
-                    )}
-                  >
-                    {AUDIT_SEVERITY_LABELS[entry.severity]}
-                  </span>
-
-                  <div className="min-w-0 flex-1">
-                    <p>{entry.summaryAr ?? entry.action}</p>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {entry.actorNameAr ?? "النظام"}
-                      {entry.entityLabel ? ` · ${entry.entityLabel}` : ""}
-                      {" · "}
-                      {formatDateTime(entry.createdAt)}
-                      <span className="ms-2 opacity-60" dir="ltr">
-                        {entry.action}
-                      </span>
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
-
-      {logs.data?.nextBefore ? (
-        <p className="text-center text-xs text-muted-foreground">
-          تُعرض أحدث {logs.data.data.length} سجلًا. صفِّ النتائج لرؤية ما قبلها.
-        </p>
-      ) : null}
     </div>
   );
 }

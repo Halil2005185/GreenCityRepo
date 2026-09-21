@@ -148,12 +148,13 @@ export const AUDIT_SEVERITY_LABELS = {
 } as const;
 
 export function listAuditLogs(
-  filters: { severity?: string; q?: string; before?: string } = {},
+  filters: { severity?: string; q?: string; entityType?: string; before?: string } = {},
 ) {
   const params = new URLSearchParams();
 
   if (filters.severity) params.set("severity", filters.severity);
   if (filters.q) params.set("q", filters.q);
+  if (filters.entityType) params.set("entityType", filters.entityType);
   if (filters.before) params.set("before", filters.before);
 
   const query = params.toString();

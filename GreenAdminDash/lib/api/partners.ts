@@ -253,10 +253,11 @@ export function createCharterVersion(body: {
   });
 }
 
-export function publishCharterVersion(id: string) {
+/** بلا تاريخ يسري الإصدار فور النشر؛ التاريخ يؤجّل سريانه أو يسنده. */
+export function publishCharterVersion(id: string, effectiveFrom?: string) {
   return apiFetch<CharterVersion>(`/admin/charter/versions/${id}/publish`, {
     method: "POST",
-    body: {},
+    body: effectiveFrom ? { effectiveFrom } : {},
   });
 }
 
@@ -264,6 +265,16 @@ export function publishCharterVersion(id: string) {
 
 export function getMyOrganization() {
   return apiFetch<PartnerSelf>("/partner/me");
+}
+
+/** تحرير ممثل الجهة لملفها العلني — المسار قائم في الـAPI ولم تكن له واجهة. */
+export function updateMyOrganization(body: {
+  displayNameAr?: string;
+  nameEn?: string;
+  websiteUrl?: string;
+  summaryAr?: string;
+}) {
+  return apiFetch<PartnerSelf>("/partner/me", { method: "PATCH", body });
 }
 
 export function updateMyDisplayConsent(body: {
