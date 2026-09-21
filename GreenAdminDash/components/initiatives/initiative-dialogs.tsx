@@ -233,7 +233,7 @@ const editSchema = z
 type EditValues = z.infer<typeof editSchema>;
 
 /**
- * بيانات المبادرة التشغيلية — مسار \`PATCH\` كان يُستعمل للقصة وحدها،
+ * بيانات المبادرة التشغيلية — مسار `PATCH` كان يُستعمل للقصة وحدها،
  * وبقية الحقول بلا واجهة: خطأ في الاسم أو الموعد كان يعني مبادرة جديدة.
  */
 export function InitiativeEditDialog({
