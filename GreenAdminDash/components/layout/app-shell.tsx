@@ -160,9 +160,12 @@ export function AppShell({
     user.memberships.find((membership) => membership.isPrimary) ??
     user.memberships[0];
 
-  const roleLine = `${primaryMembership?.roleNameAr ?? "بلا دور"}${
-    primaryMembership ? ` · ${primaryMembership.officeNameAr}` : ""
-  }`;
+  // ممثل الشريك بلا عضوية مكتب: دوره واسم جهته، لا «بلا دور».
+  const roleLine = user.partner
+    ? `${user.partner.roleNameAr} · ${user.partner.displayNameAr}`
+    : `${primaryMembership?.roleNameAr ?? "بلا دور"}${
+        primaryMembership ? ` · ${primaryMembership.officeNameAr}` : ""
+      }`;
 
   return (
     <div className="flex min-h-dvh">
