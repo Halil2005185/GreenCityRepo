@@ -14,7 +14,10 @@ import {
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Input, Label } from "@/components/ui/field";
 import { ImageField } from "@/components/ui/image-field";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { SimpleTooltip } from "@/components/ui/tooltip";
 import type { FormDetail } from "@/lib/api/forms";
 import { cn } from "@/lib/utils";
 
@@ -51,6 +54,9 @@ function docOrNull(doc: IntroDoc, text: string): IntroDoc | null {
   return text.trim().length > 0 ? doc : null;
 }
 
+const TOOL_CLASS =
+  "rounded-md border border-transparent p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
+
 function ToolbarButton({
   active,
   label,
@@ -63,19 +69,117 @@ function ToolbarButton({
   children: React.ReactNode;
 }) {
   return (
-    <button
-      type="button"
-      title={label}
-      aria-label={label}
-      aria-pressed={active}
-      onClick={onClick}
-      className={cn(
-        "rounded-md border border-transparent p-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground",
-        active && "border-border bg-accent text-foreground",
-      )}
+    <SimpleTooltip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        aria-pressed={active}
+        onClick={onClick}
+        className={cn(TOOL_CLASS, active && "border-border bg-accent text-foreground")}
+      >
+        {children}
+      </button>
+    </SimpleTooltip>
+  );
+}
+
+function isWebUrl(value: string) {
+  try {
+    const url = new URL(value);
+
+    return (url.protocol === "https:" || url.protocol === "http:") && url.hostname.includes(".");
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * الرابط في نافذة منبثقة بجوار زرّه بدل `window.prompt`: الأخيرة تقطع
+ * الكتابة بنافذة المتصفح، ولا تقبل تصحيحًا ولا تحقّقًا قبل الإدراج.
+ * بروتوكولان لا غير لأن المخطّط على الخادم يرفض ما عداهما.
+ */
+function LinkButton({ editor }: { editor: NonNullable<ReturnType<typeof useEditor>> }) {
+  const active = editor.isActive("link");
+  const [open, setOpen] = useState(false);
+  const [href, setHref] = useState("https://");
+  const [invalid, setInvalid] = useState(false);
+
+  function apply() {
+    const value = href.trim();
+
+    if (!isWebUrl(value)) {
+      setInvalid(true);
+      return;
+    }
+
+    editor.chain().focus().extendMarkRange("link").setLink({ href: value }).run();
+    setOpen(false);
+  }
+
+  return (
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (next) {
+          setHref((editor.getAttributes("link").href as string | undefined) ?? "https://");
+          setInvalid(false);
+        }
+      }}
     >
-      {children}
-    </button>
+      <SimpleTooltip label={active ? "تعديل الرابط" : "إضافة رابط"}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            aria-label={active ? "تعديل الرابط" : "إضافة رابط"}
+            aria-pressed={active}
+            className={cn(TOOL_CLASS, active && "border-border bg-accent text-foreground")}
+          >
+            <LinkIcon className="size-4" />
+          </button>
+        </PopoverTrigger>
+      </SimpleTooltip>
+      <PopoverContent className="space-y-2">
+        <Label htmlFor="intro-link-href">عنوان الرابط</Label>
+        <Input
+          id="intro-link-href"
+          dir="ltr"
+          className="text-start"
+          value={href}
+          aria-invalid={invalid}
+          onChange={(event) => setHref(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              apply();
+            }
+          }}
+        />
+        {invalid ? (
+          <p className="text-xs text-destructive" role="alert">
+            رابط كامل يبدأ بـ <span dir="ltr">https://</span>
+          </p>
+        ) : null}
+        <div className="flex flex-wrap justify-end gap-2">
+          {active ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                editor.chain().focus().extendMarkRange("link").unsetLink().run();
+                setOpen(false);
+              }}
+            >
+              إزالة الرابط
+            </Button>
+          ) : null}
+          <Button type="button" size="sm" onClick={apply}>
+            {active ? "حفظ الرابط" : "إضافة الرابط"}
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }
 
@@ -171,46 +275,31 @@ export function IntroEditor({
             <ListOrdered className="size-4" />
           </ToolbarButton>
 
-          <ToolbarButton
-            label="رابط"
-            active={editor.isActive("link")}
-            onClick={() => {
-              if (editor.isActive("link")) {
-                editor.chain().focus().unsetLink().run();
-                return;
-              }
-
-              const href = window.prompt("عنوان الرابط:", "https://");
-
-              if (!href?.startsWith("http")) return;
-
-              editor.chain().focus().setLink({ href }).run();
-            }}
-          >
-            <LinkIcon className="size-4" />
-          </ToolbarButton>
+          <LinkButton editor={editor} />
         </div>
 
         <EditorContent editor={editor} />
       </div>
 
-      <Button
-        type="button"
-        size="sm"
-        loading={saving}
-        onClick={() =>
-          onSave({
-            // شكل Tiptap فضفاض والخادم يتحقّق عقدةً بعقدة، فالتأكيد هنا لا يخدع أحدًا.
-            introJson: docOrNull(
-              editor.getJSON() as IntroDoc,
-              editor.getText(),
-            ),
-            coverImageUrl: cover.trim() || null,
-          })
-        }
-      >
-        حفظ المقدّمة
-      </Button>
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          size="sm"
+          loading={saving}
+          onClick={() =>
+            onSave({
+              // شكل Tiptap فضفاض والخادم يتحقّق عقدةً بعقدة، فالتأكيد هنا لا يخدع أحدًا.
+              introJson: docOrNull(
+                editor.getJSON() as IntroDoc,
+                editor.getText(),
+              ),
+              coverImageUrl: cover.trim() || null,
+            })
+          }
+        >
+          حفظ المقدّمة
+        </Button>
+      </div>
     </div>
   );
 }

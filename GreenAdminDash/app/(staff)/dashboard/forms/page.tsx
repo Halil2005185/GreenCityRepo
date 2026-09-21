@@ -1,317 +1,208 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Copy } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
+import { useQuery } from "@tanstack/react-query";
+import { Inbox, Link2, Pencil, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
 
-import { Button } from "@/components/ui/button";
+import { FormCreateDialog, RegistrationLinkDialog } from "@/components/forms/form-dialogs";
 import {
-  Alert,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Field, Input, Label } from "@/components/ui/field";
-import { ApiError } from "@/lib/api/client";
-import { createForm, listForms } from "@/lib/api/forms";
-import { listOffices } from "@/lib/api/invitations";
-import { formatDate } from "@/lib/utils";
+  DataTable,
+  EmptyCell,
+  PrimaryCell,
+  cells,
+  columnHelper,
+} from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { FilterChips, SearchInput, Toolbar, type ChipOption } from "@/components/ui/toolbar";
+import { listForms, type FormSummary } from "@/lib/api/forms";
+import { CAPABILITIES } from "@/lib/auth/capabilities";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import { normalizeArabic } from "@/lib/text/normalize-ar";
 
-/**
- * أصل الموقع العام — منه يُبنى رابط التسجيل الذي يُنشر للناس.
- *
- * يُقرأ من البيئة لا يُكتب في الكود: اللوحة تعمل محليًا وعلى الإنتاج
- * بنفس الحزمة، ورابط `localhost` يُنسخ ويُرسل فلا يفتح عند أحد.
- */
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+/** الاستمارات قليلة ويُعيدها الخادم كاملة، فالبحث والترشيح هنا على العميل. */
+const STATE_CHIPS: ChipOption[] = [
+  { value: "", label: "الكل" },
+  { value: "accepting", label: "تستقبل الطلبات" },
+  { value: "closed", label: "مغلقة" },
+  { value: "draft", label: "لم تُنشر" },
+];
 
-/**
- * الرابط العام لاستمارة منشورة، أو `null` إن لم تُنشر بعد أو لم يُضبط
- * عنوان الموقع — رابطٌ إلى استمارة غير منشورة يعطي 404 لمن يفتحه.
- */
-function publicUrlOf(form: { slug: string; publishedVersion: number | null }) {
-  if (!SITE_URL || !form.publishedVersion) return null;
+function matchesState(form: FormSummary, state: string) {
+  if (state === "accepting") return form.publishedVersion !== null && form.isAccepting;
+  if (state === "closed") return form.publishedVersion !== null && !form.isAccepting;
+  if (state === "draft") return form.publishedVersion === null;
 
-  return `${SITE_URL.replace(/\/$/, "")}/join/${form.slug}`;
+  return true;
 }
 
-/** ينسخ الرابط ويقول إنه نُسخ: زرٌّ لا يجيب لا يُصدَّق فيُنقر مرتين. */
-function CopyLinkButton({ url }: { url: string }) {
-  const [copied, setCopied] = useState(false);
-
-  return (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      className="gap-1.5"
-      title={url}
-      onClick={async () => {
-        try {
-          await navigator.clipboard.writeText(url);
-        } catch {
-          // متصفح يمنع الحافظة: يُعرض الرابط ليُنسخ يدويًا، فزرٌّ لا يفعل شيئًا
-          // أسوأ من نافذة نسخ.
-          window.prompt("انسخ رابط التسجيل:", url);
-          return;
-        }
-
-        setCopied(true);
-        window.setTimeout(() => setCopied(false), 2000);
-      }}
-    >
-      {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
-      {copied ? "نُسخ" : "نسخ رابط التسجيل"}
-    </Button>
-  );
-}
-
-const createSchema = z.object({
-  nameAr: z.string().trim().min(2, "اسم الاستمارة مطلوب."),
-  slug: z
-    .string()
-    .trim()
-    .min(2, "المعرّف مطلوب.")
-    .regex(/^[a-z][a-z0-9-]*$/, "حروف لاتينية صغيرة وأرقام وشرطات فقط."),
-  descriptionAr: z.string().trim().max(1000).optional(),
-  officeId: z.string().optional(),
-});
-
-type CreateValues = z.infer<typeof createSchema>;
+const col = columnHelper<FormSummary>();
 
 export default function FormsPage() {
-  const queryClient = useQueryClient();
-  const [formError, setFormError] = useState<string | null>(null);
+  const [filters, setFilters, resetFilters] = useUrlState({ q: "", state: "", new: "" });
+  const [linkFor, setLinkFor] = useState<{ form: FormSummary | null; open: boolean }>({
+    form: null,
+    open: false,
+  });
 
   const forms = useQuery({ queryKey: ["forms"], queryFn: listForms });
-  const offices = useQuery({ queryKey: ["offices"], queryFn: listOffices });
 
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<CreateValues>({
-    resolver: zodResolver(createSchema),
-    defaultValues: { nameAr: "", slug: "", descriptionAr: "", officeId: "" },
-  });
+  const rows = useMemo(() => {
+    const query = normalizeArabic(filters.q);
 
-  const create = useMutation({
-    mutationFn: createForm,
-    onSuccess: () => {
-      reset();
-      void queryClient.invalidateQueries({ queryKey: ["forms"] });
-    },
-  });
+    return (forms.data ?? []).filter(
+      (form) =>
+        matchesState(form, filters.state) &&
+        (!query || normalizeArabic(`${form.nameAr} ${form.slug}`).includes(query)),
+    );
+  }, [forms.data, filters.q, filters.state]);
 
-  const onSubmit = handleSubmit(async (values) => {
-    setFormError(null);
+  const columns = useMemo(
+    () =>
+      col.columns([
+        col.accessor("nameAr", {
+          header: "الاستمارة",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              href={`/dashboard/forms/${info.row.original.id}/edit`}
+              description={<span dir="ltr">/{info.row.original.slug}</span>}
+            />
+          ),
+        }),
+        col.accessor((form) => form.officeNameAr ?? undefined, {
+          id: "office",
+          header: "المكتب",
+          sortUndefined: "last",
+          cell: (info) => cells.text(info.getValue()),
+        }),
+        col.accessor((form) => form.publishedVersion ?? undefined, {
+          id: "published",
+          header: "المنشور",
+          sortUndefined: "last",
+          cell: (info) =>
+            info.getValue() ? (
+              <span>
+                الإصدار <span className="numeric">{info.getValue()}</span>
+              </span>
+            ) : (
+              <span className="text-muted-foreground">لم يُنشر</span>
+            ),
+        }),
+        col.accessor("draftFieldCount", {
+          header: "أسئلة المسوّدة",
+          meta: { numeric: true },
+          cell: (info) => cells.number(info.getValue()),
+        }),
+        col.accessor("isAccepting", {
+          header: "الاستقبال",
+          enableSorting: false,
+          cell: (info) =>
+            info.row.original.publishedVersion ? (
+              <StatusBadge kind="formAccepting" value={info.getValue() ? "OPEN" : "CLOSED"} />
+            ) : (
+              <EmptyCell />
+            ),
+        }),
+        col.accessor("createdAt", {
+          header: "أُنشئت",
+          cell: (info) => cells.date(info.getValue()),
+        }),
+      ]),
+    [],
+  );
 
-    try {
-      await create.mutateAsync({
-        slug: values.slug,
-        nameAr: values.nameAr,
-        ...(values.descriptionAr ? { descriptionAr: values.descriptionAr } : {}),
-        ...(values.officeId ? { officeId: values.officeId } : {}),
-      });
-    } catch (error) {
-      setFormError(
-        error instanceof ApiError
-          ? error.message
-          : "تعذّر الاتصال بالخادم. حاول مجددًا.",
-      );
-    }
-  });
+  const create = {
+    key: "create",
+    label: "إنشاء استمارة",
+    icon: Plus,
+    requires: [CAPABILITIES.formsManage],
+    onSelect: () => setFilters({ new: "1" }, { keepPage: true }),
+  };
+  const hasFilters = Boolean(filters.q || filters.state);
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>استمارة جديدة</CardTitle>
-          <CardDescription>
-            تُنشأ مسوّدتها فورًا. الأسئلة تُحرَّر في المسوّدة، والمنشور مجمَّد
-            لا يُعدَّل — لأن طلبًا قديمًا يجب أن يبقى مقروءًا مقابل الأسئلة كما
-            سُئلت يومها.
-          </CardDescription>
-        </CardHeader>
+      <PageHeader
+        title="الاستمارات"
+        description="استمارات الانضمام والتسجيل العلنية. المسوّدة تُحرَّر، والمنشور مجمَّد تُقرأ الطلبات مقابل أسئلته."
+        primaryAction={create}
+      />
 
-        <CardContent>
-          <form onSubmit={onSubmit} className="space-y-4" noValidate>
-            {formError ? <Alert>{formError}</Alert> : null}
+      <div className="space-y-3">
+        <Toolbar
+          search={
+            <SearchInput
+              value={filters.q}
+              onChange={(q) => setFilters({ q })}
+              placeholder="بالاسم أو المعرّف…"
+              label="البحث في الاستمارات"
+            />
+          }
+          hasActiveFilters={hasFilters}
+          activeCount={filters.state ? 1 : 0}
+          onReset={resetFilters}
+          mobile="inline"
+        >
+          <FilterChips
+            label="حالة الاستمارة"
+            value={filters.state}
+            onChange={(state) => setFilters({ state })}
+            options={STATE_CHIPS}
+          />
+        </Toolbar>
 
-            <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                id="nameAr"
-                label="اسم الاستمارة"
-                error={errors.nameAr?.message}
-              >
-                {(props) => (
-                  <Input
-                    {...props}
-                    {...register("nameAr")}
-                    placeholder="استمارة الانضمام"
-                  />
-                )}
-              </Field>
+        <DataTable
+          caption="الاستمارات"
+          columns={columns}
+          data={forms.data ? rows : undefined}
+          getRowId={(form) => form.id}
+          isLoading={forms.isPending}
+          error={forms.error}
+          onRetry={() => void forms.refetch()}
+          urlState
+          filtered={hasFilters}
+          onClearFilters={resetFilters}
+          empty={{
+            title: "لا استمارات بعد",
+            description: "أنشئ استمارة وأضف أسئلتها، ثم انشرها لتحصل على رابط التسجيل.",
+            action: create,
+          }}
+          rowHref={(form) => `/dashboard/forms/${form.id}/edit`}
+          rowActions={(form) => [
+            {
+              key: "submissions",
+              label: "عرض الطلبات",
+              icon: Inbox,
+              quick: true,
+              href: `/dashboard/forms/${form.id}/submissions`,
+            },
+            {
+              key: "edit",
+              label: "تحرير الأسئلة",
+              icon: Pencil,
+              href: `/dashboard/forms/${form.id}/edit`,
+            },
+            {
+              key: "link",
+              label: "رابط التسجيل",
+              icon: Link2,
+              hidden: !form.publishedVersion,
+              onSelect: () => setLinkFor({ form, open: true }),
+            },
+          ]}
+        />
+      </div>
 
-              <Field
-                id="slug"
-                label="المعرّف في الرابط"
-                hint="يظهر في عنوان الاستمارة العلني."
-                error={errors.slug?.message}
-              >
-                {(props) => (
-                  <Input
-                    {...props}
-                    {...register("slug")}
-                    dir="ltr"
-                    className="text-start"
-                    placeholder="join"
-                  />
-                )}
-              </Field>
-            </div>
-
-            <Field
-              id="descriptionAr"
-              label="وصف مختصر (اختياري)"
-              error={errors.descriptionAr?.message}
-            >
-              {(props) => <Input {...props} {...register("descriptionAr")} />}
-            </Field>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="officeId">المكتب المسؤول عن الفرز</Label>
-              <select
-                id="officeId"
-                {...register("officeId")}
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">بلا مكتب</option>
-                {offices.data?.map((office) => (
-                  <option key={office.id} value={office.id}>
-                    {office.nameAr}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <Button
-              type="submit"
-              loading={isSubmitting || create.isPending}
-            >
-              إنشاء
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>الاستمارات</CardTitle>
-        </CardHeader>
-
-        <CardContent>
-          {forms.isPending ? (
-            <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>
-          ) : forms.isError ? (
-            <Alert>تعذّر تحميل الاستمارات.</Alert>
-          ) : forms.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              لا استمارات بعد.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-start text-sm">
-                <thead className="border-b border-border text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-2 text-start font-medium">الاسم</th>
-                    <th className="p-2 text-start font-medium">المكتب</th>
-                    <th className="p-2 text-start font-medium">المنشور</th>
-                    <th className="p-2 text-start font-medium">أسئلة المسوّدة</th>
-                    <th className="p-2 text-start font-medium">الاستقبال</th>
-                    <th className="p-2 text-start font-medium">الطلبات</th>
-                    <th className="p-2 text-start font-medium">رابط التسجيل</th>
-                    <th className="p-2 text-start font-medium">أُنشئت</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {forms.data.map((form) => (
-                    <tr
-                      key={form.id}
-                      className="border-b border-border/60 hover:bg-muted/40"
-                    >
-                      <td className="p-2">
-                        <Link
-                          href={`/dashboard/forms/${form.id}/edit`}
-                          className="font-medium text-primary underline-offset-4 hover:underline"
-                        >
-                          {form.nameAr}
-                        </Link>
-                        <span
-                          dir="ltr"
-                          className="ms-2 text-xs text-muted-foreground"
-                        >
-                          /{form.slug}
-                        </span>
-                      </td>
-                      <td className="p-2">{form.officeNameAr ?? "—"}</td>
-                      <td className="p-2">
-                        {form.publishedVersion
-                          ? `الإصدار ${form.publishedVersion}`
-                          : "لم يُنشر"}
-                      </td>
-                      <td className="p-2">{form.draftFieldCount}</td>
-                      <td className="p-2">
-                        <span
-                          className={`rounded px-2 py-0.5 text-xs ${
-                            form.isAccepting
-                              ? "bg-success/15 text-success"
-                              : "bg-muted text-muted-foreground"
-                          }`}
-                        >
-                          {form.isAccepting ? "مفتوح" : "مغلق"}
-                        </span>
-                      </td>
-                      <td className="p-2">
-                        <Link
-                          href={`/dashboard/forms/${form.id}/submissions`}
-                          className="text-xs text-primary underline-offset-4 hover:underline"
-                        >
-                          عرض الطلبات
-                        </Link>
-                      </td>
-
-                      <td className="p-2">
-                        {publicUrlOf(form) ? (
-                          <CopyLinkButton url={publicUrlOf(form)!} />
-                        ) : (
-                          <span className="text-xs text-muted-foreground">
-                            {form.publishedVersion
-                              ? "اضبط عنوان الموقع"
-                              : "بعد النشر"}
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="p-2 text-xs text-muted-foreground">
-                        {formatDate(form.createdAt)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <FormCreateDialog
+        open={filters.new === "1"}
+        onOpenChange={(open) => setFilters({ new: open ? "1" : null }, { keepPage: true })}
+      />
+      <RegistrationLinkDialog
+        form={linkFor.form}
+        open={linkFor.open}
+        onOpenChange={(open) => setLinkFor((current) => ({ ...current, open }))}
+      />
     </div>
   );
 }
