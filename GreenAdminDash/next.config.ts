@@ -11,6 +11,17 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   /**
+   * ملفات `*.dev.tsx` صفحات في التطوير وحده (صفحة عرض المكوّنات
+   * `/dashboard/kit`). في البناء الإنتاجي لا يعرفها Next أصلًا، فالمسار
+   * يعيد 404 حقيقية وكودها خارج الحزمة. `notFound()` داخل الصفحة لا يكفي:
+   * `AppShell` لا يرسم الصفحة على الخادم، فكانت تصل «غير موجودة» بحالة 200.
+   */
+  pageExtensions:
+    process.env.NODE_ENV === "production"
+      ? ["tsx", "ts", "jsx", "js"]
+      : ["dev.tsx", "tsx", "ts", "jsx", "js"],
+
+  /**
    * يجعل اللوحة والـAPI على أصل واحد أثناء التطوير.
    *
    * هذا ليس ترفًا: كوكي التحديث `SameSite=Strict` لا يُرسل عبر الأصول،

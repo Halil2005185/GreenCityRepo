@@ -3,6 +3,10 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { ConfirmProvider } from "@/components/ui/confirm-dialog";
+import { DirectionProvider } from "@/components/ui/direction";
+import { Toaster } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { ApiError } from "@/lib/api/client";
 import { AuthProvider } from "@/lib/auth/auth-context";
 
@@ -30,9 +34,22 @@ export function AppProviders({ children }: { children: React.ReactNode }) {
       }),
   );
 
+  /**
+   * `DirectionProvider` يخبر مكوّنات Radix باتجاه الصفحة (القوائم وأسهم
+   * لوحة المفاتيح)، ويطابق `dir="rtl"` على عنصر html في `app/layout.tsx`.
+   */
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>{children}</AuthProvider>
-    </QueryClientProvider>
+    <DirectionProvider dir="rtl">
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <ConfirmProvider>
+              {children}
+              <Toaster />
+            </ConfirmProvider>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </DirectionProvider>
   );
 }
