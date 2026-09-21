@@ -8,18 +8,32 @@ import mapboxgl, {
   type GeoJSONFeature,
   type GeoJSONSource,
 } from "mapbox-gl";
-import { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
+import { createPortal } from "react-dom";
 import MapGL, {
+  AttributionControl,
+  type ControlPosition,
   type ErrorEvent,
   Layer,
   type LayerProps,
   type MapMouseEvent,
   type MapRef,
+  type MapSourceDataEvent,
   Marker,
   NavigationControl,
   Source,
+  useControl,
 } from "react-map-gl/mapbox";
 
+import { FilterChips, type ChipOption } from "@/components/ui/toolbar";
 import { POINT_KIND_LABELS, type MapArea, type MapPoint } from "@/lib/api/map";
 import { type Coordinates, bboxOf, rounded } from "@/lib/map/geometry";
 import { buildOutline } from "@/lib/map/outline";
@@ -27,11 +41,12 @@ import { countAr } from "@/lib/text/plural-ar";
 import { cn } from "@/lib/utils";
 
 import {
+  BASEMAPS,
+  type Basemap,
   DETAIL_ZOOM,
   KIND_COLORS,
   MAPBOX_TOKEN,
   MAP_LOCALE,
-  MAP_STYLE,
   MAX_BOUNDS,
   MAX_ZOOM,
   MIN_ZOOM,
@@ -76,20 +91,58 @@ const MASK_FRAME = [
 
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
-/** ألوان المحافظات كما كانت قبل Mapbox: عادية، وعند المرور، ومختارة. */
-const AREA = {
-  line: "#94a3b8",
-  fill: "#86efac",
-  opacity: 0.25,
-  width: 1,
-  hoverLine: "#15803d",
-  hoverFill: "#22c55e",
-  hoverOpacity: 0.55,
-  hoverWidth: 2,
-  selectedLine: "#166534",
-  selectedFill: "#16a34a",
-  selectedOpacity: 0.45,
-  selectedWidth: 2.5,
+/**
+ * خط اللوحة لأدوات Mapbox وإسنادها بدل Helvetica، فيُقرأ العربي فيها بخط
+ * اللوحة. نمطٌ مضمَّن على الحاوية لا صنف Tailwind: ملف أنماط Mapbox خارج
+ * طبقات CSS، وما هو خارجها يغلب أصناف Tailwind الواقعة داخل طبقة مهما
+ * بلغت خصوصيتها — جُرّب الصنف فبقيت الأدوات على Helvetica.
+ */
+const MAP_CONTAINER_STYLE = { fontFamily: "inherit" };
+
+type AreaPalette = Record<
+  "line" | "fill" | "hoverLine" | "hoverFill" | "selectedLine" | "selectedFill",
+  string
+> &
+  Record<
+    "opacity" | "width" | "hoverOpacity" | "hoverWidth" | "selectedOpacity" | "selectedWidth",
+    number
+  >;
+
+/**
+ * ألوان المحافظات: عادية، وعند المرور، ومختارة — ولكل خلفية لوحتها. على
+ * الخلفية الهادئة هي الألوان نفسها قبل Mapbox. وعلى صور القمر الصناعي
+ * تخفّ التعبئة كثيرًا، فالصور هي غاية التبديل ولا معنى لتغطيتها بالأخضر،
+ * وتفتح الحدود لأن الرمادي والأخضر الداكن يضيعان فوق الصور.
+ */
+const AREA_PALETTES: Record<Basemap, AreaPalette> = {
+  map: {
+    line: "#94a3b8",
+    fill: "#86efac",
+    opacity: 0.25,
+    width: 1,
+    hoverLine: "#15803d",
+    hoverFill: "#22c55e",
+    hoverOpacity: 0.55,
+    hoverWidth: 2,
+    selectedLine: "#166534",
+    selectedFill: "#16a34a",
+    selectedOpacity: 0.45,
+    selectedWidth: 2.5,
+  },
+  satellite: {
+    line: "#f1f5f9",
+    fill: "#86efac",
+    opacity: 0.06,
+    width: 1.2,
+    hoverLine: "#bbf7d0",
+    hoverFill: "#4ade80",
+    hoverOpacity: 0.24,
+    hoverWidth: 2.5,
+    selectedLine: "#4ade80",
+    selectedFill: "#4ade80",
+    selectedOpacity: 0.14,
+    selectedWidth: 3,
+  },
 };
 
 /** المرور يغلب الاختيار كما كان: المحافظة المختارة تتلوّن أيضًا حين يمرّ عليها الماوس. */
@@ -156,7 +209,9 @@ function readTheme() {
 
 type Theme = ReturnType<typeof readTheme>;
 
-function layerStyles(theme: Theme) {
+function layerStyles(theme: Theme, basemap: Basemap) {
+  const AREA = AREA_PALETTES[basemap];
+
   return {
     maskFill: {
       id: MASK_FILL,
@@ -308,6 +363,93 @@ function Pin() {
   );
 }
 
+// ── الخلفية ─────────────────────────────────────────────────────────────
+
+const BASEMAP_KEY = "gc-map-basemap";
+const BASEMAP_OPTIONS: ChipOption[] = (Object.keys(BASEMAPS) as Basemap[]).map((value) => ({
+  value,
+  label: BASEMAPS[value].label,
+}));
+
+/**
+ * اختيار الخلفية تفضيلٌ للمتصفح يُحفظ فيه، ومشترك بين خرائط الصفحة: من
+ * يوثّق نقاطه على صور القمر الصناعي يجدها كذلك في الخريطة المصغّرة داخل
+ * النافذة. مخزن صغير لا حالة React في كل خريطة، كي تتبع الخرائط المفتوحة
+ * معًا تبديلًا في إحداها.
+ */
+let basemapChoice: Basemap | null = null;
+const basemapListeners = new Set<() => void>();
+
+function readBasemap(): Basemap {
+  if (basemapChoice) return basemapChoice;
+
+  try {
+    const saved = localStorage.getItem(BASEMAP_KEY);
+    basemapChoice = saved && Object.hasOwn(BASEMAPS, saved) ? (saved as Basemap) : "map";
+  } catch {
+    // تخزين محجوب (نافذة خاصة): الخلفية الهادئة وكفى.
+    basemapChoice = "map";
+  }
+
+  return basemapChoice;
+}
+
+function chooseBasemap(next: Basemap) {
+  basemapChoice = next;
+
+  try {
+    localStorage.setItem(BASEMAP_KEY, next);
+  } catch {
+    // يبقى الاختيار لهذه الجلسة وحدها.
+  }
+
+  for (const listener of basemapListeners) listener();
+}
+
+function subscribeBasemap(listener: () => void) {
+  basemapListeners.add(listener);
+  return () => {
+    basemapListeners.delete(listener);
+  };
+}
+
+function useBasemap() {
+  return useSyncExternalStore(subscribeBasemap, readBasemap, (): Basemap => "map");
+}
+
+/**
+ * مبدّل الخلفية أداةٌ من أدوات Mapbox نفسها لا عنصر عائم فوقها: Mapbox
+ * يرصّها في زاويتها مع شعاره فلا تتراكب، وفوق الشعار في جهة النهاية لأنها
+ * فعل. محتواها React عبر بوابة إلى الحاوية التي تسلّمها للخريطة.
+ */
+function BasemapControl({ position, value }: { position: ControlPosition; value: Basemap }) {
+  const [container] = useState(() => {
+    const element = document.createElement("div");
+    element.className = "mapboxgl-ctrl";
+    return element;
+  });
+
+  useControl(
+    () => ({
+      onAdd: () => container,
+      onRemove: () => container.remove(),
+    }),
+    { position },
+  );
+
+  return createPortal(
+    <div dir="rtl" className="rounded-lg border border-border bg-card/95 p-1 shadow-md backdrop-blur-sm">
+      <FilterChips
+        label="خلفية الخريطة"
+        value={value}
+        onChange={(next) => chooseBasemap(next as Basemap)}
+        options={BASEMAP_OPTIONS}
+      />
+    </div>,
+    container,
+  );
+}
+
 export type MapViewProps = {
   areas: MapArea[];
   /** إسناد مصدر الحدود القادم من `listMapAreas()` — ترخيصه يفرض ظهوره. */
@@ -363,6 +505,7 @@ export function MapView({
 
   const [loaded, setLoaded] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const basemap = useBasemap();
 
   // تُقرأ مرة عند التركيب: خيارات الإنشاء لا تتغير بعده في Mapbox.
   const [theme] = useState(readTheme);
@@ -375,7 +518,7 @@ export function MapView({
       : { bounds: SYRIA_BOUNDS, fitBoundsOptions: { padding: 24 } },
   );
 
-  const styles = useMemo(() => layerStyles(theme), [theme]);
+  const styles = useMemo(() => layerStyles(theme, basemap), [theme, basemap]);
   const locale = useMemo(() => ({ ...MAP_LOCALE, "Map.Title": label }), [label]);
   const customAttribution = attribution
     ? `${RTL_ISOLATE}${escapeHtml(attribution)}${POP_ISOLATE}`
@@ -604,6 +747,22 @@ export function MapView({
     selectedAreaRef.current = selectedAreaId;
   }, [loaded, selectedAreaId, areasData]);
 
+  /**
+   * تبديل الخلفية يستبدل النمط كله، فيعيد react-map-gl إنشاء مصادرنا
+   * وطبقاتنا فوقه — وتسقط معها علامة الاختيار عن المعلم. تُعاد حين يكتمل
+   * مصدر المحافظات من جديد.
+   */
+  const onSourceData = useCallback((event: MapSourceDataEvent) => {
+    const map = mapRef.current;
+    const selected = selectedAreaRef.current;
+
+    if (!map || !selected || event.sourceId !== AREAS_SOURCE || !event.isSourceLoaded) return;
+
+    if (!map.getFeatureState({ source: AREAS_SOURCE, id: selected })?.selected) {
+      map.setFeatureState({ source: AREAS_SOURCE, id: selected }, { selected: true });
+    }
+  }, []);
+
   // أحدث المحافظات دون أن يعيد وصول بيانات جديدة الطيرانَ إلى المختارة.
   const areasRef = useRef(areasById);
   useEffect(() => {
@@ -635,19 +794,16 @@ export function MapView({
   return (
     // Mapbox يرسم أدواته وإسناده على افتراض اتجاه ltr، فالحاوية ltr
     // والنصوص العربية فوقها تعود إلى rtl صراحةً.
-    <div
-      dir="ltr"
-      // خط اللوحة لأدوات Mapbox وإسنادها بدل Helvetica، فيُقرأ الإسناد العربي بخطها.
-      className={cn(
-        "relative size-full overflow-hidden bg-muted [&_.mapboxgl-map]:[font-family:inherit]",
-        className,
-      )}
-    >
+    <div dir="ltr" className={cn("relative size-full overflow-hidden bg-muted", className)}>
       <MapGL
         ref={mapRef}
         mapLib={mapboxgl}
         mapboxAccessToken={MAPBOX_TOKEN}
-        mapStyle={MAP_STYLE}
+        style={MAP_CONTAINER_STYLE}
+        mapStyle={BASEMAPS[basemap].style}
+        // النمطان برسومهما المختلفة لا يقبلان الفرق التدريجي، فمحاولته
+        // تنتهي بتحذير ثم إعادة بناء كاملة على أي حال.
+        styleDiffing={false}
         language="ar"
         locale={locale}
         // ضُبطت أعلى الوحدة بالإصدار 0.3.0؛ الافتراضي هنا 0.2.3.
@@ -663,7 +819,8 @@ export function MapView({
         touchPitch={false}
         maxPitch={0}
         cooperativeGestures={compact}
-        customAttribution={customAttribution}
+        // الإسناد أداةٌ نضيفها نحن أدناه كي نتحكم في طيّها.
+        attributionControl={false}
         interactiveLayerIds={interactiveLayerIds}
         cursor={picking ? "crosshair" : undefined}
         onLoad={onLoad}
@@ -672,9 +829,20 @@ export function MapView({
         onMouseMove={onMouseMove}
         onMouseOut={clearHover}
         onMoveStart={clearHover}
+        onSourceData={onSourceData}
       >
-        {/* أدوات التقريب فعلٌ، فمكانها جهة النهاية. */}
+        {/* أدوات التقريب والخلفية أفعالٌ، فمكانها جهة النهاية. */}
         <NavigationControl position={`top-${endSide}`} showCompass={false} />
+        <BasemapControl position={`bottom-${endSide}`} value={basemap} />
+        {/*
+          في الخريطة المصغّرة يُطوى الإسناد في زر ⓘ: سطره مع مصدر صور القمر
+          الصناعي يكاد يبلغ الشعار ويغطي حافة خريطة قصيرة. وفي الكبيرة يبقى
+          سلوك Mapbox: سطر ظاهر، ويُطوى وحده على الشاشات الضيقة.
+        */}
+        <AttributionControl
+          {...(compact ? { compact: true } : {})}
+          {...(customAttribution ? { customAttribution } : {})}
+        />
 
         <Source id={MASK_SOURCE} type="geojson" data={maskData}>
           <Layer {...styles.maskFill} />

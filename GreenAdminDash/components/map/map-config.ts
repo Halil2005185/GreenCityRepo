@@ -12,8 +12,17 @@ import type { Bbox } from "@/lib/map/geometry";
  */
 export const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
 
-/** نمط هادئ: التلوين الذي يحمل المعنى يأتي من طبقاتنا لا من الخلفية. */
-export const MAP_STYLE = "mapbox://styles/mapbox/light-v11";
+/**
+ * خلفيات الخريطة. الهادئة هي الافتراضية: التلوين الذي يحمل المعنى يأتي من
+ * طبقاتنا لا منها. وصور القمر الصناعي تُظهر المكان على الأرض — حديقة أو
+ * باحة مدرسة — حين يوثَّق موقع بعينه، والطرق والأسماء فوقها من النمط نفسه.
+ */
+export const BASEMAPS = {
+  map: { label: "خريطة", style: "mapbox://styles/mapbox/light-v11" },
+  satellite: { label: "قمر صناعي", style: "mapbox://styles/mapbox/satellite-streets-v12" },
+} as const;
+
+export type Basemap = keyof typeof BASEMAPS;
 
 /** بدونها تظهر الحروف العربية في التسميات منفصلةً ومعكوسة الترتيب. */
 export const RTL_TEXT_PLUGIN_URL =
