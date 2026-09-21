@@ -20,5 +20,13 @@
   "services": [
     { "binding": "WORKER_SELF_REFERENCE", "service": "greencities" }
   ],
-  "observability": { "enabled": true }
+  "observability": { "enabled": true },
+  // متغير وقت التشغيل مطابق لما أُضيف في لوحة Cloudflare، كي لا يمحوه
+  // `wrangler deploy` التالي. لكنه لا يصل إلى المتصفح: Next يضمّن قيم
+  // `NEXT_PUBLIC_*` في الحزمة وقت `next build`، فالقيمة التي تعمل بها
+  // الخريطة فعلًا تُقرأ من `.env.production`. أيّ تغيير للرمز يكون في
+  // الموضعين معًا.
+  "vars": {
+    "NEXT_PUBLIC_MAPBOX_TOKEN": "pk.eyJ1IjoiZXZhdm9sdW4iLCJhIjoiY211Ymo0cXViMXJucDJ4czhxOGpoeHJqNiJ9.HIiCXGwWZrfP2QOayRoRBw"
+  }
 }
