@@ -1,27 +1,32 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight } from "lucide-react";
-import Link from "next/link";
 import { useParams } from "next/navigation";
+import { useMemo } from "react";
 
+import { Badge } from "@/components/ui/badge";
+import { Alert } from "@/components/ui/card";
 import {
-  Alert,
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { type TeamMember, getPerson } from "@/lib/api/people";
-import { OPEN_STATUSES, WORK_STATUS_LABELS, listTasks } from "@/lib/api/work";
-import { formatDate, formatDateTime } from "@/lib/utils";
+  DataTable,
+  EmptyCell,
+  PrimaryCell,
+  cells,
+  columnHelper,
+} from "@/components/ui/data-table";
+import { DescriptionList } from "@/components/ui/description-list";
+import { PageHeader } from "@/components/ui/page-header";
+import { Section } from "@/components/ui/section";
+import { DetailSkeleton, ErrorState } from "@/components/ui/states";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { ApiError } from "@/lib/api/client";
+import { getPerson, primaryMembership, type TeamMembership } from "@/lib/api/people";
+import { OPEN_STATUSES, listTasks, type WorkItemSummary } from "@/lib/api/work";
+import { cn, formatDate, formatDateTime } from "@/lib/utils";
 
-const STATUS_LABELS: Record<TeamMember["status"], string> = {
-  ACTIVE: "نشط",
-  SUSPENDED: "موقوف",
-  DISABLED: "معطّل",
-};
+const BREADCRUMB_ROOT = { label: "دليل الفريق", href: "/dashboard/people" };
+
+const membershipCol = columnHelper<TeamMembership>();
+const taskCol = columnHelper<WorkItemSummary>();
 
 export default function PersonPage() {
   const { id } = useParams<{ id: string }>();
@@ -42,177 +47,158 @@ export default function PersonPage() {
     enabled: Boolean(member.data),
   });
 
-  if (member.isPending) {
-    return <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>;
-  }
+  const membershipColumns = useMemo(
+    () =>
+      membershipCol.columns([
+        membershipCol.accessor("officeNameAr", {
+          header: "المكتب",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              // «رئيسي» للعضوية النشطة وحدها: المنتهية لا تحدد شيئًا اليوم.
+              badge={
+                info.row.original.isPrimary && info.row.original.status === "ACTIVE" ? (
+                  <Badge tone="primary">رئيسي</Badge>
+                ) : null
+              }
+            />
+          ),
+        }),
+        membershipCol.accessor("roleNameAr", { header: "الدور" }),
+        membershipCol.accessor("status", {
+          header: "الحالة",
+          enableSorting: false,
+          cell: (info) => <StatusBadge kind="membershipStatus" value={info.getValue()} />,
+        }),
+        membershipCol.accessor("startedAt", {
+          header: "من",
+          cell: (info) => cells.date(info.getValue()),
+        }),
+        membershipCol.accessor((membership) => membership.endedAt ?? undefined, {
+          id: "endedAt",
+          header: "إلى",
+          sortUndefined: "last",
+          cell: (info) => cells.date(info.getValue()),
+        }),
+      ]),
+    [],
+  );
+
+  const taskColumns = useMemo(
+    () =>
+      taskCol.columns([
+        taskCol.accessor("titleAr", {
+          header: "المهمة",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              href={`/dashboard/tasks?task=${info.row.original.id}`}
+              description={info.row.original.scope.labelAr}
+            />
+          ),
+        }),
+        taskCol.accessor("status", {
+          header: "الحالة",
+          enableSorting: false,
+          cell: (info) => <StatusBadge kind="workStatus" value={info.getValue()} />,
+        }),
+        taskCol.accessor((task) => task.dueAt ?? undefined, {
+          id: "dueAt",
+          header: "الموعد",
+          sortUndefined: "last",
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) =>
+            info.getValue() ? (
+              <span className={cn(info.row.original.isOverdue && "font-medium text-destructive")}>
+                {formatDateTime(info.getValue()!)}
+              </span>
+            ) : (
+              <EmptyCell />
+            ),
+        }),
+      ]),
+    [],
+  );
+
+  if (member.isPending) return <DetailSkeleton />;
 
   if (member.isError) {
+    const notFound = member.error instanceof ApiError && member.error.status === 404;
+
     return (
-      <div className="space-y-4">
-        <Alert>تعذّر تحميل ملف العضو، أو أنه غير موجود.</Alert>
-        <BackLink />
+      <div className="space-y-6">
+        <PageHeader breadcrumbs={[BREADCRUMB_ROOT]} title="ملف العضو" />
+        <div className="rounded-xl border border-border bg-card">
+          <ErrorState
+            title={notFound ? "لا يوجد عضو بهذا الرابط." : "تعذّر تحميل ملف العضو."}
+            error={notFound ? undefined : member.error}
+            onRetry={notFound ? undefined : () => void member.refetch()}
+          />
+        </div>
       </div>
     );
   }
 
-  const active = member.data.memberships.filter(
-    (membership) => membership.status === "ACTIVE",
-  );
-  const ended = member.data.memberships.filter(
-    (membership) => membership.status === "ENDED",
-  );
+  const person = member.data;
+  const primary = primaryMembership(person);
+  const hasActive = person.memberships.some((membership) => membership.status === "ACTIVE");
 
   return (
     <div className="space-y-6">
-      <BackLink />
+      <PageHeader
+        breadcrumbs={[BREADCRUMB_ROOT, { label: person.fullNameAr }]}
+        title={person.fullNameAr}
+        description={<span dir="ltr">{person.email}</span>}
+        badges={<StatusBadge kind="userStatus" value={person.status} />}
+      />
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{member.data.fullNameAr}</CardTitle>
-          <CardDescription dir="ltr" className="text-start">
-            {member.data.email}
-          </CardDescription>
-        </CardHeader>
+      {hasActive ? null : (
+        <Alert variant="warning" className="px-4 py-3">
+          لا عضوية نشطة: الحساب قائم لكنه بلا مكتب ولا دور، فلا يرى شيئًا في اللوحة.
+        </Alert>
+      )}
 
-        <CardContent>
-          <dl className="grid gap-3 text-sm sm:grid-cols-3">
-            <div>
-              <dt className="text-muted-foreground">الحالة</dt>
-              <dd className="font-medium">
-                {STATUS_LABELS[member.data.status]}
-              </dd>
-            </div>
+      <DescriptionList
+        items={[
+          { label: "المكتب الرئيس", value: primary?.officeNameAr },
+          { label: "الدور", value: primary?.roleNameAr },
+          {
+            label: "البريد موثَّق",
+            value: person.emailVerifiedAt ? formatDate(person.emailVerifiedAt) : "لا",
+          },
+          { label: "في الفريق منذ", value: formatDate(person.createdAt) },
+        ]}
+      />
 
-            <div>
-              <dt className="text-muted-foreground">البريد موثَّق</dt>
-              <dd className="font-medium">
-                {member.data.emailVerifiedAt
-                  ? formatDate(member.data.emailVerifiedAt)
-                  : "لا"}
-              </dd>
-            </div>
-
-            <div>
-              <dt className="text-muted-foreground">في الفريق منذ</dt>
-              <dd className="font-medium">
-                {formatDate(member.data.createdAt)}
-              </dd>
-            </div>
-          </dl>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>العضويات</CardTitle>
-        </CardHeader>
-
-        <CardContent className="space-y-4">
-          {active.length === 0 ? (
-            <Alert>
-              لا عضوية نشطة. الحساب قائم لكنه بلا مكتب ولا دور، فلا يرى شيئًا
-              في اللوحة.
-            </Alert>
-          ) : (
-            <ul className="space-y-2">
-              {active.map((membership) => (
-                <li
-                  key={membership.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3"
-                >
-                  <div>
-                    <p className="font-medium">
-                      {membership.officeNameAr}
-                      {membership.isPrimary ? (
-                        <span className="ms-2 rounded bg-primary/10 px-2 py-0.5 text-xs text-primary">
-                          رئيسي
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      {membership.roleNameAr}
-                    </p>
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    منذ {formatDate(membership.startedAt)}
-                  </p>
-                </li>
-              ))}
-            </ul>
+      <Section title="العضويات" description="المكاتب والأدوار، الحالية والسابقة.">
+        <DataTable
+          caption="العضويات"
+          columns={membershipColumns}
+          data={[...person.memberships].sort(
+            // النشطة أولًا ثم الأحدث: ما يحدد صلاحياته اليوم قبل تاريخه.
+            (a, b) =>
+              Number(b.status === "ACTIVE") - Number(a.status === "ACTIVE") ||
+              b.startedAt.localeCompare(a.startedAt),
           )}
+          getRowId={(membership) => membership.id}
+          pagination={false}
+          empty={{ title: "لا عضويات" }}
+        />
+      </Section>
 
-          {ended.length > 0 ? (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground">
-                عضويات سابقة
-              </p>
-
-              <ul className="space-y-1 text-sm text-muted-foreground">
-                {ended.map((membership) => (
-                  <li key={membership.id}>
-                    {membership.officeNameAr} — {membership.roleNameAr} (
-                    {formatDate(membership.startedAt)}
-                    {membership.endedAt
-                      ? ` ← ${formatDate(membership.endedAt)}`
-                      : ""}
-                    )
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>المهام المفتوحة</CardTitle>
-          <CardDescription>
-            ما هو مسنَد إليه ولم يُغلق بعد.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent>
-          {tasks.isPending ? (
-            <p className="text-sm text-muted-foreground">جارٍ التحميل…</p>
-          ) : tasks.isError ? (
-            <Alert>تعذّر تحميل المهام.</Alert>
-          ) : tasks.data.length === 0 ? (
-            <p className="text-sm text-muted-foreground">لا مهام مفتوحة.</p>
-          ) : (
-            <ul className="space-y-2">
-              {tasks.data.map((task) => (
-                <li
-                  key={task.id}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3"
-                >
-                  <span className="font-medium">{task.titleAr}</span>
-
-                  <span className="flex items-center gap-3 text-xs text-muted-foreground">
-                    <span>{WORK_STATUS_LABELS[task.status]}</span>
-                    {task.dueAt ? (
-                      <span>تستحق {formatDateTime(task.dueAt)}</span>
-                    ) : null}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </CardContent>
-      </Card>
+      <Section title="المهام المفتوحة" description="ما هو مسنَد إليه ولم يُغلق بعد.">
+        <DataTable
+          caption="المهام المفتوحة"
+          columns={taskColumns}
+          data={tasks.data}
+          getRowId={(task) => task.id}
+          isLoading={tasks.isPending}
+          error={tasks.error}
+          onRetry={() => void tasks.refetch()}
+          empty={{ title: "لا مهام مفتوحة" }}
+          rowHref={(task) => `/dashboard/tasks?task=${task.id}`}
+        />
+      </Section>
     </div>
-  );
-}
-
-function BackLink() {
-  return (
-    <Link
-      href="/dashboard/people"
-      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-    >
-      <ArrowRight className="size-4" aria-hidden />
-      دليل الفريق
-    </Link>
   );
 }

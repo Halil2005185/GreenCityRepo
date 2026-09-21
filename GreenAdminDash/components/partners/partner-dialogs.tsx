@@ -349,8 +349,15 @@ export function PartnerInviteDialog({
   partner,
   email,
   fullNameAr,
+  roleId,
   ...props
-}: DialogProps & { partner: PartnerSummary; email?: string; fullNameAr?: string }) {
+}: DialogProps & {
+  /** الاسم والمعرّف وحدهما: صفحة الدعوات تعيد الإرسال بلا ملف الجهة. */
+  partner: Pick<PartnerSummary, "id" | "displayNameAr">;
+  email?: string;
+  fullNameAr?: string;
+  roleId?: string;
+}) {
   const queryClient = useQueryClient();
   const roles = useQuery({
     queryKey: ["roles", "PARTNER"],
@@ -370,7 +377,7 @@ export function PartnerInviteDialog({
       title={`دعوة ممثل عن «${partner.displayNameAr}»`}
       description="يدخل الممثل بوابة الشريك بالدور المختار، ونطاقه جهته وحدها."
       form={form}
-      values={{ email: email ?? "", fullNameAr: fullNameAr ?? "", roleId: "" }}
+      values={{ email: email ?? "", fullNameAr: fullNameAr ?? "", roleId: roleId ?? "" }}
       submitLabel="إنشاء الدعوة"
       onSubmit={(values) =>
         createInvitation({
