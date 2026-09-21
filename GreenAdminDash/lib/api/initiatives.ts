@@ -33,6 +33,13 @@ export const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
   CANCELLED: "ملغى",
 };
 
+export const AREA_LEVEL_LABELS: Record<Area["level"], string> = {
+  GOVERNORATE: "محافظة",
+  CITY: "مدينة",
+  DISTRICT: "منطقة",
+  NEIGHBORHOOD: "حي",
+};
+
 export const ROLLUP_LABELS: Record<TargetRollup, string> = {
   STRICT: "صارمة — تمنع بدء التنفيذ عند اختلاف المجموع",
   ADVISORY: "إرشادية — تنبّه ولا تمنع",
@@ -102,12 +109,21 @@ export function listAreas(level?: string) {
   return apiFetch<{ data: Area[] }>(`/admin/areas${query}`).then((r) => r.data);
 }
 
+/** بحث في المناطق كلها بالاسم — للقوائم التي لا تُحمَّل كاملة. */
+export function searchAreas(q: string, signal?: AbortSignal) {
+  const query = q ? `?q=${encodeURIComponent(q)}` : "";
+  return apiFetch<{ data: Area[] }>(`/admin/areas${query}`, { signal }).then((r) => r.data);
+}
+
 // ── المبادرات ──────────────────────────────────────────────────────────
 
-export function listInitiatives(filters: { programId?: string; status?: string } = {}) {
+export function listInitiatives(
+  filters: { programId?: string; status?: string; q?: string } = {},
+) {
   const params = new URLSearchParams();
   if (filters.programId) params.set("programId", filters.programId);
   if (filters.status) params.set("status", filters.status);
+  if (filters.q) params.set("q", filters.q);
   const query = params.toString();
 
   return apiFetch<{ data: InitiativeSummary[] }>(
@@ -142,10 +158,38 @@ export function updateInitiativeStory(
   });
 }
 
+/**
+ * بيانات المبادرة التشغيلية. `null` يمسح الحقل و`undefined` يتركه.
+ * المسار نفسه لتحرير القصة؛ الفصل في الواجهة لا في العقد.
+ */
+export function updateInitiative(
+  id: string,
+  body: {
+    nameAr?: string;
+    summaryAr?: string | null;
+    season?: string | null;
+    startsAt?: string | null;
+    endsAt?: string | null;
+    targetRollup?: TargetRollup;
+  },
+) {
+  return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}`, {
+    method: "PATCH",
+    body,
+  });
+}
+
 export function addInitiativeArea(id: string, areaId: string) {
   return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/areas`, {
     method: "POST",
     body: { areaId },
+  });
+}
+
+/** يحذف ربط المنطقة بالمبادرة لا المنطقة نفسها؛ المعامل معرّف المنطقة. */
+export function removeInitiativeArea(id: string, areaId: string) {
+  return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/areas/${areaId}`, {
+    method: "DELETE",
   });
 }
 
@@ -162,7 +206,12 @@ export function addSite(
 export function updateSite(
   id: string,
   siteId: string,
-  body: { status?: SiteStatus; nameAr?: string },
+  body: {
+    status?: SiteStatus;
+    nameAr?: string;
+    areaId?: string | null;
+    descriptionAr?: string | null;
+  },
 ) {
   return apiFetch<InitiativeDetail>(`/admin/initiatives/${id}/sites/${siteId}`, {
     method: "PATCH",

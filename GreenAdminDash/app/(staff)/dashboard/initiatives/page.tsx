@@ -1,169 +1,225 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
-import { Plus } from "lucide-react";
-import Link from "next/link";
-import { useState } from "react";
+import { keepPreviousData, useQuery } from "@tanstack/react-query";
+import { Eye, Plus, Settings2 } from "lucide-react";
+import { useMemo } from "react";
 
-import { buttonVariants } from "@/components/ui/button";
-import { Alert, Card, CardContent } from "@/components/ui/card";
+import { InitiativeCreateDialog } from "@/components/initiatives/initiative-dialogs";
 import {
-  INITIATIVE_STATUS_LABELS,
+  DataTable,
+  PrimaryCell,
+  cells,
+  columnHelper,
+} from "@/components/ui/data-table";
+import { PageHeader } from "@/components/ui/page-header";
+import { Select } from "@/components/ui/select";
+import { StatusBadge } from "@/components/ui/status-badge";
+import { SearchInput, Toolbar } from "@/components/ui/toolbar";
+import {
   ROLLUP_SHORT,
-  type InitiativeStatus,
   listInitiatives,
   listPrograms,
+  type InitiativeSummary,
 } from "@/lib/api/initiatives";
-import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
-import { cn, formatDateTime } from "@/lib/utils";
+import { useUrlState } from "@/lib/hooks/use-url-state";
+import { statusOptions } from "@/lib/status";
+import { countAr } from "@/lib/text/plural-ar";
+import { formatDate } from "@/lib/utils";
 
-const STATUS_STYLES: Record<InitiativeStatus, string> = {
-  DRAFT: "bg-muted text-muted-foreground",
-  PLANNING: "bg-accent text-accent-foreground",
-  ACTIVE: "bg-success/15 text-success",
-  COMPLETED: "bg-primary/10 text-primary",
-  CANCELLED: "bg-destructive/10 text-destructive",
+const col = columnHelper<InitiativeSummary>();
+
+const INITIATIVES = {
+  one: "مبادرة واحدة",
+  two: "مبادرتان",
+  few: "مبادرات",
+  many: "مبادرة",
+  other: "مبادرة",
 };
 
+/** الموسم نص يكتبه الفريق («موسم التشجير 2026»)؛ بدونه تاريخ البدء. */
+function when(initiative: InitiativeSummary) {
+  return initiative.season ?? (initiative.startsAt ? formatDate(initiative.startsAt) : null);
+}
+
 export default function InitiativesPage() {
-  const { can } = useAuth();
-  const [programId, setProgramId] = useState("");
+  const [filters, setFilters, resetFilters] = useUrlState({
+    q: "",
+    status: "",
+    program: "",
+    new: "",
+  });
 
   const programs = useQuery({ queryKey: ["programs"], queryFn: listPrograms });
 
   const initiatives = useQuery({
-    queryKey: ["initiatives", programId],
-    queryFn: () => listInitiatives(programId ? { programId } : {}),
+    queryKey: ["initiatives", { q: filters.q, status: filters.status, program: filters.program }],
+    queryFn: () =>
+      listInitiatives({ q: filters.q, status: filters.status, programId: filters.program }),
+    placeholderData: keepPreviousData,
   });
+
+  const columns = useMemo(
+    () =>
+      col.columns([
+        col.accessor("nameAr", {
+          header: "المبادرة",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              href={`/dashboard/initiatives/${info.row.original.id}`}
+              description={info.row.original.contributorNameAr}
+              badge={
+                info.row.original.kind === "GREEN_POINT" ? (
+                  <StatusBadge kind="pointKind" value="GREEN_POINT" />
+                ) : null
+              }
+            />
+          ),
+        }),
+        col.accessor("programNameAr", {
+          header: "البرنامج",
+          cell: (info) => cells.text(info.getValue()),
+        }),
+        col.accessor("status", {
+          header: "الحالة",
+          enableSorting: false,
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => <StatusBadge kind="initiativeStatus" value={info.getValue()} />,
+        }),
+        col.accessor("siteCount", {
+          header: "المواقع",
+          meta: { numeric: true },
+          cell: (info) => cells.number(info.getValue()),
+        }),
+        col.accessor("targetRollup", {
+          header: "المطابقة",
+          enableSorting: false,
+          cell: (info) => ROLLUP_SHORT[info.getValue()],
+        }),
+        col.accessor((initiative) => when(initiative) ?? undefined, {
+          id: "when",
+          header: "الموسم",
+          enableSorting: false,
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => cells.text(info.getValue()),
+        }),
+        col.accessor((initiative) => initiative.leadNameAr ?? undefined, {
+          id: "lead",
+          header: "المسؤول",
+          sortUndefined: "last",
+          cell: (info) => cells.text(info.getValue()),
+        }),
+      ]),
+    [],
+  );
+
+  const activeCount = [filters.status, filters.program].filter(Boolean).length;
+  const hasFilters = Boolean(filters.q) || activeCount > 0;
+  const openCreate = () => setFilters({ new: "1" }, { keepPage: true });
+  const create = {
+    key: "create",
+    label: "إنشاء مبادرة",
+    icon: Plus,
+    requires: [CAPABILITIES.initiativesManage],
+    onSelect: openCreate,
+  };
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">المبادرات</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            كل مبادرة تحت برنامج، وتعمل في منطقة أو أكثر، بعدد مواقع مفتوح.
-          </p>
-        </div>
+      <PageHeader
+        title="المبادرات"
+        description="كل مبادرة تحت برنامج، وتعمل في منطقة أو أكثر، بعدد مواقع مفتوح."
+        primaryAction={create}
+      />
 
-        {can(CAPABILITIES.initiativesManage) ? (
-          <Link
-            href="/dashboard/initiatives/new"
-            className={buttonVariants({ className: "gap-2" })}
-          >
-            <Plus className="size-4" />
-            مبادرة جديدة
-          </Link>
-        ) : null}
-      </header>
-
-      {/* الفلاتر تُبنى من البرامج القادمة من الـAPI لا من قائمة مكتوبة. */}
-      <div className="flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => setProgramId("")}
-          className={cn(
-            "rounded-full border px-3 py-1 text-xs transition-colors",
-            programId === ""
-              ? "border-primary bg-primary/10 text-primary"
-              : "border-border text-muted-foreground hover:bg-accent",
-          )}
+      <div className="space-y-3">
+        <Toolbar
+          search={
+            <SearchInput
+              value={filters.q}
+              onChange={(q) => setFilters({ q })}
+              placeholder="ابحث باسم المبادرة…"
+              label="البحث في المبادرات"
+            />
+          }
+          hasActiveFilters={hasFilters}
+          activeCount={activeCount}
+          onReset={resetFilters}
         >
-          كل البرامج
-        </button>
+          <Select
+            size="sm"
+            label="الحالة"
+            placeholder="الكل"
+            className="w-44"
+            clearable
+            options={statusOptions("initiativeStatus")}
+            value={filters.status || null}
+            onChange={(status) => setFilters({ status })}
+          />
+          {/* البرامج من الـAPI لا من قائمة مكتوبة: يحرّرها الفريق. */}
+          <Select
+            size="sm"
+            label="البرنامج"
+            placeholder="الكل"
+            className="w-56"
+            clearable
+            loading={programs.isPending}
+            options={(programs.data ?? []).map((program) => ({
+              value: program.id,
+              label: program.nameAr,
+              description:
+                program.initiativeCount > 0
+                  ? countAr(program.initiativeCount, INITIATIVES)
+                  : "بلا مبادرات",
+            }))}
+            value={filters.program || null}
+            onChange={(program) => setFilters({ program })}
+          />
+        </Toolbar>
 
-        {programs.data?.map((program) => (
-          <button
-            key={program.id}
-            type="button"
-            onClick={() => setProgramId(program.id)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs transition-colors",
-              programId === program.id
-                ? "border-primary bg-primary/10 text-primary"
-                : "border-border text-muted-foreground hover:bg-accent",
-            )}
-          >
-            {program.nameAr}
-            <span className="ms-1 opacity-60">{program.initiativeCount}</span>
-          </button>
-        ))}
+        <DataTable
+          caption="المبادرات"
+          columns={columns}
+          data={initiatives.data}
+          getRowId={(initiative) => initiative.id}
+          isLoading={initiatives.isPending}
+          error={initiatives.error}
+          onRetry={() => void initiatives.refetch()}
+          urlState
+          filtered={hasFilters}
+          onClearFilters={resetFilters}
+          empty={{
+            title: "لا مبادرات بعد",
+            description: "أنشئ أول مبادرة تحت أحد البرامج، ثم أضف مواقعها وأهدافها.",
+            action: create,
+          }}
+          rowHref={(initiative) => `/dashboard/initiatives/${initiative.id}`}
+          rowActions={(initiative) => [
+            {
+              key: "manage",
+              label: "إدارة المبادرة",
+              icon: Settings2,
+              quick: true,
+              href: `/dashboard/initiatives/${initiative.id}/manage`,
+              requires: [CAPABILITIES.initiativesManage],
+              // النقطة الخضراء لا إدارة لها: موقع واحد أضافه صاحبه من الخريطة.
+              hidden: initiative.kind === "GREEN_POINT",
+            },
+            {
+              key: "open",
+              label: "فتح الصفحة",
+              icon: Eye,
+              href: `/dashboard/initiatives/${initiative.id}`,
+            },
+          ]}
+        />
       </div>
 
-      <Card>
-        <CardContent className="p-0">
-          {initiatives.isPending ? (
-            <p className="p-6 text-sm text-muted-foreground">جارٍ التحميل…</p>
-          ) : initiatives.isError ? (
-            <div className="p-6">
-              <Alert>تعذّر تحميل المبادرات.</Alert>
-            </div>
-          ) : initiatives.data.length === 0 ? (
-            <p className="p-6 text-sm text-muted-foreground">
-              لا توجد مبادرات بعد.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="border-b border-border text-xs text-muted-foreground">
-                  <tr>
-                    <th className="p-3 text-start font-medium">المبادرة</th>
-                    <th className="p-3 text-start font-medium">البرنامج</th>
-                    <th className="p-3 text-start font-medium">الحالة</th>
-                    <th className="p-3 text-start font-medium">المواقع</th>
-                    <th className="p-3 text-start font-medium">المطابقة</th>
-                    <th className="p-3 text-start font-medium">الموسم</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {initiatives.data.map((initiative) => (
-                    <tr
-                      key={initiative.id}
-                      className="border-b border-border/60 hover:bg-accent/40"
-                    >
-                      <td className="p-3">
-                        <Link
-                          href={`/dashboard/initiatives/${initiative.id}`}
-                          className="font-medium text-primary hover:underline"
-                        >
-                          {initiative.nameAr}
-                        </Link>
-                      </td>
-                      <td className="p-3 text-muted-foreground">
-                        {initiative.programNameAr}
-                      </td>
-                      <td className="p-3">
-                        <span
-                          className={cn(
-                            "rounded px-2 py-0.5 text-xs",
-                            STATUS_STYLES[initiative.status],
-                          )}
-                        >
-                          {INITIATIVE_STATUS_LABELS[initiative.status]}
-                        </span>
-                      </td>
-                      <td className="p-3 text-muted-foreground">
-                        {initiative.siteCount}
-                      </td>
-                      <td className="p-3 text-xs text-muted-foreground">
-                        {ROLLUP_SHORT[initiative.targetRollup]}
-                      </td>
-                      <td className="p-3 text-muted-foreground">
-                        {initiative.season ??
-                          (initiative.startsAt
-                            ? formatDateTime(initiative.startsAt)
-                            : "—")}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      <InitiativeCreateDialog
+        open={filters.new === "1"}
+        onOpenChange={(open) => setFilters({ new: open ? "1" : null }, { keepPage: true })}
+      />
     </div>
   );
 }
