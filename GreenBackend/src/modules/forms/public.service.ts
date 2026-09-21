@@ -17,12 +17,12 @@ import { enqueueEmail } from '../mail/outbox.service.js'
 import { readableAnswers, validateAnswers } from './answers.service.js'
 
 /** الأنواع التي تقرأ خياراتها من كتالوجات النظام لا من السؤال. */
-const REF_TYPES = ['AREA_REF', 'OFFICE_REF', 'PROGRAM_REF'] as const
+export const REF_TYPES = ['AREA_REF', 'OFFICE_REF', 'PROGRAM_REF'] as const
 
-type RefType = (typeof REF_TYPES)[number]
+export type RefType = (typeof REF_TYPES)[number]
 type Option = { value: string; labelAr: string }
 
-const isRefType = (type: string): type is RefType =>
+export const isRefType = (type: string): type is RefType =>
   (REF_TYPES as readonly string[]).includes(type)
 
 /**
@@ -35,7 +35,7 @@ const isRefType = (type: string): type is RefType =>
  * ولا يُستعلم إلا عمّا تستعمله الاستمارة فعلًا: استمارة بلا مراجع لا تدفع ثمن
  * ثلاثة استعلامات على مسار عام.
  */
-async function loadRefOptions(types: Set<RefType>) {
+export async function loadRefOptions(types: Set<RefType>) {
   const catalogs: Record<RefType, Option[]> = {
     AREA_REF: [],
     OFFICE_REF: [],
@@ -222,12 +222,23 @@ export async function submitForm(options: {
 
     if (!options.sendCopy || !result.contact.email) return
 
+    const catalogs = await loadRefOptions(
+      new Set(fields.map((field) => field.type).filter(isRefType)),
+    )
+
     await enqueueEmail(tx, {
       templateKey: 'form-copy',
       recipient: result.contact.email,
       payload: {
         formNameAr: form.nameAr,
-        items: readableAnswers(fields, result.answers),
+        items: readableAnswers(
+          fields.map((field) =>
+            isRefType(field.type)
+              ? { ...field, options: catalogs[field.type] }
+              : field,
+          ),
+          result.answers,
+        ),
       },
     })
   })

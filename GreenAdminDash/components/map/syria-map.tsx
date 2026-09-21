@@ -286,8 +286,9 @@ export function SyriaMap({
       className="h-[70vh] w-full rounded-xl"
     >
       <TileLayer
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        attribution={`&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> · ${attribution}`}
+        url="https://services.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}"
+        maxZoom={19}
+        attribution={`&copy; <a href="https://www.esri.com">Esri</a> · ${attribution}`}
       />
 
       {areas

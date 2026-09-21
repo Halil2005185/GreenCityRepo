@@ -11,6 +11,7 @@ import {
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { readableAnswers } from './answers.service.js'
+import { isRefType, loadRefOptions } from './public.service.js'
 import type { ListSubmissionsQuery, SubmissionStatus } from './submissions.schemas.js'
 
 /**
@@ -233,6 +234,15 @@ export async function getSubmission(formId: string, submissionId: string) {
     await contactKeys(formId),
   )
 
+  /**
+   * أسئلة المرجع (المحافظة والمكتب والبرنامج) تحفظ معرّفًا لا اسمًا،
+   * فتُقرأ أسماؤها من كتالوج النظام هنا كما تُقرأ عند بناء الاستمارة
+   * العلنية — وإلا ظهر للفارز معرّف لا يُقرأ بدل اسم المحافظة.
+   */
+  const catalogs = await loadRefOptions(
+    new Set(fields.map((field) => field.type).filter(isRefType)),
+  )
+
   return {
     id: submission.id,
     status: submission.status,
@@ -242,7 +252,12 @@ export async function getSubmission(formId: string, submissionId: string) {
     applicantEmail: contact!.applicantEmail,
     applicantPhone: contact!.applicantPhone,
     submittedAt: submission.submittedAt.toISOString(),
-    answers: readableAnswers(fields, submission.answers),
+    answers: readableAnswers(
+      fields.map((field) =>
+        isRefType(field.type) ? { ...field, options: catalogs[field.type] } : field,
+      ),
+      submission.answers,
+    ),
   }
 }
 
