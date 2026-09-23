@@ -6,13 +6,22 @@ import { db } from '../../db/client.js'
 import { memberships } from '../../db/schema/access.js'
 import { users } from '../../db/schema/identity.js'
 import { offices, roles } from '../../db/schema/org.js'
-import type { ListPeopleQuery } from './people.schemas.js'
+import { requestTrace, recordAudit } from '../audit/audit.service.js'
+import type {
+  AddMembershipBody,
+  ListPeopleQuery,
+  UpdateMembershipBody,
+} from './people.schemas.js'
 
-function readId(request: Request, key = 'id') {
+function readId(
+  request: Request,
+  key = 'id',
+  notFoundMessage = 'العضو غير موجود.',
+) {
   const value = request.params[key]
 
   if (typeof value !== 'string' || value.length === 0) {
-    throw errors.notFound('العضو غير موجود.')
+    throw errors.notFound(notFoundMessage)
   }
 
   return value
@@ -153,4 +162,249 @@ export const getPerson: RequestHandler = async (request, response) => {
   response
     .status(200)
     .json({ data: { ...row, memberships: byUser.get(row.id) ?? [] } })
+}
+
+/**
+ * عضوية إضافية لعضو قائم — لا تنشئ حسابًا ولا تُنهي عضوية أخرى، فتصلح
+ * لتوسيع صلاحيات عضو بعد قبوله دعوته الأولى. `المدير العام` وحده اليوم
+ * يحمل `roles.manage` (الحارس على مستوى المسار).
+ */
+export const postAddMembership: RequestHandler = async (request, response) => {
+  const id = readId(request)
+  const body = request.body as AddMembershipBody
+
+  const [person] = await db
+    .select({ id: users.id, kind: users.kind })
+    .from(users)
+    .where(eq(users.id, id))
+    .limit(1)
+
+  if (!person || person.kind !== 'STAFF') throw errors.notFound('العضو غير موجود.')
+
+  const [office] = await db
+    .select({ id: offices.id, nameAr: offices.nameAr, isActive: offices.isActive })
+    .from(offices)
+    .where(eq(offices.id, body.officeId))
+    .limit(1)
+
+  if (!office) throw errors.unprocessable('المكتب المحدد غير موجود.')
+  if (!office.isActive) throw errors.unprocessable('المكتب المحدد غير مفعّل.')
+
+  const [role] = await db
+    .select({ id: roles.id, scope: roles.scope, nameAr: roles.nameAr })
+    .from(roles)
+    .where(eq(roles.id, body.roleId))
+    .limit(1)
+
+  if (!role) throw errors.unprocessable('الدور المحدد غير موجود.')
+  if (role.scope !== 'STAFF') {
+    throw errors.unprocessable('الدور يجب أن يكون من أدوار الفريق.')
+  }
+
+  const [existingActive] = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(
+      and(
+        eq(memberships.userId, id),
+        eq(memberships.officeId, body.officeId),
+        eq(memberships.status, 'ACTIVE'),
+      ),
+    )
+    .limit(1)
+
+  if (existingActive) {
+    throw errors.conflict('العضو لديه عضوية نشطة في هذا المكتب بالفعل.')
+  }
+
+  const actor = request.auth!
+  const trace = requestTrace(request)
+
+  const created = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(memberships)
+      .values({
+        userId: id,
+        officeId: body.officeId,
+        roleId: body.roleId,
+        isPrimary: false,
+      })
+      .returning({ id: memberships.id })
+
+    if (!row) throw new Error('Failed to create membership row.')
+
+    await recordAudit(
+      {
+        action: 'membership.added',
+        severity: 'NOTICE',
+        actorUserId: actor.userId,
+        entityType: 'user',
+        entityId: id,
+        summaryAr: `إضافة عضوية بدور ${role.nameAr} في ${office.nameAr}`,
+        metadata: { officeId: office.id, roleId: role.id },
+        ...trace,
+      },
+      tx,
+    )
+
+    return row
+  })
+
+  response.status(201).json({ data: { id: created.id } })
+}
+
+/**
+ * تعديل مكتب أو دور عضوية نشطة قائمة. لا يمسّ `isPrimary` ولا العضويات
+ * الأخرى؛ منتهية لا تُعدَّل — تُنهى عضوية وتُضاف غيرها بدل تحريفها.
+ */
+export const patchMembership: RequestHandler = async (request, response) => {
+  const id = readId(request)
+  const membershipId = readId(request, 'membershipId', 'العضوية غير موجودة.')
+  const body = request.body as UpdateMembershipBody
+
+  const [membership] = await db
+    .select({
+      id: memberships.id,
+      officeId: memberships.officeId,
+      roleId: memberships.roleId,
+      status: memberships.status,
+    })
+    .from(memberships)
+    .where(and(eq(memberships.id, membershipId), eq(memberships.userId, id)))
+    .limit(1)
+
+  if (!membership) throw errors.notFound('العضوية غير موجودة.')
+  if (membership.status !== 'ACTIVE') {
+    throw errors.unprocessable('لا يمكن تعديل عضوية منتهية.')
+  }
+
+  let nextOfficeId = membership.officeId
+  let officeNameAr: string | undefined
+
+  if (body.officeId) {
+    const [office] = await db
+      .select({ id: offices.id, nameAr: offices.nameAr, isActive: offices.isActive })
+      .from(offices)
+      .where(eq(offices.id, body.officeId))
+      .limit(1)
+
+    if (!office) throw errors.unprocessable('المكتب المحدد غير موجود.')
+    if (!office.isActive) throw errors.unprocessable('المكتب المحدد غير مفعّل.')
+
+    nextOfficeId = office.id
+    officeNameAr = office.nameAr
+  }
+
+  let nextRoleId = membership.roleId
+  let roleNameAr: string | undefined
+
+  if (body.roleId) {
+    const [role] = await db
+      .select({ id: roles.id, scope: roles.scope, nameAr: roles.nameAr })
+      .from(roles)
+      .where(eq(roles.id, body.roleId))
+      .limit(1)
+
+    if (!role) throw errors.unprocessable('الدور المحدد غير موجود.')
+    if (role.scope !== 'STAFF') {
+      throw errors.unprocessable('الدور يجب أن يكون من أدوار الفريق.')
+    }
+
+    nextRoleId = role.id
+    roleNameAr = role.nameAr
+  }
+
+  if (nextOfficeId !== membership.officeId) {
+    const [conflict] = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.userId, id),
+          eq(memberships.officeId, nextOfficeId),
+          eq(memberships.status, 'ACTIVE'),
+        ),
+      )
+      .limit(1)
+
+    if (conflict) {
+      throw errors.conflict('العضو لديه عضوية نشطة في هذا المكتب بالفعل.')
+    }
+  }
+
+  const actor = request.auth!
+  const trace = requestTrace(request)
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(memberships)
+      .set({ officeId: nextOfficeId, roleId: nextRoleId })
+      .where(eq(memberships.id, membershipId))
+
+    await recordAudit(
+      {
+        action: 'membership.updated',
+        severity: 'NOTICE',
+        actorUserId: actor.userId,
+        entityType: 'user',
+        entityId: id,
+        summaryAr: [
+          officeNameAr ? `المكتب إلى ${officeNameAr}` : null,
+          roleNameAr ? `الدور إلى ${roleNameAr}` : null,
+        ]
+          .filter(Boolean)
+          .join('، '),
+        metadata: { membershipId, officeId: nextOfficeId, roleId: nextRoleId },
+        ...trace,
+      },
+      tx,
+    )
+  })
+
+  response.status(200).json({ data: { id: membershipId } })
+}
+
+/**
+ * إنهاء عضوية نشطة — سحب صلاحيتها دون حذف سجلها، فيبقى في تاريخ العضو.
+ */
+export const postEndMembership: RequestHandler = async (request, response) => {
+  const id = readId(request)
+  const membershipId = readId(request, 'membershipId', 'العضوية غير موجودة.')
+
+  const [membership] = await db
+    .select({ id: memberships.id, status: memberships.status })
+    .from(memberships)
+    .where(and(eq(memberships.id, membershipId), eq(memberships.userId, id)))
+    .limit(1)
+
+  if (!membership) throw errors.notFound('العضوية غير موجودة.')
+  if (membership.status !== 'ACTIVE') {
+    throw errors.unprocessable('العضوية منتهية بالفعل.')
+  }
+
+  const actor = request.auth!
+  const trace = requestTrace(request)
+
+  await db.transaction(async (tx) => {
+    await tx
+      .update(memberships)
+      .set({ status: 'ENDED', endedAt: new Date() })
+      .where(eq(memberships.id, membershipId))
+
+    await recordAudit(
+      {
+        action: 'membership.ended',
+        severity: 'NOTICE',
+        actorUserId: actor.userId,
+        entityType: 'user',
+        entityId: id,
+        summaryAr: 'إنهاء عضوية',
+        metadata: { membershipId },
+        ...trace,
+      },
+      tx,
+    )
+  })
+
+  response.status(204).end()
 }
