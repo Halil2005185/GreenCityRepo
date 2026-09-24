@@ -47,7 +47,7 @@ export default function ImpactPage() {
       </Section>
 
       <Section className="relative my-20 overflow-hidden">
-        <Backdrop src="/bg/sectionNew.png" scrim="none" />
+        <Backdrop src="/bg/sectionNew.png"/>
 
         <div className="relative z-10">
           <div className="mb-10 space-y-4">

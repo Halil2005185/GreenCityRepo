@@ -27,7 +27,7 @@ export function SiteFooter() {
         */}
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4 lg:col-span-2">
-            <BrandLockup />
+            <Backdrop src="/bg/sectionNew.png" />
             <p className="max-w-sm text-sm leading-7 text-foreground">
               {siteConfig.description}
             </p>
