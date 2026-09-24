@@ -49,12 +49,12 @@ export default function HomePage() {
   return (
     <>
       <section className="on-painted relative isolate overflow-hidden border-b border-border">
-        <Backdrop src="/bg/section.webp" priority />
+        <Backdrop src="/bg/sectionNew.png" priority />
 
         <Container>
           <div className="grid items-center gap-10 py-16 sm:py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:py-24">
             <div className="max-w-2xl">
-              <p className="text-sm font-medium text-accent-ink">
+              <p className="text-sm font-medium  text-accent-ink">
                 مبادرة مجتمعية بيئية — يقودها فريق إيفا
               </p>
               <h1 className="mt-4 text-4xl font-bold leading-[1.2] tracking-tight text-foreground sm:text-5xl lg:text-6xl">
@@ -85,15 +85,15 @@ export default function HomePage() {
               تقوله يقوله العنوان إلى جانبها — فـ`alt` فارغ عمدًا، وقراءتها
               على قارئ الشاشة تكرارٌ لا إفادة فيه.
             */}
-            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
+            <div className="relative mx-auto  w-full max-w-sm lg:-mt-14 lg:max-w-md">
               <Image
                 src="/bg/hero.webp"
                 alt=""
                 width={800}
                 height={1000}
                 priority
-                sizes="(min-width: 1024px) 45vw, (min-width: 640px) 60vw, 90vw"
-                className="h-auto w-full"
+                sizes="(min-width: 1024px) 35vw, (min-width: 640px) 50vw, 80vw"
+                className="mx-auto h-auto w-full"
               />
             </div>
           </div>
@@ -102,7 +102,9 @@ export default function HomePage() {
 
       <Section
         eyebrow="الأثر"
+        eyebrowClassName="text-[var(--brand-brown)]"
         title="أرقام موثَّقة لا تقديرات"
+        titleClassName="text-[var(--brand-deep-green)]"
         description="ما تراه هنا هو ما جرى التحقق منه ميدانيًا فقط. المؤشرات ووحداتها تأتي من كتالوج المشروع، ويُضاف إليها مؤشر جديد كلما تطلّبت مبادرة قياسًا مختلفًا."
         action={
           <Link
@@ -119,7 +121,9 @@ export default function HomePage() {
       <Section
         muted
         eyebrow="البرامج"
+        eyebrowClassName="text-[var(--brand-brown)]"
         title="ما نعمل عليه"
+        titleClassName="text-[var(--brand-deep-green)]"
         description="كل برنامج مظلة لمبادرات متعددة، تحت كل مبادرة مواقع تنفيذ في مناطق مختلفة."
         action={
           <Link
@@ -135,7 +139,9 @@ export default function HomePage() {
 
       <Section
         eyebrow="المبادرات"
+        eyebrowClassName="text-[var(--brand-brown)]"
         title="ما يجري الآن"
+        titleClassName="text-[var(--brand-deep-green)]"
         action={
           <Link
             href="/initiatives"
@@ -153,6 +159,8 @@ export default function HomePage() {
         eyebrow="منهجيتنا"
         title="كيف نعمل"
         description="أربعة مبادئ تحكم كل مبادرة مهما اختلف مجالها أو مقياسها."
+        backdrop
+        className="relative overflow-hidden mb-16"
       >
         <RevealGroup className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {APPROACH.map((item, index) => (
@@ -164,9 +172,11 @@ export default function HomePage() {
               <span className="inline-flex size-12 items-center justify-center rounded-full bg-accent-ink/10 text-accent-ink">
                 <item.icon className="size-5" aria-hidden />
               </span>
+
               <h3 className="text-base font-bold text-foreground">
                 {item.title}
               </h3>
+
               <p className="text-sm leading-loose text-muted-foreground">
                 {item.description}
               </p>

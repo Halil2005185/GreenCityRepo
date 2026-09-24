@@ -20,12 +20,12 @@ const buttonVariants = cva(
       variant: {
         /** الأخضر الحيوي على الأخضر العميق: 8.97:1. */
         default:
-          "bg-primary text-primary-foreground hover:bg-primary/85 motion-safe:hover:-translate-y-0.5",
+          "bg-[#E8DCB5] text-[#406252] hover:bg-[#E8DCB5]/85 motion-safe:hover:-translate-y-0.5",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-accent motion-safe:hover:-translate-y-0.5",
         /** سطحٌ شفيف بحدّ: يقرأ زرًا ثانويًا دون منافسة الأخضر الحيوي. */
         outline:
-          "border border-input bg-foreground/5 text-foreground backdrop-blur-sm hover:bg-foreground hover:text-background motion-safe:hover:-translate-y-0.5",
+          "border border-input bg-foreground/5 text-foreground backdrop-blur-sm hover:bg-[var(--brand-warm-beige)] hover:text-[#406252] motion-safe:hover:-translate-y-0.5",
         ghost: "text-foreground hover:bg-primary/10",
         link: "text-accent-ink underline-offset-4 hover:underline",
       },

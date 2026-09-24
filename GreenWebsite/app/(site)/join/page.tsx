@@ -4,12 +4,7 @@ import Link from "next/link";
 
 import { PartnershipJourney } from "@/components/sections/partnership-journey";
 import { buttonVariants } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { RevealGroup } from "@/components/ui/reveal";
 import { PageHeader, Section } from "@/components/ui/section";
 import { cn, revealDelay } from "@/lib/utils";
@@ -33,14 +28,14 @@ const PATHS = [
     icon: Users,
     title: "متطوع أو فريق",
     body: "أفراد وفرق شبابية للعمل الميداني في مواقع التنفيذ: زراعة، متابعة، توثيق، وتنظيم أنشطة توعوية.",
-    href: "/contact",
+    href: "https://greencities.evavolunteer.com/join/green-cities",
     cta: "تواصل معنا",
   },
   {
     icon: Sprout,
     title: "مساحة أو موارد",
     body: "أرض أو ساحة أو سطح مؤسسة يمكن أن تصبح مساحة خضراء، أو شتلات ومستلزمات وتجهيزات تدعم التنفيذ.",
-    href: "/contact",
+    href: "https://greencities.evavolunteer.com/join/green-cities",
     cta: "أخبرنا عنها",
   },
 ];
@@ -83,10 +78,11 @@ export default function JoinPage() {
       </Section>
 
       <Section
-        muted
         eyebrow="ماذا بعد التواصل"
         title="مسار الشراكة"
         description="نفس المسار لكل جهة، فلا تعتمد الشراكة على معرفة شخصية بأحد."
+        backdrop
+        className="relative overflow-hidden"
       >
         <PartnershipJourney />
       </Section>
