@@ -23,7 +23,7 @@ export function SiteFooter() {
       <Container>
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4 lg:col-span-2">
-            <BrandLockup className="h-12 w-auto" />
+            <BrandLockup className="h-24 w-auto" />
             <p className="max-w-sm text-sm leading-7 text-foreground">
               {siteConfig.description}
             </p>
