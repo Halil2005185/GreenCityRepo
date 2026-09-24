@@ -18,16 +18,12 @@ export function SiteFooter() {
   );
 
   return (
-    <footer className="on-painted relative isolate overflow-hidden border-t border-border mt-16 bg-[#103900]/60">
+    <footer className="on-painted relative isolate mt-16 overflow-hidden border-t border-border bg-[#103900]/60">
       <Backdrop src="/bg/footerNew.png" />
       <Container>
-        {/*
-          النص هنا كله بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css:
-          في اللوحة بكسلات أوراق مُشمسة تُسقط النص الثانوي تحت حدّ التباين.
-        */}
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4 lg:col-span-2">
-            <Backdrop src="/bg/sectionNew.png" />
+            <BrandLockup className="h-12 w-auto" />
             <p className="max-w-sm text-sm leading-7 text-foreground">
               {siteConfig.description}
             </p>
@@ -59,14 +55,6 @@ export function SiteFooter() {
             © <span className="numeric">{new Date().getFullYear()}</span>{" "}
             {siteConfig.name} — {siteConfig.tagline}
           </p>
-          {/*
-            القنوات تُقرأ من `lib/site.ts`، والفارغة لا تُعرض: رابطٌ إلى
-            حساب غير موجود أسوأ من غياب الرابط.
-            حبّات نصّية لا أيقونات دائرية كما في التصميم المُسلَّم: أزال
-            `lucide` أيقونات العلامات التجارية في الإصدار الأول، ورسمها
-            يدويًا يُنتج شعارًا قريبًا من الأصل لا مطابقًا له. الاسم مكتوبًا
-            أوضح لقارئ الشاشة على كل حال.
-          */}
           {(contactChannels.email || socials.length > 0) && (
             <ul className="flex flex-wrap items-center gap-2">
               {contactChannels.email && (
