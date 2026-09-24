@@ -18,9 +18,8 @@ export function SiteFooter() {
   );
 
   return (
-    <footer className="on-painted relative isolate overflow-hidden border-t border-border">
-      <Backdrop src="/bg/footer.webp" scrim="strong" />
-
+    <footer className="on-painted relative isolate overflow-hidden border-t border-border mt-16 bg-[#103900]/60">
+      <Backdrop src="/bg/footerNew.png" />
       <Container>
         {/*
           النص هنا كله بيجٌ كامل لا مخفَّف — القاعدة مشروحة عند `.on-painted` في globals.css:
@@ -33,9 +32,12 @@ export function SiteFooter() {
               {siteConfig.description}
             </p>
           </div>
-
           {footerNav.map((group) => (
-            <nav key={group.title} aria-label={group.title} className="space-y-4">
+            <nav
+              key={group.title}
+              aria-label={group.title}
+              className="space-y-4"
+            >
               <p className="text-base font-bold">{group.title}</p>
               <ul className="space-y-3">
                 {group.items.map((item) => (
@@ -52,17 +54,14 @@ export function SiteFooter() {
             </nav>
           ))}
         </div>
-
         <div className="flex flex-col gap-4 border-t border-border/60 py-6 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-xs text-foreground">
             © <span className="numeric">{new Date().getFullYear()}</span>{" "}
             {siteConfig.name} — {siteConfig.tagline}
           </p>
-
           {/*
             القنوات تُقرأ من `lib/site.ts`، والفارغة لا تُعرض: رابطٌ إلى
             حساب غير موجود أسوأ من غياب الرابط.
-
             حبّات نصّية لا أيقونات دائرية كما في التصميم المُسلَّم: أزال
             `lucide` أيقونات العلامات التجارية في الإصدار الأول، ورسمها
             يدويًا يُنتج شعارًا قريبًا من الأصل لا مطابقًا له. الاسم مكتوبًا

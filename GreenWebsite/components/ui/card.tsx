@@ -1,10 +1,5 @@
 import { cn } from "@/lib/utils";
 
-/**
- * سطحٌ صلب مرفوع عن الخلفية بدرجة واحدة (`--card`). صلبٌ لا شفيف عمدًا:
- * البطاقات تظهر أحيانًا فوق اللوحات المرسومة، والسطح الشفيف هناك يعطي
- * تباينًا يتغيّر بتغيّر البكسل تحته.
- */
 export function Card({ className, ...props }: React.ComponentProps<"div">) {
   return (
     <div
@@ -26,10 +21,16 @@ export function CardHeader({
   );
 }
 
-export function CardTitle({ className, ...props }: React.ComponentProps<"h3">) {
+export function CardTitle({
+  className,
+  ...props
+}: React.ComponentProps<"h3">) {
   return (
     <h3
-      className={cn("text-lg font-bold leading-[1.6] text-foreground", className)}
+      className={cn(
+        "text-lg font-bold leading-[1.6] text-[var(--brand-deep-green)]",
+        className,
+      )}
       {...props}
     />
   );

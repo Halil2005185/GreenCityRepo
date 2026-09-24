@@ -23,7 +23,7 @@ export function PartnershipJourney() {
               {index + 1}
             </span>
             <h3 className="text-base font-bold text-foreground">{step.title}</h3>
-            <p className="text-sm leading-loose text-muted-foreground">
+            <p className="font-medium text-sm leading-loose text-muted-foreground">
               {step.description}
             </p>
           </li>

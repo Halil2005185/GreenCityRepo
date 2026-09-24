@@ -3,17 +3,20 @@ import { Container } from "@/components/ui/container";
 import { cn } from "@/lib/utils";
 
 /**
- * عنوان قسم بالشريط العمودي الأخضر — توقيع التصميم الجديد، وهو في الأصل
- * `SectionHeading` المكرَّر في الصفحة المُسلَّمة. هنا مرة واحدة.
+ * عنوان قسم بالشريط العمودي الأخضر — توقيع التصميم الجديد.
  */
 export function SectionHeading({
   eyebrow,
   title,
+  titleClassName,
+  eyebrowClassName,
   as: Tag = "h2",
   className,
 }: {
   eyebrow?: string;
   title: string;
+  titleClassName?: string;
+  eyebrowClassName?: string;
   as?: "h1" | "h2" | "h3";
   className?: string;
 }) {
@@ -21,13 +24,25 @@ export function SectionHeading({
     <div className={cn("flex items-start gap-4", className)}>
       <span
         aria-hidden
-        className="mt-1 h-10 w-1 shrink-0 rounded-full bg-accent-ink lg:h-12"
+        className="mt-1 h-10 w-1 shrink-0 rounded-full bg-[var(--brand-life-green)] lg:h-12"
       />
       <div className="space-y-1.5">
         {eyebrow && (
-          <p className="text-sm font-medium text-accent-ink">{eyebrow}</p>
+          <p
+            className={cn(
+              "text-sm font-medium text-[var(--brand-warm-beige)]",
+              eyebrowClassName,
+            )}
+          >
+            {eyebrow}
+          </p>
         )}
-        <Tag className="text-2xl font-bold tracking-tight text-foreground lg:text-3xl">
+        <Tag
+          className={cn(
+            "text-2xl font-bold tracking-tight text-[var(--brand-warm-beige)] lg:text-3xl",
+            titleClassName,
+          )}
+        >
           {title}
         </Tag>
       </div>
@@ -40,6 +55,12 @@ type SectionProps = React.ComponentProps<"section"> & {
   eyebrow?: string;
   title?: string;
   description?: string;
+  /** لون مخصص للعنوان عند الحاجة. */
+  titleClassName?: string;
+  /** لون مخصص للعنوان الصغير عند الحاجة. */
+  eyebrowClassName?: string;
+  /** لون/تنسيق وصف القسم بشكل مخصص. */
+  descriptionClassName?: string;
   /** رابط «الكل» أو ما شابه، يظهر بمحاذاة العنوان على الشاشات الواسعة. */
   action?: React.ReactNode;
   /** سطح مرتفع قليلًا يفصل قسمًا عمّا قبله دون صورة تُحمَّل. */
@@ -52,6 +73,9 @@ export function Section({
   eyebrow,
   title,
   description,
+  titleClassName,
+  eyebrowClassName,
+  descriptionClassName,
   action,
   muted = false,
   backdrop = false,
@@ -69,28 +93,38 @@ export function Section({
       )}
       {...props}
     >
-      {backdrop && <Backdrop src="/bg/section.webp" />}
+      {backdrop && <Backdrop src="/bg/sectionNew.png" />}
 
       <Container>
         {(title || description || action) && (
           <div className="mb-10 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl space-y-4">
-              {title && <SectionHeading eyebrow={eyebrow} title={title} />}
+              {title && (
+                <SectionHeading
+                  eyebrow={eyebrow}
+                  title={title}
+                  titleClassName={titleClassName}
+                  eyebrowClassName={eyebrowClassName}
+                />
+              )}
+
               {description && (
                 <p
                   className={cn(
                     "text-base leading-loose",
-                    /* فوق اللوحة بيجٌ كامل — القاعدة في `Backdrop`. */
                     backdrop ? "text-foreground" : "text-muted-foreground",
+                    descriptionClassName,
                   )}
                 >
                   {description}
                 </p>
               )}
             </div>
+
             {action && <div className="shrink-0">{action}</div>}
           </div>
         )}
+
         {children}
       </Container>
     </section>
@@ -98,10 +132,7 @@ export function Section({
 }
 
 /**
- * عنوان الصفحة الداخلية: بديل القسم البطل في ما دون الصفحة الرئيسية.
- *
- * على لوحة مرسومة لا على تدرّج: التصميم الجديد يعرّف الصفحة بصورتها،
- * والصفحات الداخلية كانت الجزء الذي لم يصل إليه التصميم المُسلَّم.
+ * عنوان الصفحة الداخلية.
  */
 export function PageHeader({
   eyebrow,
@@ -116,21 +147,24 @@ export function PageHeader({
 }) {
   return (
     <div className="on-painted relative isolate border-b border-border py-16 sm:py-24">
-      <Backdrop src="/bg/section.webp" priority />
+      <Backdrop src="/bg/sectionNew.png" priority />
 
       <Container>
         <div className="max-w-3xl space-y-5">
           {eyebrow && (
             <p className="text-sm font-medium text-accent-ink">{eyebrow}</p>
           )}
-          <h1 className="text-3xl font-bold leading-[1.25] tracking-tight text-foreground sm:text-4xl">
+
+          <h1 className="text-3xl font-bold leading-loose tracking-tight text-foreground sm:text-4xl">
             {title}
           </h1>
+
           {description && (
             <p className="text-lg leading-loose text-foreground">
               {description}
             </p>
           )}
+
           {children}
         </div>
       </Container>
