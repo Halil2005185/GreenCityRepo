@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { BrandLockup } from "@/components/layout/logo";
-import { Backdrop } from "@/components/ui/backdrop";
+//import { Backdrop } from "@/components/ui/backdrop";
 import { Container } from "@/components/ui/container";
 import { contactChannels, footerNav, siteConfig } from "@/lib/site";
 
@@ -19,7 +19,11 @@ export function SiteFooter() {
 
   return (
     <footer className="on-painted relative isolate mt-16 overflow-hidden border-t border-border bg-[#103900]/60">
-      <Backdrop src="/bg/footerNew.png" />
+      <div
+        aria-hidden
+        className="absolute inset-0 -z-10 bg-cover bg-center bg-no-repeat"
+        style={{ backgroundImage: "url('/bg/footerNew.png')" }}
+      />
       <Container>
         <div className="grid gap-10 py-14 sm:grid-cols-2 lg:grid-cols-4">
           <div className="space-y-4 lg:col-span-2">
