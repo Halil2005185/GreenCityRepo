@@ -178,6 +178,24 @@ export function assertKnownCapabilities(values: readonly string[]): Capability[]
   return values as Capability[]
 }
 
+/**
+ * لا يمنح أحدٌ دورًا أوسع مما يحمله هو، ولا يمسّ عضوية بدور كهذا.
+ *
+ * `roles.manage` وحدها لا تكفي: مسؤول القسم التقني يحملها، وبدون هذا
+ * الشرط يمنح نفسه أو غيره «المدير العام» فيرى ما حُجب عنه عمدًا، أو ينهي
+ * عضوية المدير العام نفسه. القدرة الميتة تُتجاهل هنا كما في `loadAuthContext`.
+ */
+export function canGrantRole(
+  held: readonly Capability[],
+  roleCapabilities: readonly string[],
+): boolean {
+  const granted = new Set<string>(held)
+
+  return roleCapabilities.every(
+    (value) => !isCapability(value) || granted.has(value),
+  )
+}
+
 /** الدور لا يخلط النطاقين: دور فريق لا يحمل قدرة بوابة شريك والعكس. */
 export function capabilitiesMatchScope(
   scope: 'STAFF' | 'PARTNER',

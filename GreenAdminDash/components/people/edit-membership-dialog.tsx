@@ -10,6 +10,8 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { SelectField } from "@/components/ui/form-fields";
 import { listStaffRoles } from "@/lib/api/invitations";
 import { updateMembership } from "@/lib/api/people";
+import { useAuth } from "@/lib/auth/auth-context";
+import { canGrantRole } from "@/lib/auth/capabilities";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -22,7 +24,7 @@ type MembershipValues = z.infer<typeof membershipSchema>;
 
 /**
  * تعديل مكتب أو دور عضوية نشطة قائمة — من ملف العضو، لا من الدعوة. زرّها
- * يظهر لمن يحمل `roles.manage` وحده.
+ * يظهر لمن يحمل `roles.manage` وحده، والأدوار المعروضة ما لا يتجاوز صلاحياته.
  *
  * `otherActiveOfficeIds` تستبعد من خيارات المكتب مكاتب له فيها عضوية
  * نشطة أخرى بالفعل — الخادم يرفضها على أي حال، والاستبعاد هنا يمنع
@@ -39,6 +41,7 @@ export function EditMembershipDialog({
   otherActiveOfficeIds: readonly string[];
 }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const offices = useOffices();
   const roles = useQuery({
     queryKey: ["roles", "STAFF"],
@@ -54,11 +57,13 @@ export function EditMembershipDialog({
   const officeSelectOptions = officeOptions(offices.data ?? []).filter(
     (option) => !otherActiveOfficeIds.includes(option.value),
   );
-  const roleSelectOptions = (roles.data ?? []).map((role) => ({
-    value: role.id,
-    label: role.nameAr,
-    description: role.descriptionAr ?? undefined,
-  }));
+  const roleSelectOptions = (roles.data ?? [])
+    .filter((role) => canGrantRole(user?.capabilities ?? [], role.capabilities))
+    .map((role) => ({
+      value: role.id,
+      label: role.nameAr,
+      description: role.descriptionAr ?? undefined,
+    }));
 
   if (!membership) return null;
 

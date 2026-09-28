@@ -6007,7 +6007,7 @@ export interface paths {
         put?: never;
         /**
          * إضافة عضوية إضافية لعضو فريق قائم
-         * @description يتطلب roles.manage — المدير العام حصرًا اليوم. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.
+         * @description يتطلب roles.manage، ودورًا لا تتجاوز قدراته قدرات المنفّذ، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.
          */
         post: {
             parameters: {
@@ -6047,7 +6047,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة roles.manage */
+                /** @description لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6106,7 +6106,7 @@ export interface paths {
         head?: never;
         /**
          * تعديل عضوية قائمة
-         * @description يتطلب roles.manage. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.
+         * @description يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه. الدور الحالي والجديد كلاهما لا يتجاوز قدرات المنفّذ. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.
          */
         patch: {
             parameters: {
@@ -6147,7 +6147,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة roles.manage */
+                /** @description لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6198,7 +6198,7 @@ export interface paths {
         put?: never;
         /**
          * إنهاء عضوية قائمة
-         * @description يتطلب roles.manage. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.
+         * @description يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه ولا على عضوية بدور يتجاوز قدرات المنفّذ. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.
          */
         post: {
             parameters: {
@@ -6228,7 +6228,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة roles.manage */
+                /** @description لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه */
                 403: {
                     headers: {
                         [name: string]: unknown;
