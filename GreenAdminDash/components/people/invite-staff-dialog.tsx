@@ -10,6 +10,7 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { SelectField, TextField } from "@/components/ui/form-fields";
 import { OneTimeLink } from "@/components/ui/one-time-link";
 import { createInvitation, listStaffRoles } from "@/lib/api/invitations";
+import { useAccess } from "@/lib/auth/access";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -57,6 +58,7 @@ export function InviteStaffDialog({
   ...props
 }: DialogProps & { initial?: Partial<InviteValues> }) {
   const queryClient = useQueryClient();
+  const access = useAccess();
   const offices = useOffices();
   const roles = useQuery({
     queryKey: ["roles", "STAFF"],
@@ -70,7 +72,7 @@ export function InviteStaffDialog({
   });
 
   /**
-   * عضويتان مستقلتان حقًا لا حقل مشترك: الفريق إلزامية والأعضاء اختيارية.
+   * عضويتان مستقلتان حقًا لا حقل مشترك: الرئيسية إلزامية والإضافية اختيارية.
    * المكتب المختار في إحداهما يُستبعد من خيارات الأخرى — لا عضويتان
    * نشطتان في المكتب نفسه أصلًا (`memberships_active_unique`) — لا يُعطَّل
    * القسم كله.
@@ -78,11 +80,14 @@ export function InviteStaffDialog({
   const officeIdValue = form.watch("officeId");
   const additionalOfficeIdValue = form.watch("additionalOfficeId");
 
-  const roleSelectOptions = (roles.data ?? []).map((role) => ({
-    value: role.id,
-    label: role.nameAr,
-    description: role.descriptionAr ?? undefined,
-  }));
+  // الخادم يرفض الدعوة بدور أوسع مما يستطيع الداعي منحه، فلا يُعرض أصلًا.
+  const roleSelectOptions = (roles.data ?? [])
+    .filter((role) => access.canDelegateAll(role.capabilities, null))
+    .map((role) => ({
+      value: role.id,
+      label: role.nameAr,
+      description: role.descriptionAr ?? undefined,
+    }));
   const allOfficeOptions = officeOptions(offices.data ?? []);
   const teamOfficeOptions = allOfficeOptions.filter(
     (option) => option.value !== additionalOfficeIdValue,
@@ -142,7 +147,7 @@ export function InviteStaffDialog({
       </div>
       <div>
         <p className="text-[0.800rem] font-medium text-muted-foreground">
-          (صلاحيات الفريق)
+          الفريق الرئيسي
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
@@ -165,14 +170,14 @@ export function InviteStaffDialog({
       </div>
       <div>
         <p className="text-[0.800rem] font-medium text-muted-foreground">
-          (صلاحيات الأعضاء)
+          فريق إضافي (اختياري)
         </p>
         <div className="grid gap-4 sm:grid-cols-2">
           <SelectField
             control={form.control}
             name="additionalOfficeId"
             label="المكتب"
-            hint="اختياري — مكتب مختلف عن مكتب الفريق أعلاه."
+            hint="مكتب مختلف عن الفريق الرئيسي أعلاه."
             loading={offices.isPending}
             options={memberOfficeOptions}
             clearable

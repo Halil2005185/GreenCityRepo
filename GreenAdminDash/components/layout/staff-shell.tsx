@@ -10,6 +10,7 @@ import {
   Map,
   Megaphone,
   ScrollText,
+  ShieldCheck,
   Sprout,
   Users,
 } from "lucide-react";
@@ -62,7 +63,14 @@ const NAV_ITEMS: readonly NavItem[] = [
     href: "/dashboard/people",
     label: "الفريق",
     icon: Users,
-    requires: [CAPABILITIES.usersView],
+    // مدير الفريق يرى فريقه فيه وإن لم يحمل `users.view`.
+    requires: [CAPABILITIES.usersView, CAPABILITIES.teamManage, CAPABILITIES.teamAll],
+  },
+  {
+    href: "/dashboard/roles",
+    label: "الأدوار والصلاحيات",
+    icon: ShieldCheck,
+    requires: [CAPABILITIES.rolesManage],
   },
   {
     href: "/dashboard/forms",

@@ -1,12 +1,13 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Ban, Pencil, UserPlus } from "lucide-react";
+import { Ban, Pencil, SlidersHorizontal, UserPlus } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { AddMembershipDialog } from "@/components/people/add-membership-dialog";
 import { EditMembershipDialog } from "@/components/people/edit-membership-dialog";
+import { MembershipCapabilitiesSheet } from "@/components/people/membership-capabilities-sheet";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/card";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -22,51 +23,37 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { DetailSkeleton, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useAccess } from "@/lib/auth/access";
 import { useAuth } from "@/lib/auth/auth-context";
-import { CAPABILITIES, canGrantRole } from "@/lib/auth/capabilities";
+import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { ApiError } from "@/lib/api/client";
-import { listStaffRoles } from "@/lib/api/invitations";
 import {
   endMembership,
   getPerson,
   primaryMembership,
-  type TeamMembership,
+  type TeamMembershipDetail,
 } from "@/lib/api/people";
 import { OPEN_STATUSES, listTasks, type WorkItemSummary } from "@/lib/api/work";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 
 const BREADCRUMB_ROOT = { label: "دليل الفريق", href: "/dashboard/people" };
 
-const membershipCol = columnHelper<TeamMembership>();
+const membershipCol = columnHelper<TeamMembershipDetail>();
 const taskCol = columnHelper<WorkItemSummary>();
 
 export default function PersonPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, canAny } = useAuth();
+  const { user, can } = useAuth();
+  const access = useAccess();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [addMembershipOpen, setAddMembershipOpen] = useState(false);
-  const [editingMembership, setEditingMembership] = useState<TeamMembership | null>(null);
+  const [editingMembership, setEditingMembership] = useState<TeamMembershipDetail | null>(null);
+  const [customizing, setCustomizing] = useState<TeamMembershipDetail | null>(null);
 
-  // لا يدير أحد عضوياته بنفسه — الخادم يرفضها، فلا يُعرض القسم أصلًا.
-  const canManageRoles = canAny(CAPABILITIES.rolesManage) && user?.id !== id;
-
-  /** عضوية بدور أوسع من صلاحياتك تُعرض بلا تعديل ولا إنهاء. */
-  const staffRoles = useQuery({
-    queryKey: ["roles", "STAFF"],
-    queryFn: listStaffRoles,
-    enabled: canManageRoles,
-    staleTime: 5 * 60 * 1000,
-  });
-  const grantableRoleIds = useMemo(
-    () =>
-      new Set(
-        (staffRoles.data ?? [])
-          .filter((role) => canGrantRole(user?.capabilities ?? [], role.capabilities))
-          .map((role) => role.id),
-      ),
-    [staffRoles.data, user?.capabilities],
-  );
+  // لا يدير أحد عضوياته بنفسه — الخادم يرفضها، فلا يُعرض قسم الإدارة أصلًا.
+  const isSelf = user?.id === id;
+  const canViewTasks = can(CAPABILITIES.workView);
 
   const member = useQuery({
     queryKey: ["people", id],
@@ -81,7 +68,7 @@ export default function PersonPage() {
   const tasks = useQuery({
     queryKey: ["work", "tasks", { assigneeUserId: id, open: true }],
     queryFn: () => listTasks({ assigneeUserId: id, status: OPEN_STATUSES }),
-    enabled: Boolean(member.data),
+    enabled: Boolean(member.data) && canViewTasks,
   });
 
   const membershipColumns = useMemo(
@@ -135,6 +122,23 @@ export default function PersonPage() {
           ),
         }),
         membershipCol.accessor("roleNameAr", { header: "الدور" }),
+        membershipCol.accessor((membership) => membership.effective.length, {
+          id: "capabilities",
+          header: "الصلاحيات",
+          cell: (info) => {
+            const { overrides } = info.row.original;
+            const granted = overrides.filter((override) => override.effect === "GRANT").length;
+            const revoked = overrides.length - granted;
+
+            return (
+              <span className="flex flex-wrap items-center gap-1.5">
+                {cells.number(info.getValue())}
+                {granted > 0 ? <Badge tone="success">+{granted} مضافة</Badge> : null}
+                {revoked > 0 ? <Badge tone="danger">−{revoked} منزوعة</Badge> : null}
+              </span>
+            );
+          },
+        }),
         membershipCol.accessor("startedAt", {
           header: "منذ",
           cell: (info) => cells.date(info.getValue()),
@@ -200,7 +204,11 @@ export default function PersonPage() {
 
   const person = member.data;
   const primary = primaryMembership(person);
-  const hasActive = person.memberships.some((membership) => membership.status === "ACTIVE");
+  const active = person.memberships.filter((membership) => membership.status === "ACTIVE");
+  const hasActive = active.length > 0;
+  // القسم لمن يدير فريقًا ما: يضيف إليه، أو يمسّ عضوية هنا تقع في فريقه.
+  const showManage =
+    !isSelf && (active.some((membership) => membership.canManage) || access.managesAnyTeam);
 
   return (
     <div className="space-y-6">
@@ -246,18 +254,19 @@ export default function PersonPage() {
       </Section>
 
       {/*
-       * قسم منفصل عن «العضويات» أعلاه لا زر إضافي فيه: الأول للجميع
-       * وللقراءة وحدها، وهذا لا يُركَّب أصلًا لمن لا يحمل `roles.manage`
-       * — لا يظهر فارغًا ولا معطَّلًا، بل يغيب كليًا.
+       * قسم منفصل عن «العضويات» أعلاه: الأول للجميع وللقراءة وحدها، وهذا
+       * لا يُركَّب أصلًا لمن لا يدير فريقًا — لا يظهر فارغًا ولا معطَّلًا.
+       * أفعال كل صف من قرار الخادم (`canManage`/`canCustomize`) لا من
+       * نسخة من قواعده هنا.
        */}
-      {canManageRoles ? (
+      {showManage ? (
         <Section
-          title="إدارة صلاحيات العضو"
-          description="إضافة عضوية أو تعديل مكتبها ودورها أو إنهاؤها. يظهر لمن يحمل roles.manage وحده."
+          title="إدارة العضويات والصلاحيات"
+          description="ضمّ العضو إلى فريق تديره، أو تعديل دوره فيه، أو تخصيص صلاحياته — كمساعد يرى أمورًا بعينها — أو إنهاء العضوية."
           actions={[
-            {
+            access.managesAnyTeam && {
               key: "add-membership",
-              label: "إضافة عضوية",
+              label: "إضافة إلى فريق",
               icon: UserPlus,
               onSelect: () => setAddMembershipOpen(true),
             },
@@ -266,41 +275,43 @@ export default function PersonPage() {
           <DataTable
             caption="إدارة العضويات"
             columns={manageMembershipColumns}
-            data={person.memberships.filter((membership) => membership.status === "ACTIVE")}
+            data={active}
             getRowId={(membership) => membership.id}
             pagination={false}
             empty={{ title: "لا عضويات نشطة" }}
-            rowActions={(membership) =>
-              grantableRoleIds.has(membership.roleId)
-                ? [
-                    {
-                      key: "edit",
-                      label: "تعديل",
-                      icon: Pencil,
-                      quick: true,
-                      onSelect: () => setEditingMembership(membership),
+            rowActions={(membership) => [
+              membership.canCustomize && {
+                key: "customize",
+                label: "تخصيص الصلاحيات",
+                icon: SlidersHorizontal,
+                quick: true,
+                onSelect: () => setCustomizing(membership),
+              },
+              membership.canManage && {
+                key: "edit",
+                label: "تعديل الفريق أو الدور",
+                icon: Pencil,
+                onSelect: () => setEditingMembership(membership),
+              },
+              membership.canManage && {
+                key: "end",
+                label: "إنهاء العضوية",
+                icon: Ban,
+                destructive: true,
+                onSelect: () =>
+                  void confirm({
+                    title: `إنهاء عضوية ${person.fullNameAr} في ${membership.officeNameAr}؟`,
+                    description: "يفقد صلاحيات هذا الفريق والدور فورًا. لا يُحذف سجل العضوية.",
+                    confirmLabel: "إنهاء العضوية",
+                    destructive: true,
+                    successMessage: "أُنهيت العضوية.",
+                    onConfirm: async () => {
+                      await endMembership(person.id, membership.id);
+                      await queryClient.invalidateQueries({ queryKey: ["people", person.id] });
                     },
-                    {
-                      key: "end",
-                      label: "إنهاء العضوية",
-                      icon: Ban,
-                      destructive: true,
-                      onSelect: () =>
-                        void confirm({
-                          title: `إنهاء عضوية ${person.fullNameAr} في ${membership.officeNameAr}؟`,
-                          description: "يفقد صلاحيات هذا المكتب والدور فورًا. لا يُحذف سجل العضوية.",
-                          confirmLabel: "إنهاء العضوية",
-                          destructive: true,
-                          successMessage: "أُنهيت العضوية.",
-                          onConfirm: async () => {
-                            await endMembership(person.id, membership.id);
-                            await queryClient.invalidateQueries({ queryKey: ["people", person.id] });
-                          },
-                        }),
-                    },
-                  ]
-                : []
-            }
+                  }),
+              },
+            ]}
           />
         </Section>
       ) : null}
@@ -309,9 +320,17 @@ export default function PersonPage() {
         open={addMembershipOpen}
         onOpenChange={setAddMembershipOpen}
         personId={person.id}
-        existingOfficeIds={person.memberships
-          .filter((membership) => membership.status === "ACTIVE")
-          .map((membership) => membership.officeId)}
+        existingOfficeIds={active.map((membership) => membership.officeId)}
+      />
+
+      <MembershipCapabilitiesSheet
+        open={Boolean(customizing)}
+        onOpenChange={(open) => {
+          if (!open) setCustomizing(null);
+        }}
+        personId={person.id}
+        personName={person.fullNameAr}
+        membership={customizing}
       />
 
       <EditMembershipDialog
@@ -329,19 +348,21 @@ export default function PersonPage() {
           .map((membership) => membership.officeId)}
       />
 
-      <Section title="المهام المفتوحة" description="ما هو مسنَد إليه ولم يُغلق بعد.">
-        <DataTable
-          caption="المهام المفتوحة"
-          columns={taskColumns}
-          data={tasks.data}
-          getRowId={(task) => task.id}
-          isLoading={tasks.isPending}
-          error={tasks.error}
-          onRetry={() => void tasks.refetch()}
-          empty={{ title: "لا مهام مفتوحة" }}
-          rowHref={(task) => `/dashboard/tasks?task=${task.id}`}
-        />
-      </Section>
+      {canViewTasks ? (
+        <Section title="المهام المفتوحة" description="ما هو مسنَد إليه ولم يُغلق بعد.">
+          <DataTable
+            caption="المهام المفتوحة"
+            columns={taskColumns}
+            data={tasks.data}
+            getRowId={(task) => task.id}
+            isLoading={tasks.isPending}
+            error={tasks.error}
+            onRetry={() => void tasks.refetch()}
+            empty={{ title: "لا مهام مفتوحة" }}
+            rowHref={(task) => `/dashboard/tasks?task=${task.id}`}
+          />
+        </Section>
+      ) : null}
     </div>
   );
 }

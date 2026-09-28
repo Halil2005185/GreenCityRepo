@@ -11,6 +11,8 @@ export const CAPABILITIES = {
   invitationsManage: "invitations.manage",
   rolesManage: "roles.manage",
   officesManage: "offices.manage",
+  teamManage: "team.manage",
+  teamAll: "team.all",
 
   partnersView: "partners.view",
   partnersManage: "partners.manage",
@@ -57,17 +59,3 @@ export const CAPABILITIES = {
 } as const;
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];
-
-/**
- * مرآة `canGrantRole` في الخادم: لا يُعرض دور أوسع من صلاحيات المستخدم
- * خيارًا للمنح، ولا تُعرض أفعال على عضوية بدور كهذا. الخادم يرفضها على
- * أي حال؛ هذا لتجنّب محاولة تفشل.
- */
-export function canGrantRole(
-  held: readonly string[],
-  roleCapabilities: readonly string[],
-): boolean {
-  const granted = new Set(held);
-
-  return roleCapabilities.every((capability) => granted.has(capability));
-}

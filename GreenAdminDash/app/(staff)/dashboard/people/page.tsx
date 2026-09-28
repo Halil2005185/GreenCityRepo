@@ -1,10 +1,11 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { Eye, UserPlus } from "lucide-react";
+import { Eye, UserPlus, UsersRound } from "lucide-react";
 import { useMemo } from "react";
 
 import { officeOptions, useOffices } from "@/components/offices/office-options";
+import { AddMembershipDialog } from "@/components/people/add-membership-dialog";
 import { InviteStaffDialog } from "@/components/people/invite-staff-dialog";
 import {
   DataTable,
@@ -24,7 +25,13 @@ import { statusOptions } from "@/lib/status";
 const col = columnHelper<TeamMember>();
 
 export default function PeoplePage() {
-  const [filters, setFilters, resetFilters] = useUrlState({ q: "", office: "", status: "", invite: "" });
+  const [filters, setFilters, resetFilters] = useUrlState({
+    q: "",
+    office: "",
+    status: "",
+    invite: "",
+    join: "",
+  });
   const offices = useOffices();
 
   /**
@@ -90,13 +97,22 @@ export default function PeoplePage() {
     requires: [CAPABILITIES.invitationsManage],
     onSelect: () => setFilters({ invite: "1" }, { keepPage: true }),
   };
+  // الدعوة تُنشئ حسابًا لمن ليس في الفريق؛ الضمّ لزميل قائم إلى فريق تديره.
+  const join = {
+    key: "join",
+    label: "ضمّ زميل إلى فريقك",
+    icon: UsersRound,
+    requires: [CAPABILITIES.teamManage, CAPABILITIES.teamAll],
+    onSelect: () => setFilters({ join: "1" }, { keepPage: true }),
+  };
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="دليل الفريق"
-        description="أعضاء إيفا ومكاتبهم وأدوارهم. ممثلو الشركاء ليسوا هنا — سجلّهم في صفحة الشركاء لأن نطاقهم جهتهم لا مكتبًا."
+        description="أعضاء إيفا ومكاتبهم وأدوارهم. مدير الفريق يرى هنا فريقه. ممثلو الشركاء ليسوا هنا — سجلّهم في صفحة الشركاء لأن نطاقهم جهتهم لا مكتبًا."
         primaryAction={invite}
+        secondaryActions={[join]}
       />
 
       <div className="space-y-3">
@@ -162,6 +178,11 @@ export default function PeoplePage() {
       <InviteStaffDialog
         open={filters.invite === "1"}
         onOpenChange={(open) => setFilters({ invite: open ? "1" : null }, { keepPage: true })}
+      />
+
+      <AddMembershipDialog
+        open={filters.join === "1"}
+        onOpenChange={(open) => setFilters({ join: open ? "1" : null }, { keepPage: true })}
       />
     </div>
   );

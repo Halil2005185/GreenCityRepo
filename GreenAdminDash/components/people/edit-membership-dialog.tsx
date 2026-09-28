@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { officeOptions, useOffices } from "@/components/offices/office-options";
@@ -10,25 +10,23 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { SelectField } from "@/components/ui/form-fields";
 import { listStaffRoles } from "@/lib/api/invitations";
 import { updateMembership } from "@/lib/api/people";
-import { useAuth } from "@/lib/auth/auth-context";
-import { canGrantRole } from "@/lib/auth/capabilities";
+import { useAccess } from "@/lib/auth/access";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
 const membershipSchema = z.object({
-  officeId: z.string().min(1, "اختر المكتب."),
+  officeId: z.string().min(1, "اختر الفريق."),
   roleId: z.string().min(1, "اختر الدور."),
 });
 
 type MembershipValues = z.infer<typeof membershipSchema>;
 
 /**
- * تعديل مكتب أو دور عضوية نشطة قائمة — من ملف العضو، لا من الدعوة. زرّها
- * يظهر لمن يحمل `roles.manage` وحده، والأدوار المعروضة ما لا يتجاوز صلاحياته.
+ * تعديل فريق أو دور عضوية نشطة قائمة — من ملف العضو، لا من الدعوة.
  *
- * `otherActiveOfficeIds` تستبعد من خيارات المكتب مكاتب له فيها عضوية
- * نشطة أخرى بالفعل — الخادم يرفضها على أي حال، والاستبعاد هنا يمنع
- * محاولة تفشل بدل أن يشرحها.
+ * الفرق المعروضة ما يديره المستخدم، والأدوار ما يستطيع منحه في الفريق
+ * المختار. `otherActiveOfficeIds` تستبعد فرقًا للعضو فيها عضوية نشطة
+ * أخرى — الخادم يرفضها على أي حال، والاستبعاد يمنع محاولة تفشل.
  */
 export function EditMembershipDialog({
   personId,
@@ -41,7 +39,7 @@ export function EditMembershipDialog({
   otherActiveOfficeIds: readonly string[];
 }) {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const access = useAccess();
   const offices = useOffices();
   const roles = useQuery({
     queryKey: ["roles", "STAFF"],
@@ -53,12 +51,16 @@ export function EditMembershipDialog({
     resolver: zodResolver(membershipSchema),
     defaultValues: { officeId: "", roleId: "" },
   });
+  const officeId = useWatch({ control: form.control, name: "officeId" });
 
   const officeSelectOptions = officeOptions(offices.data ?? []).filter(
-    (option) => !otherActiveOfficeIds.includes(option.value),
+    (option) =>
+      access.canManageOffice(option.value) && !otherActiveOfficeIds.includes(option.value),
   );
   const roleSelectOptions = (roles.data ?? [])
-    .filter((role) => canGrantRole(user?.capabilities ?? [], role.capabilities))
+    .filter((role) => role.officeId === null || role.officeId === officeId)
+    .filter((role) => !officeId || access.canDelegateAll(role.capabilities, officeId))
+    .sort((a, b) => Number(b.officeId === officeId) - Number(a.officeId === officeId))
     .map((role) => ({
       value: role.id,
       label: role.nameAr,
@@ -71,7 +73,8 @@ export function EditMembershipDialog({
     <FormDialog
       {...props}
       size="sm"
-      title="تعديل عضوية"
+      title="تعديل الفريق أو الدور"
+      description="تسقط معه الصلاحيات المخصّصة لهذا الشخص في هذه العضوية، ويحمل حزمة الدور الجديد."
       form={form}
       values={{ officeId: membership.officeId, roleId: membership.roleId }}
       submitLabel="حفظ"
@@ -83,8 +86,8 @@ export function EditMembershipDialog({
         <SelectField
           control={form.control}
           name="officeId"
-          label="المكتب"
-          loading={offices.isPending}
+          label="الفريق"
+          loading={offices.isPending || !access.ready}
           options={officeSelectOptions}
         />
         <SelectField
