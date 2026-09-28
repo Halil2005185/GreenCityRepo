@@ -6,6 +6,8 @@ import { db } from '../../db/client.js'
 import { memberships } from '../../db/schema/access.js'
 import { users } from '../../db/schema/identity.js'
 import { offices, roles } from '../../db/schema/org.js'
+import type { AuthContext } from '../access/access.service.js'
+import { canGrantRole } from '../access/capabilities.js'
 import { requestTrace, recordAudit } from '../audit/audit.service.js'
 import type {
   AddMembershipBody,
@@ -165,13 +167,40 @@ export const getPerson: RequestHandler = async (request, response) => {
 }
 
 /**
+ * حارسا العضويات فوق `roles.manage` على مستوى المسار. تلك القدرة يحملها
+ * المدير العام ومسؤول القسم التقني معًا، فلا تكفي وحدها:
+ *
+ * - لا يعدّل أحد عضوياته بنفسه — لا يرفع نفسه، ولا يُنهي عضويته الوحيدة
+ *   فيُغلق اللوحة على نفسه.
+ * - لا يمنح دورًا أوسع مما يحمله، ولا يمسّ عضوية بدور كهذا (`canGrantRole`).
+ */
+function assertNotSelf(actor: AuthContext, userId: string) {
+  if (actor.userId === userId) {
+    throw errors.forbidden('لا يمكنك تعديل عضوياتك بنفسك؛ يتولاها مسؤول آخر.')
+  }
+}
+
+function assertCanGrant(
+  actor: AuthContext,
+  role: { nameAr: string; capabilities: readonly string[] },
+) {
+  if (!canGrantRole(actor.capabilities, role.capabilities)) {
+    throw errors.forbidden(
+      `دور «${role.nameAr}» يحمل صلاحيات لا تملكها، فلا يمكنك منحه ولا تعديل عضويته.`,
+    )
+  }
+}
+
+/**
  * عضوية إضافية لعضو قائم — لا تنشئ حسابًا ولا تُنهي عضوية أخرى، فتصلح
- * لتوسيع صلاحيات عضو بعد قبوله دعوته الأولى. `المدير العام` وحده اليوم
- * يحمل `roles.manage` (الحارس على مستوى المسار).
+ * لتوسيع صلاحيات عضو بعد قبوله دعوته الأولى.
  */
 export const postAddMembership: RequestHandler = async (request, response) => {
   const id = readId(request)
   const body = request.body as AddMembershipBody
+  const actor = request.auth!
+
+  assertNotSelf(actor, id)
 
   const [person] = await db
     .select({ id: users.id, kind: users.kind })
@@ -191,7 +220,12 @@ export const postAddMembership: RequestHandler = async (request, response) => {
   if (!office.isActive) throw errors.unprocessable('المكتب المحدد غير مفعّل.')
 
   const [role] = await db
-    .select({ id: roles.id, scope: roles.scope, nameAr: roles.nameAr })
+    .select({
+      id: roles.id,
+      scope: roles.scope,
+      nameAr: roles.nameAr,
+      capabilities: roles.capabilities,
+    })
     .from(roles)
     .where(eq(roles.id, body.roleId))
     .limit(1)
@@ -200,6 +234,8 @@ export const postAddMembership: RequestHandler = async (request, response) => {
   if (role.scope !== 'STAFF') {
     throw errors.unprocessable('الدور يجب أن يكون من أدوار الفريق.')
   }
+
+  assertCanGrant(actor, role)
 
   const [existingActive] = await db
     .select({ id: memberships.id })
@@ -217,7 +253,6 @@ export const postAddMembership: RequestHandler = async (request, response) => {
     throw errors.conflict('العضو لديه عضوية نشطة في هذا المكتب بالفعل.')
   }
 
-  const actor = request.auth!
   const trace = requestTrace(request)
 
   const created = await db.transaction(async (tx) => {
@@ -261,6 +296,9 @@ export const patchMembership: RequestHandler = async (request, response) => {
   const id = readId(request)
   const membershipId = readId(request, 'membershipId', 'العضوية غير موجودة.')
   const body = request.body as UpdateMembershipBody
+  const actor = request.auth!
+
+  assertNotSelf(actor, id)
 
   const [membership] = await db
     .select({
@@ -268,8 +306,11 @@ export const patchMembership: RequestHandler = async (request, response) => {
       officeId: memberships.officeId,
       roleId: memberships.roleId,
       status: memberships.status,
+      roleNameAr: roles.nameAr,
+      roleCapabilities: roles.capabilities,
     })
     .from(memberships)
+    .innerJoin(roles, eq(memberships.roleId, roles.id))
     .where(and(eq(memberships.id, membershipId), eq(memberships.userId, id)))
     .limit(1)
 
@@ -277,6 +318,12 @@ export const patchMembership: RequestHandler = async (request, response) => {
   if (membership.status !== 'ACTIVE') {
     throw errors.unprocessable('لا يمكن تعديل عضوية منتهية.')
   }
+
+  // خفض دور أوسع من صلاحياتك سحبٌ لما لا تملك أن تمنحه.
+  assertCanGrant(actor, {
+    nameAr: membership.roleNameAr,
+    capabilities: membership.roleCapabilities,
+  })
 
   let nextOfficeId = membership.officeId
   let officeNameAr: string | undefined
@@ -300,7 +347,12 @@ export const patchMembership: RequestHandler = async (request, response) => {
 
   if (body.roleId) {
     const [role] = await db
-      .select({ id: roles.id, scope: roles.scope, nameAr: roles.nameAr })
+      .select({
+        id: roles.id,
+        scope: roles.scope,
+        nameAr: roles.nameAr,
+        capabilities: roles.capabilities,
+      })
       .from(roles)
       .where(eq(roles.id, body.roleId))
       .limit(1)
@@ -309,6 +361,8 @@ export const patchMembership: RequestHandler = async (request, response) => {
     if (role.scope !== 'STAFF') {
       throw errors.unprocessable('الدور يجب أن يكون من أدوار الفريق.')
     }
+
+    assertCanGrant(actor, role)
 
     nextRoleId = role.id
     roleNameAr = role.nameAr
@@ -332,7 +386,6 @@ export const patchMembership: RequestHandler = async (request, response) => {
     }
   }
 
-  const actor = request.auth!
   const trace = requestTrace(request)
 
   await db.transaction(async (tx) => {
@@ -370,10 +423,19 @@ export const patchMembership: RequestHandler = async (request, response) => {
 export const postEndMembership: RequestHandler = async (request, response) => {
   const id = readId(request)
   const membershipId = readId(request, 'membershipId', 'العضوية غير موجودة.')
+  const actor = request.auth!
+
+  assertNotSelf(actor, id)
 
   const [membership] = await db
-    .select({ id: memberships.id, status: memberships.status })
+    .select({
+      id: memberships.id,
+      status: memberships.status,
+      roleNameAr: roles.nameAr,
+      roleCapabilities: roles.capabilities,
+    })
     .from(memberships)
+    .innerJoin(roles, eq(memberships.roleId, roles.id))
     .where(and(eq(memberships.id, membershipId), eq(memberships.userId, id)))
     .limit(1)
 
@@ -382,7 +444,11 @@ export const postEndMembership: RequestHandler = async (request, response) => {
     throw errors.unprocessable('العضوية منتهية بالفعل.')
   }
 
-  const actor = request.auth!
+  assertCanGrant(actor, {
+    nameAr: membership.roleNameAr,
+    capabilities: membership.roleCapabilities,
+  })
+
   const trace = requestTrace(request)
 
   await db.transaction(async (tx) => {

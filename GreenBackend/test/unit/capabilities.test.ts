@@ -6,6 +6,7 @@ import {
   PARTNER_CAPABILITIES,
   STAFF_CAPABILITIES,
   assertKnownCapabilities,
+  canGrantRole,
   capabilitiesMatchScope,
   isCapability,
 } from '../../src/modules/access/capabilities.js'
@@ -89,5 +90,21 @@ describe('seeded roles', () => {
     expect(capabilities).not.toContain('contributions.verify')
     expect(capabilities).not.toContain('contributions.value.view')
     expect(capabilities).not.toContain('documents.confidential.view')
+  })
+
+  /** `roles.manage` عند التقني لا تجعله قادرًا على رفع أحد إلى المدير العام. */
+  it('lets a role grant only roles within its own capabilities', () => {
+    const bySlug = (slug: string) =>
+      resolveSeedCapabilities(ROLE_SEEDS.find((role) => role.slug === slug)!)
+
+    const tech = bySlug('TECH')
+    const director = bySlug('GENERAL_ADMIN')
+
+    expect(canGrantRole(tech, director)).toBe(false)
+    expect(canGrantRole(tech, bySlug('OPERATIONS'))).toBe(false)
+    expect(canGrantRole(tech, bySlug('MEMBER'))).toBe(true)
+    expect(canGrantRole(director, director)).toBe(true)
+    // قدرة ميتة في القاعدة لا تمنع المنح ولا تمنح شيئًا.
+    expect(canGrantRole(['work.view'], ['work.view', 'gone.capability'])).toBe(true)
   })
 })

@@ -23,8 +23,9 @@ import { Section } from "@/components/ui/section";
 import { DetailSkeleton, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { useAuth } from "@/lib/auth/auth-context";
-import { CAPABILITIES } from "@/lib/auth/capabilities";
+import { CAPABILITIES, canGrantRole } from "@/lib/auth/capabilities";
 import { ApiError } from "@/lib/api/client";
+import { listStaffRoles } from "@/lib/api/invitations";
 import {
   endMembership,
   getPerson,
@@ -41,13 +42,31 @@ const taskCol = columnHelper<WorkItemSummary>();
 
 export default function PersonPage() {
   const { id } = useParams<{ id: string }>();
-  const { canAny } = useAuth();
+  const { user, canAny } = useAuth();
   const confirm = useConfirm();
   const queryClient = useQueryClient();
   const [addMembershipOpen, setAddMembershipOpen] = useState(false);
   const [editingMembership, setEditingMembership] = useState<TeamMembership | null>(null);
 
-  const canManageRoles = canAny(CAPABILITIES.rolesManage);
+  // لا يدير أحد عضوياته بنفسه — الخادم يرفضها، فلا يُعرض القسم أصلًا.
+  const canManageRoles = canAny(CAPABILITIES.rolesManage) && user?.id !== id;
+
+  /** عضوية بدور أوسع من صلاحياتك تُعرض بلا تعديل ولا إنهاء. */
+  const staffRoles = useQuery({
+    queryKey: ["roles", "STAFF"],
+    queryFn: listStaffRoles,
+    enabled: canManageRoles,
+    staleTime: 5 * 60 * 1000,
+  });
+  const grantableRoleIds = useMemo(
+    () =>
+      new Set(
+        (staffRoles.data ?? [])
+          .filter((role) => canGrantRole(user?.capabilities ?? [], role.capabilities))
+          .map((role) => role.id),
+      ),
+    [staffRoles.data, user?.capabilities],
+  );
 
   const member = useQuery({
     queryKey: ["people", id],
@@ -251,33 +270,37 @@ export default function PersonPage() {
             getRowId={(membership) => membership.id}
             pagination={false}
             empty={{ title: "لا عضويات نشطة" }}
-            rowActions={(membership) => [
-              {
-                key: "edit",
-                label: "تعديل",
-                icon: Pencil,
-                quick: true,
-                onSelect: () => setEditingMembership(membership),
-              },
-              {
-                key: "end",
-                label: "إنهاء العضوية",
-                icon: Ban,
-                destructive: true,
-                onSelect: () =>
-                  void confirm({
-                    title: `إنهاء عضوية ${person.fullNameAr} في ${membership.officeNameAr}؟`,
-                    description: "يفقد صلاحيات هذا المكتب والدور فورًا. لا يُحذف سجل العضوية.",
-                    confirmLabel: "إنهاء العضوية",
-                    destructive: true,
-                    successMessage: "أُنهيت العضوية.",
-                    onConfirm: async () => {
-                      await endMembership(person.id, membership.id);
-                      await queryClient.invalidateQueries({ queryKey: ["people", person.id] });
+            rowActions={(membership) =>
+              grantableRoleIds.has(membership.roleId)
+                ? [
+                    {
+                      key: "edit",
+                      label: "تعديل",
+                      icon: Pencil,
+                      quick: true,
+                      onSelect: () => setEditingMembership(membership),
                     },
-                  }),
-              },
-            ]}
+                    {
+                      key: "end",
+                      label: "إنهاء العضوية",
+                      icon: Ban,
+                      destructive: true,
+                      onSelect: () =>
+                        void confirm({
+                          title: `إنهاء عضوية ${person.fullNameAr} في ${membership.officeNameAr}؟`,
+                          description: "يفقد صلاحيات هذا المكتب والدور فورًا. لا يُحذف سجل العضوية.",
+                          confirmLabel: "إنهاء العضوية",
+                          destructive: true,
+                          successMessage: "أُنهيت العضوية.",
+                          onConfirm: async () => {
+                            await endMembership(person.id, membership.id);
+                            await queryClient.invalidateQueries({ queryKey: ["people", person.id] });
+                          },
+                        }),
+                    },
+                  ]
+                : []
+            }
           />
         </Section>
       ) : null}

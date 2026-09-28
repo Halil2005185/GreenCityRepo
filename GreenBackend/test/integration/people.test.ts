@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import request from 'supertest'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
@@ -6,7 +6,7 @@ import { app } from '../../src/app.js'
 import { db } from '../../src/db/client.js'
 import { memberships } from '../../src/db/schema/access.js'
 import { users } from '../../src/db/schema/identity.js'
-import { offices } from '../../src/db/schema/org.js'
+import { offices, roles } from '../../src/db/schema/org.js'
 import { runSeed } from '../../src/db/seed.js'
 import { bearer, createStaffUser, login } from '../helpers/auth.js'
 import {
@@ -31,6 +31,18 @@ async function officeIdBySlug(slug: string) {
   if (!office) throw new Error(`Seed office "${slug}" is missing.`)
 
   return office.id
+}
+
+async function roleIdBySlug(slug: string) {
+  const [role] = await db
+    .select({ id: roles.id })
+    .from(roles)
+    .where(eq(roles.slug, slug))
+    .limit(1)
+
+  if (!role) throw new Error(`Seed role "${slug}" is missing.`)
+
+  return role.id
 }
 
 describe.runIf(ready)('team directory', () => {
@@ -228,5 +240,126 @@ describe.runIf(ready)('team directory', () => {
       .get(`/api/admin/people/${rep!.id}`)
       .set('authorization', bearer(session.accessToken))
       .expect(404)
+  })
+})
+
+/**
+ * `roles.manage` يحملها التقني أيضًا، فلا تكفي وحدها: بدون هذه الحراسة
+ * يرفع نفسه إلى المدير العام أو يُنهي عضوية المدير العام.
+ */
+describe.runIf(ready)('membership management', () => {
+  beforeEach(async () => {
+    await resetDatabase()
+    await runSeed({ quiet: true })
+  })
+
+  it('refuses a tech lead granting the general director role', async () => {
+    const tech = await createStaffUser({ email: 'tech@greencities.test', roleSlug: 'TECH' })
+    const member = await createStaffUser({
+      email: 'member@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+
+    const session = await login('tech@greencities.test')
+    const body = {
+      officeId: await officeIdBySlug('general-admin'),
+      roleId: await roleIdBySlug('GENERAL_ADMIN'),
+    }
+
+    for (const userId of [tech.userId, member.userId]) {
+      await request(app)
+        .post(`/api/admin/people/${userId}/memberships`)
+        .set('authorization', bearer(session.accessToken))
+        .send(body)
+        .expect(403)
+    }
+
+    const granted = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(
+        and(
+          eq(memberships.roleId, body.roleId),
+          inArray(memberships.userId, [tech.userId, member.userId]),
+        ),
+      )
+
+    expect(granted).toHaveLength(0)
+  })
+
+  it('lets a tech lead grant a role within its own capabilities', async () => {
+    await createStaffUser({ email: 'tech@greencities.test', roleSlug: 'TECH' })
+    const member = await createStaffUser({
+      email: 'member@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+
+    const session = await login('tech@greencities.test')
+
+    await request(app)
+      .post(`/api/admin/people/${member.userId}/memberships`)
+      .set('authorization', bearer(session.accessToken))
+      .send({
+        officeId: await officeIdBySlug('operations'),
+        roleId: await roleIdBySlug('MEMBER'),
+      })
+      .expect(201)
+  })
+
+  it('refuses a tech lead ending or downgrading the director', async () => {
+    await createStaffUser({ email: 'tech@greencities.test', roleSlug: 'TECH' })
+    const director = await createStaffUser({
+      email: 'director@greencities.test',
+      roleSlug: 'GENERAL_ADMIN',
+      officeSlug: 'general-admin',
+    })
+
+    const [membership] = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(eq(memberships.userId, director.userId))
+
+    const session = await login('tech@greencities.test')
+    const base = `/api/admin/people/${director.userId}/memberships/${membership!.id}`
+
+    await request(app)
+      .patch(base)
+      .set('authorization', bearer(session.accessToken))
+      .send({ roleId: await roleIdBySlug('MEMBER') })
+      .expect(403)
+
+    await request(app)
+      .post(`${base}/end`)
+      .set('authorization', bearer(session.accessToken))
+      .expect(403)
+
+    const [after] = await db
+      .select({ status: memberships.status, roleId: memberships.roleId })
+      .from(memberships)
+      .where(eq(memberships.id, membership!.id))
+
+    expect(after).toEqual({ status: 'ACTIVE', roleId: director.roleId })
+  })
+
+  it('refuses the director ending their own membership', async () => {
+    const director = await createStaffUser({
+      email: 'director@greencities.test',
+      roleSlug: 'GENERAL_ADMIN',
+      officeSlug: 'general-admin',
+    })
+
+    const [membership] = await db
+      .select({ id: memberships.id })
+      .from(memberships)
+      .where(eq(memberships.userId, director.userId))
+
+    const session = await login('director@greencities.test')
+
+    await request(app)
+      .post(`/api/admin/people/${director.userId}/memberships/${membership!.id}/end`)
+      .set('authorization', bearer(session.accessToken))
+      .expect(403)
   })
 })

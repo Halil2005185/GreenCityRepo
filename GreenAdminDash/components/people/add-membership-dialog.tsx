@@ -10,6 +10,8 @@ import { FormDialog } from "@/components/ui/form-dialog";
 import { SelectField } from "@/components/ui/form-fields";
 import { listStaffRoles } from "@/lib/api/invitations";
 import { addMembership } from "@/lib/api/people";
+import { useAuth } from "@/lib/auth/auth-context";
+import { canGrantRole } from "@/lib/auth/capabilities";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -24,7 +26,7 @@ const EMPTY: MembershipValues = { officeId: "", roleId: "" };
 
 /**
  * عضوية إضافية لعضو فريق قائم — من ملفه الشخصي، لا من الدعوة. يظهر زرّها
- * لمن يحمل `roles.manage` وحده (المدير العام حصرًا اليوم).
+ * لمن يحمل `roles.manage` وحده، والأدوار المعروضة ما لا يتجاوز صلاحياته.
  *
  * لا تُنهي عضوياته الحالية ولا تصير رئيسية؛ الخادم يرفض مكتبًا له فيه
  * عضوية نشطة بالفعل.
@@ -35,6 +37,7 @@ export function AddMembershipDialog({
   ...props
 }: DialogProps & { personId: string; existingOfficeIds: readonly string[] }) {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
   const offices = useOffices();
   const roles = useQuery({
     queryKey: ["roles", "STAFF"],
@@ -50,11 +53,13 @@ export function AddMembershipDialog({
   const officeSelectOptions = officeOptions(offices.data ?? []).filter(
     (option) => !existingOfficeIds.includes(option.value),
   );
-  const roleSelectOptions = (roles.data ?? []).map((role) => ({
-    value: role.id,
-    label: role.nameAr,
-    description: role.descriptionAr ?? undefined,
-  }));
+  const roleSelectOptions = (roles.data ?? [])
+    .filter((role) => canGrantRole(user?.capabilities ?? [], role.capabilities))
+    .map((role) => ({
+      value: role.id,
+      label: role.nameAr,
+      description: role.descriptionAr ?? undefined,
+    }));
 
   return (
     <FormDialog
