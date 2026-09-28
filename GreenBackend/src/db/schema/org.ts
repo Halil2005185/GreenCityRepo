@@ -11,7 +11,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
-import { timestamps, uuidColumn } from './columns.js'
+import { timestamps, tsColumn, uuidColumn } from './columns.js'
 import { roleScope } from './enums.js'
 
 /**
@@ -47,8 +47,8 @@ export const offices = pgTable(
  * الأدوار — بيانات لا enum، بحزمة قدرات.
  *
  * القدرات نفسها ثابتة في الكود (`src/modules/access/capabilities.ts`) لأن
- * الحراس تفحصها بالاسم؛ أما توزيعها على الأدوار فقرار تنظيمي متغير.
- * `isSystem` يمنع حذف الأدوار التي يعتمد عليها التشغيل.
+ * الحراس تفحصها بالاسم؛ أما توزيعها على الأدوار فقرار تنظيمي متغير يُحرَّر
+ * من شاشة الأدوار. `isSystem` يمنع حذف الأدوار التي يعتمد عليها التشغيل.
  */
 export const roles = pgTable(
   'roles',
@@ -59,10 +59,23 @@ export const roles = pgTable(
     nameEn: varchar('name_en', { length: 160 }),
     descriptionAr: text('description_ar'),
     scope: roleScope('scope').notNull(),
+    /**
+     * الفريق الذي ينتمي إليه المنصب — «مسؤول الإعلام» للإعلام. للتجميع
+     * والاقتراح في الواجهة لا قيد: نطاق القدرات يأتي من مكتب العضوية.
+     * `null` دور عام يصلح لأي فريق، كعضو الفريق.
+     */
+    officeId: uuidColumn('office_id').references((): AnyPgColumn => offices.id, {
+      onDelete: 'set null',
+    }),
     capabilities: text('capabilities')
       .array()
       .notNull()
       .default(sql`'{}'::text[]`),
+    /**
+     * آخر تحرير من شاشة الأدوار. ما دام `null` تبقى المزامنة تعيد الدور
+     * إلى البذرة في كل نشر؛ بعده يملكه من حرّره ولا تمسّه المزامنة.
+     */
+    customizedAt: tsColumn('customized_at'),
     isSystem: boolean('is_system').default(false).notNull(),
     displayOrder: integer('display_order').default(0).notNull(),
     ...timestamps,
@@ -70,6 +83,7 @@ export const roles = pgTable(
   (table) => [
     uniqueIndex('roles_slug_unique').on(table.slug),
     index('roles_scope_idx').on(table.scope),
+    index('roles_office_idx').on(table.officeId),
   ],
 )
 

@@ -9,13 +9,17 @@ import { invitationOfficeRoles, invitations } from '../../db/schema/access.js'
 import { users } from '../../db/schema/identity.js'
 import { offices, roles } from '../../db/schema/org.js'
 import { partners } from '../../db/schema/partners.js'
-
-const additionalOffices = alias(offices, 'additional_offices')
-const additionalRoles = alias(roles, 'additional_roles')
 import type { AuthContext } from '../access/access.service.js'
+import { assertCanDelegateAll } from '../access/delegation.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { generateOpaqueToken, invitationExpiry } from '../auth/token.service.js'
 import { enqueueEmail } from '../mail/outbox.service.js'
+
+const additionalOffices = alias(offices, 'additional_offices')
+const additionalRoles = alias(roles, 'additional_roles')
+
+const inviteDenied = (nameAr: string) =>
+  `دور «${nameAr}» يحمل صلاحيات لا تملك منحها، فلا تُرسل به دعوة.`
 
 const invitationColumns = {
   id: invitations.id,
@@ -178,12 +182,28 @@ export async function createInvitation(
   const email = normalizeEmail(input.email)
 
   const [role] = await db
-    .select({ id: roles.id, slug: roles.slug, scope: roles.scope, nameAr: roles.nameAr })
+    .select({
+      id: roles.id,
+      slug: roles.slug,
+      scope: roles.scope,
+      nameAr: roles.nameAr,
+      capabilities: roles.capabilities,
+    })
     .from(roles)
     .where(eq(roles.id, input.roleId))
     .limit(1)
 
   if (!role) throw errors.unprocessable('الدور المحدد غير موجود.')
+
+  /**
+   * الدعوة تمنح دورًا كأي عضوية، فتمرّ بالقاعدة نفسها: لا يدعو أحد بدور
+   * أوسع مما يستطيع تفويضه — وإلا دعا مسؤول شؤون الفريق بريدًا يملكه
+   * بدور المدير العام. أدوار الشريك خارجها: قدراتها `partner.*` لا يحملها
+   * أحد من الفريق، والتحقق فيها بمرحلة الجهة لا بحزمة الدور.
+   */
+  if (role.scope === 'STAFF') {
+    assertCanDelegateAll(actor, role.capabilities, null, inviteDenied(role.nameAr))
+  }
 
   /**
    * نوع الحساب يُشتق من نطاق الدور، فلا يمكن إرسال دعوة فريق بدور شريك
@@ -223,7 +243,12 @@ export async function createInvitation(
     }
 
     const [additionalRole] = await db
-      .select({ id: roles.id, scope: roles.scope, nameAr: roles.nameAr })
+      .select({
+        id: roles.id,
+        scope: roles.scope,
+        nameAr: roles.nameAr,
+        capabilities: roles.capabilities,
+      })
       .from(roles)
       .where(eq(roles.id, input.additionalRoleId))
       .limit(1)
@@ -232,6 +257,13 @@ export async function createInvitation(
     if (additionalRole.scope !== 'STAFF') {
       throw errors.unprocessable('الدور الإضافي يجب أن يكون من أدوار الفريق.')
     }
+
+    assertCanDelegateAll(
+      actor,
+      additionalRole.capabilities,
+      null,
+      inviteDenied(additionalRole.nameAr),
+    )
 
     additional = {
       officeId: additionalTarget.officeId,

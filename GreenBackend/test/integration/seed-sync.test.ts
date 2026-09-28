@@ -1,6 +1,7 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
+import { STAFF_CAPABILITIES } from '../../src/modules/access/capabilities.js'
 import { db } from '../../src/db/client.js'
 import { auditLogs } from '../../src/db/schema/audit.js'
 import { users } from '../../src/db/schema/identity.js'
@@ -131,7 +132,8 @@ describe.runIf(ready)('deploy-time sync', () => {
 
     expect(seeded).toContain('media.view')
 
-    // انحراف: قاعدة سبقت إضافة القدرة إلى الكود — حال الإنتاج قبل هذا التغيير.
+    // انحراف لم يأتِ من شاشة الأدوار (`customized_at` فارغ): قاعدة سبقت
+    // إضافة القدرة إلى الكود. الكود يملك هذا الدور بعدُ فيعيده.
     await db
       .update(roles)
       .set({
@@ -184,6 +186,78 @@ describe.runIf(ready)('deploy-time sync', () => {
     expect(entry).toMatchObject({
       severity: 'NOTICE',
       metadata: { added: [], removed: ['audit.view'] },
+    })
+  })
+
+  /** ما قرّره المدير في شاشة الأدوار لا يمحوه دمج في الكود. */
+  it('leaves a role edited from the roles screen untouched', async () => {
+    await syncSystemData()
+
+    const edited = ['media.view', 'work.view']
+
+    await db
+      .update(roles)
+      .set({ nameAr: 'مسؤول الإعلام بصياغة المدير', capabilities: edited, customizedAt: new Date() })
+      .where(eq(roles.slug, 'MEDIA'))
+
+    await syncSystemData()
+
+    const [row] = await db
+      .select({ nameAr: roles.nameAr, capabilities: roles.capabilities })
+      .from(roles)
+      .where(eq(roles.slug, 'MEDIA'))
+
+    expect(row).toEqual({ nameAr: 'مسؤول الإعلام بصياغة المدير', capabilities: edited })
+
+    const drift = await db
+      .select({ id: auditLogs.id })
+      .from(auditLogs)
+      .where(eq(auditLogs.action, 'role.capabilities_synced'))
+
+    expect(drift).toHaveLength(0)
+  })
+
+  /** المدير العام يحمل الكتالوج دائمًا — نقصه يُغلق النظام على من يصلحه. */
+  it('always restores the general director to the full catalog', async () => {
+    await syncSystemData()
+
+    await db
+      .update(roles)
+      .set({
+        capabilities: STAFF_CAPABILITIES.filter((capability) => capability !== 'roles.manage'),
+        customizedAt: new Date(),
+      })
+      .where(eq(roles.slug, 'GENERAL_ADMIN'))
+
+    await syncSystemData()
+
+    expect([...(await roleCapabilities('GENERAL_ADMIN'))].sort()).toEqual(
+      [...STAFF_CAPABILITIES].sort(),
+    )
+
+    const [entry] = await db
+      .select()
+      .from(auditLogs)
+      .where(eq(auditLogs.action, 'role.capabilities_synced'))
+
+    expect(entry).toMatchObject({
+      severity: 'WARNING',
+      metadata: { added: ['roles.manage'], removed: [] },
+    })
+  })
+
+  it('links each lead role to its home office and keeps the member role global', async () => {
+    const { officeIds } = await syncSystemData()
+
+    const rows = await db
+      .select({ slug: roles.slug, officeId: roles.officeId })
+      .from(roles)
+      .where(inArray(roles.slug, ['MEDIA', 'OPERATIONS', 'MEMBER']))
+
+    expect(Object.fromEntries(rows.map((row) => [row.slug, row.officeId]))).toEqual({
+      MEDIA: officeIds.get('media'),
+      OPERATIONS: officeIds.get('operations'),
+      MEMBER: null,
     })
   })
 })

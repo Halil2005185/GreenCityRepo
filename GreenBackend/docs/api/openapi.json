@@ -234,6 +234,13 @@
           },
           "isPrimary": {
             "type": "boolean"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "قدرات هذه العضوية وحدها بعد الاستثناءات الفردية. القدرة المقيّدة بمكتب تسري في مكتب العضوية وأقسامه فقط."
           }
         },
         "required": [
@@ -243,7 +250,8 @@
           "roleId",
           "roleSlug",
           "roleNameAr",
-          "isPrimary"
+          "isPrimary",
+          "capabilities"
         ]
       },
       "AuthPartner": {
@@ -4253,6 +4261,14 @@
               "PARTNER"
             ]
           },
+          "officeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "الفريق الذي ينتمي إليه المنصب؛ `null` دور عام يصلح لأي فريق."
+          },
           "capabilities": {
             "type": "array",
             "items": {
@@ -4261,6 +4277,21 @@
           },
           "isSystem": {
             "type": "boolean"
+          },
+          "isLocked": {
+            "type": "boolean",
+            "description": "حزمته الكتالوج كله (المدير العام): لا تُحرَّر ولا تُخصَّص عضوياته."
+          },
+          "customizedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "آخر تحرير من شاشة الأدوار. ما دام `null` تعيده المزامنة إلى البذرة."
+          },
+          "activeMembers": {
+            "type": "integer"
           },
           "displayOrder": {
             "type": "integer"
@@ -4273,8 +4304,12 @@
           "nameEn",
           "descriptionAr",
           "scope",
+          "officeId",
           "capabilities",
           "isSystem",
+          "isLocked",
+          "customizedAt",
+          "activeMembers",
           "displayOrder"
         ]
       },
@@ -4296,6 +4331,17 @@
               "STAFF",
               "PARTNER"
             ]
+          },
+          "officeScoped": {
+            "type": "boolean",
+            "description": "تسري في مكتب العضوية وأقسامه فقط، لا في المنظمة كلها."
+          },
+          "tier": {
+            "type": "string",
+            "enum": [
+              "ADMIN"
+            ],
+            "description": "قدرة إدارية لا يمنحها ولا ينزعها إلا حامل roles.manage."
           }
         },
         "required": [
@@ -4303,6 +4349,26 @@
           "nameAr",
           "group",
           "scope"
+        ]
+      },
+      "RoleIdResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        "required": [
+          "data"
         ]
       },
       "PartnerSelf": {
@@ -5208,6 +5274,111 @@
           "emailVerifiedAt",
           "createdAt",
           "memberships"
+        ]
+      },
+      "CapabilityOverride": {
+        "type": "object",
+        "properties": {
+          "capability": {
+            "type": "string"
+          },
+          "effect": {
+            "type": "string",
+            "enum": [
+              "GRANT",
+              "REVOKE"
+            ]
+          }
+        },
+        "required": [
+          "capability",
+          "effect"
+        ]
+      },
+      "TeamMembershipDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TeamMembership"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "roleCapabilities": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "حزمة الدور كما هي، قبل الاستثناءات."
+              },
+              "overrides": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CapabilityOverride"
+                }
+              },
+              "effective": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                },
+                "description": "حزمة الدور مع الممنوح وناقص المنزوع — ما يملكه فعلًا في هذا الفريق."
+              },
+              "canManage": {
+                "type": "boolean",
+                "description": "من منظور المستخدم الحالي: يستطيع تعديل هذه العضوية أو إنهاءها. نفس قرار مسارات الكتابة."
+              },
+              "canCustomize": {
+                "type": "boolean",
+                "description": "يستطيع تخصيص صلاحياتها؛ عضوية المدير العام لا تُخصَّص."
+              }
+            },
+            "required": [
+              "roleCapabilities",
+              "overrides",
+              "effective",
+              "canManage",
+              "canCustomize"
+            ]
+          }
+        ]
+      },
+      "TeamMemberDetail": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TeamMember"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "memberships": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/TeamMembershipDetail"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "TeamCandidate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
+        },
+        "required": [
+          "id",
+          "fullNameAr",
+          "email"
         ]
       },
       "AddMembershipResponse": {
@@ -12504,6 +12675,147 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "إنشاء دور فريق",
+        "description": "يتطلب roles.manage. كل قدرة في الحزمة — قبل التعديل وبعده — يجب أن يحملها المنفّذ، وتغيير أي قدرة إدارية (tier ADMIN) محصور بمن يحمل القدرات الإدارية كلها. أدوار الشريك ودور المدير العام لا تُحرَّر. الدور الجديد غير نظامي، ويمكن حذفه ما لم يُسنَد.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  },
+                  "officeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "capabilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "users.view",
+                        "users.manage",
+                        "invitations.manage",
+                        "roles.manage",
+                        "offices.manage",
+                        "team.manage",
+                        "team.all",
+                        "partners.view",
+                        "partners.manage",
+                        "partners.approve",
+                        "partners.consent.manage",
+                        "partners.notes.view",
+                        "media.view",
+                        "media.manage",
+                        "media.notes.view",
+                        "relations.taxonomy.manage",
+                        "charter.manage",
+                        "charter.acknowledgements.record",
+                        "programs.manage",
+                        "initiatives.view",
+                        "initiatives.manage",
+                        "initiatives.launch",
+                        "initiatives.notes.view",
+                        "work.view",
+                        "work.manage",
+                        "work.approve",
+                        "meetings.manage",
+                        "geo.manage",
+                        "contributions.view",
+                        "contributions.manage",
+                        "contributions.verify",
+                        "contributions.value.view",
+                        "metrics.manage",
+                        "impact.view",
+                        "impact.manage",
+                        "files.upload",
+                        "files.manage",
+                        "documents.confidential.view",
+                        "forms.view",
+                        "forms.manage",
+                        "forms.publish",
+                        "reports.view",
+                        "reports.manage",
+                        "audit.view"
+                      ]
+                    },
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "nameAr",
+                  "capabilities"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُنشئ الدور",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleIdResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك roles.manage أو قدرة في الحزمة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/admin/capabilities": {
@@ -12542,6 +12854,244 @@
           },
           "401": {
             "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/roles/{id}": {
+      "patch": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "تحرير دور فريق",
+        "description": "يتطلب roles.manage. كل قدرة في الحزمة — قبل التعديل وبعده — يجب أن يحملها المنفّذ، وتغيير أي قدرة إدارية (tier ADMIN) محصور بمن يحمل القدرات الإدارية كلها. أدوار الشريك ودور المدير العام لا تُحرَّر. التحرير يغيّر صلاحيات كل من يحمل الدور، ويجعل المزامنة تتركه كما هو.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  },
+                  "officeId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "capabilities": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "users.view",
+                        "users.manage",
+                        "invitations.manage",
+                        "roles.manage",
+                        "offices.manage",
+                        "team.manage",
+                        "team.all",
+                        "partners.view",
+                        "partners.manage",
+                        "partners.approve",
+                        "partners.consent.manage",
+                        "partners.notes.view",
+                        "media.view",
+                        "media.manage",
+                        "media.notes.view",
+                        "relations.taxonomy.manage",
+                        "charter.manage",
+                        "charter.acknowledgements.record",
+                        "programs.manage",
+                        "initiatives.view",
+                        "initiatives.manage",
+                        "initiatives.launch",
+                        "initiatives.notes.view",
+                        "work.view",
+                        "work.manage",
+                        "work.approve",
+                        "meetings.manage",
+                        "geo.manage",
+                        "contributions.view",
+                        "contributions.manage",
+                        "contributions.verify",
+                        "contributions.value.view",
+                        "metrics.manage",
+                        "impact.view",
+                        "impact.manage",
+                        "files.upload",
+                        "files.manage",
+                        "documents.confidential.view",
+                        "forms.view",
+                        "forms.manage",
+                        "forms.publish",
+                        "reports.view",
+                        "reports.manage",
+                        "audit.view"
+                      ]
+                    },
+                    "maxItems": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "حُرِّر الدور",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoleIdResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك roles.manage أو قدرة في الحزمة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا يوجد دور بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة، أو دور شريك، أو دور المدير العام",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Organization"
+        ],
+        "summary": "حذف دور لم يُسنَد",
+        "description": "يتطلب roles.manage. كل قدرة في الحزمة — قبل التعديل وبعده — يجب أن يحملها المنفّذ، وتغيير أي قدرة إدارية (tier ADMIN) محصور بمن يحمل القدرات الإدارية كلها. أدوار الشريك ودور المدير العام لا تُحرَّر. أدوار النظام لا تُحذف، والدور المُسنَد في أي عضوية أو دعوة لا يُحذف.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "حُذف"
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك roles.manage أو قدرة في الحزمة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا يوجد دور بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الدور مُسنَد",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "دور نظام أو دور شريك أو دور المدير العام",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14026,7 +14576,7 @@
             }
           },
           "403": {
-            "description": "لا يملك القدرة users.view",
+            "description": "لا يملك users.view ولا team.manage",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14044,7 +14594,7 @@
           "People"
         ],
         "summary": "ملف عضو الفريق",
-        "description": "يشمل العضويات المنتهية كتاريخ. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.",
+        "description": "يشمل العضويات المنتهية كتاريخ، ولكل عضوية حزمة دورها واستثناءاتها وقدراتها الفعلية. مدير الفريق بلا users.view يرى أعضاء فرقه وحدهم. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.",
         "security": [
           {
             "bearerAuth": []
@@ -14070,7 +14620,7 @@
                   "type": "object",
                   "properties": {
                     "data": {
-                      "$ref": "#/components/schemas/TeamMember"
+                      "$ref": "#/components/schemas/TeamMemberDetail"
                     }
                   },
                   "required": [
@@ -14091,7 +14641,7 @@
             }
           },
           "403": {
-            "description": "لا يملك القدرة users.view",
+            "description": "لا يملك users.view ولا team.manage",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14101,7 +14651,302 @@
             }
           },
           "404": {
-            "description": "لا يوجد عضو فريق بهذا المعرّف",
+            "description": "لا يوجد عضو فريق بهذا المعرّف ضمن نطاقك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/people/candidates": {
+      "get": {
+        "tags": [
+          "People"
+        ],
+        "summary": "بحث عن زميل لضمّه إلى فريق",
+        "description": "الاسم والبريد وحدهما لأعضاء الفريق النشطين، عشرون نتيجة على الأكثر. لمدير الفريق الذي لا يرى الدليل كله.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 160
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المرشحون",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/TeamCandidate"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك users.view ولا team.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/people/{id}/memberships/{membershipId}/capabilities": {
+      "put": {
+        "tags": [
+          "People"
+        ],
+        "summary": "تخصيص صلاحيات عضوية",
+        "description": "يستبدل الاستثناءات الفردية كلها بما يُرسَل. `grants` قدرات تُضاف فوق حزمة الدور، و`revokes` قدرات تُنزع منها؛ ما لا أثر له يُهمل. يتطلب إدارة فريق العضوية، وكل قدرة يتغيّر وضعها يجب أن يستطيع المنفّذ تفويضها. لا يُنفَّذ على الحساب نفسه ولا على عضوية المدير العام.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "membershipId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "grants": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "users.view",
+                        "users.manage",
+                        "invitations.manage",
+                        "roles.manage",
+                        "offices.manage",
+                        "team.manage",
+                        "team.all",
+                        "partners.view",
+                        "partners.manage",
+                        "partners.approve",
+                        "partners.consent.manage",
+                        "partners.notes.view",
+                        "media.view",
+                        "media.manage",
+                        "media.notes.view",
+                        "relations.taxonomy.manage",
+                        "charter.manage",
+                        "charter.acknowledgements.record",
+                        "programs.manage",
+                        "initiatives.view",
+                        "initiatives.manage",
+                        "initiatives.launch",
+                        "initiatives.notes.view",
+                        "work.view",
+                        "work.manage",
+                        "work.approve",
+                        "meetings.manage",
+                        "geo.manage",
+                        "contributions.view",
+                        "contributions.manage",
+                        "contributions.verify",
+                        "contributions.value.view",
+                        "metrics.manage",
+                        "impact.view",
+                        "impact.manage",
+                        "files.upload",
+                        "files.manage",
+                        "documents.confidential.view",
+                        "forms.view",
+                        "forms.manage",
+                        "forms.publish",
+                        "reports.view",
+                        "reports.manage",
+                        "audit.view"
+                      ]
+                    },
+                    "maxItems": 100
+                  },
+                  "revokes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "users.view",
+                        "users.manage",
+                        "invitations.manage",
+                        "roles.manage",
+                        "offices.manage",
+                        "team.manage",
+                        "team.all",
+                        "partners.view",
+                        "partners.manage",
+                        "partners.approve",
+                        "partners.consent.manage",
+                        "partners.notes.view",
+                        "media.view",
+                        "media.manage",
+                        "media.notes.view",
+                        "relations.taxonomy.manage",
+                        "charter.manage",
+                        "charter.acknowledgements.record",
+                        "programs.manage",
+                        "initiatives.view",
+                        "initiatives.manage",
+                        "initiatives.launch",
+                        "initiatives.notes.view",
+                        "work.view",
+                        "work.manage",
+                        "work.approve",
+                        "meetings.manage",
+                        "geo.manage",
+                        "contributions.view",
+                        "contributions.manage",
+                        "contributions.verify",
+                        "contributions.value.view",
+                        "metrics.manage",
+                        "impact.view",
+                        "impact.manage",
+                        "files.upload",
+                        "files.manage",
+                        "documents.confidential.view",
+                        "forms.view",
+                        "forms.manage",
+                        "forms.publish",
+                        "reports.view",
+                        "reports.manage",
+                        "audit.view"
+                      ]
+                    },
+                    "maxItems": 100
+                  }
+                },
+                "required": [
+                  "grants",
+                  "revokes"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "القدرات الفعلية بعد الحفظ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "effective": {
+                          "type": "array",
+                          "items": {
+                            "type": "string"
+                          }
+                        }
+                      },
+                      "required": [
+                        "effective"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يدير فريق العضوية، أو يغيّر قدرة لا يملك تفويضها، أو الحساب حسابه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا توجد عضوية بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة، أو العضوية منتهية، أو عضوية المدير العام",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14119,7 +14964,7 @@
           "People"
         ],
         "summary": "إضافة عضوية إضافية لعضو فريق قائم",
-        "description": "يتطلب roles.manage، ودورًا لا تتجاوز قدراته قدرات المنفّذ، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.",
+        "description": "يتطلب إدارة الفريق المقصود (`team.manage` فيه أو `team.all`)، ودورًا يستطيع المنفّذ تفويض قدراته فيه، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.",
         "security": [
           {
             "bearerAuth": []
@@ -14181,7 +15026,7 @@
             }
           },
           "403": {
-            "description": "لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه",
+            "description": "لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14229,7 +15074,7 @@
           "People"
         ],
         "summary": "تعديل عضوية قائمة",
-        "description": "يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه. الدور الحالي والجديد كلاهما لا يتجاوز قدرات المنفّذ. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.",
+        "description": "يتطلب إدارة فريق العضوية — والفريق الجديد إن نُقلت — ولا يُنفَّذ على الحساب نفسه. قدرات العضوية الفعلية والدور الجديد كلاهما مما يستطيع المنفّذ تفويضه. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة، وتسقط معه استثناءاتها الفردية؛ لا يمسّ عضويات أخرى ولا `isPrimary`.",
         "security": [
           {
             "bearerAuth": []
@@ -14296,7 +15141,7 @@
             }
           },
           "403": {
-            "description": "لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه",
+            "description": "لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -14344,7 +15189,7 @@
           "People"
         ],
         "summary": "إنهاء عضوية قائمة",
-        "description": "يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه ولا على عضوية بدور يتجاوز قدرات المنفّذ. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.",
+        "description": "يتطلب إدارة فريق العضوية، ولا يُنفَّذ على الحساب نفسه ولا على عضوية قدراتها الفعلية أوسع مما يستطيع المنفّذ تفويضه. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.",
         "security": [
           {
             "bearerAuth": []
@@ -14385,7 +15230,7 @@
             }
           },
           "403": {
-            "description": "لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه",
+            "description": "لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه",
             "content": {
               "application/problem+json": {
                 "schema": {

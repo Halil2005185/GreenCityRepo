@@ -2,27 +2,33 @@ import { Router } from 'express'
 
 import { requireAuth } from '../../common/middleware/authenticate.js'
 import {
-  requireCapability,
+  requireAnyCapability,
   requireStaff,
 } from '../../common/middleware/authorize.js'
 import { validate } from '../../common/middleware/validate.js'
 import * as controller from './people.controller.js'
 import {
   addMembershipBodySchema,
+  candidatesQuerySchema,
   listPeopleQuerySchema,
+  setMembershipCapabilitiesBodySchema,
   updateMembershipBodySchema,
 } from './people.schemas.js'
 
 export const peopleRouter = Router()
 
 /**
- * `users.view` لا قدرة جديدة.
+ * `users.view` لا قدرة جديدة للدليل، ومدير الفريق يدخله أيضًا ليرى فريقه.
  *
- * الكتالوج يحملها منذ البداية بمعنى «عرض المستخدمين» ولم يكن لها مسار
- * يستعملها. إضافة `people.view` بجانبها تُنشئ قدرتين لمعنى واحد، ويصير
- * على شاشة الأدوار أن تشرح الفرق بينهما — ولا فرق.
+ * الكتالوج يحمل `users.view` منذ البداية بمعنى «عرض المستخدمين»، وإضافة
+ * `people.view` بجانبها تُنشئ قدرتين لمعنى واحد. أما مدير الفريق بلا
+ * `users.view` فيقصره المتحكم على أعضاء فرقه.
  */
-peopleRouter.use(requireAuth, requireStaff, requireCapability('users.view'))
+peopleRouter.use(
+  requireAuth,
+  requireStaff,
+  requireAnyCapability('users.view', 'team.manage', 'team.all'),
+)
 
 peopleRouter.get(
   '/',
@@ -30,29 +36,45 @@ peopleRouter.get(
   controller.getPeople,
 )
 
+// قبل `/:id` وإلا قُرئت «candidates» معرّفًا.
+peopleRouter.get(
+  '/candidates',
+  requireAnyCapability('team.manage', 'team.all'),
+  validate({ query: candidatesQuerySchema }),
+  controller.getCandidates,
+)
+
 peopleRouter.get('/:id', controller.getPerson)
 
 /**
- * `roles.manage` فوق `users.view` الموروثة من الموجّه: المدير العام
- * والقسم التقني وحدهما اليوم يحملان القدرتين معًا. المتحكم يضيف فوقهما
- * منع التصعيد: لا عضويات المرء نفسه، ولا دور أوسع من صلاحيات من يمنحه.
+ * الكتابة لمن يدير فريقًا. الحارس هنا يكفي لرفض من لا يدير شيئًا؛ أي فريق
+ * وأي قدرة فقرار المتحكم (`access/delegation.ts`).
  */
+const manageTeam = requireAnyCapability('team.manage', 'team.all')
+
 peopleRouter.post(
   '/:id/memberships',
-  requireCapability('roles.manage'),
+  manageTeam,
   validate({ body: addMembershipBodySchema }),
   controller.postAddMembership,
 )
 
 peopleRouter.patch(
   '/:id/memberships/:membershipId',
-  requireCapability('roles.manage'),
+  manageTeam,
   validate({ body: updateMembershipBodySchema }),
   controller.patchMembership,
 )
 
 peopleRouter.post(
   '/:id/memberships/:membershipId/end',
-  requireCapability('roles.manage'),
+  manageTeam,
   controller.postEndMembership,
+)
+
+peopleRouter.put(
+  '/:id/memberships/:membershipId/capabilities',
+  manageTeam,
+  validate({ body: setMembershipCapabilitiesBodySchema }),
+  controller.putMembershipCapabilities,
 )

@@ -20,6 +20,9 @@ export const roleScope = pgEnum('role_scope', ['STAFF', 'PARTNER'])
 
 export const membershipStatus = pgEnum('membership_status', ['ACTIVE', 'ENDED'])
 
+/** استثناء فردي على حزمة الدور: قدرة تُضاف لصاحب العضوية أو تُنزع منه. */
+export const overrideEffect = pgEnum('override_effect', ['GRANT', 'REVOKE'])
+
 export const invitationStatus = pgEnum('invitation_status', [
   'PENDING',
   'ACCEPTED',

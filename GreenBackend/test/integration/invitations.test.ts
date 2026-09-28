@@ -268,4 +268,68 @@ describe.runIf(ready)('invitations', () => {
       .send({ fullNameAr: 'لن ينجح', password: TEST_PASSWORD })
       .expect(404)
   })
+
+  /**
+   * الدعوة تمنح دورًا كأي عضوية: بدون هذا الفحص يدعو مسؤول شؤون الفريق —
+   * أو التقني — بريدًا يملكه بدور المدير العام، فيحصل على كل شيء.
+   */
+  it('refuses inviting with a role wider than the inviter can delegate', async () => {
+    await createStaffUser({
+      email: 'people@greencities.test',
+      roleSlug: 'PEOPLE',
+      officeSlug: 'people',
+    })
+    await createStaffUser({ email: 'tech@greencities.test', roleSlug: 'TECH' })
+
+    for (const inviter of ['people@greencities.test', 'tech@greencities.test']) {
+      const session = await login(inviter)
+
+      await request(app)
+        .post('/api/admin/invitations')
+        .set('authorization', bearer(session.accessToken))
+        .send({
+          email: `escalate-${inviter}`,
+          roleId: await roleId('GENERAL_ADMIN'),
+          officeId: await officeIdOf(seed, 'general-admin'),
+        })
+        .expect(403)
+
+      // ولا يُهرَّب الدور نفسه عبر العضوية الإضافية.
+      await request(app)
+        .post('/api/admin/invitations')
+        .set('authorization', bearer(session.accessToken))
+        .send({
+          email: `sneak-${inviter}`,
+          roleId: await roleId('MEMBER'),
+          officeId: await officeIdOf(seed, 'media'),
+          additionalOfficeId: await officeIdOf(seed, 'general-admin'),
+          additionalRoleId: await roleId('GENERAL_ADMIN'),
+        })
+        .expect(403)
+    }
+
+    const pending = await db.select({ id: invitations.id }).from(invitations)
+
+    expect(pending).toHaveLength(0)
+  })
+
+  it('lets the people lead invite a new member', async () => {
+    await createStaffUser({
+      email: 'people@greencities.test',
+      roleSlug: 'PEOPLE',
+      officeSlug: 'people',
+    })
+
+    const session = await login('people@greencities.test')
+
+    await request(app)
+      .post('/api/admin/invitations')
+      .set('authorization', bearer(session.accessToken))
+      .send({
+        email: 'volunteer@greencities.test',
+        roleId: await roleId('MEMBER'),
+        officeId: await officeIdOf(seed, 'media'),
+      })
+      .expect(201)
+  })
 })

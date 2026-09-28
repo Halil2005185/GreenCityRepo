@@ -4,7 +4,10 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 
 import { app } from '../../src/app.js'
 import { db } from '../../src/db/client.js'
-import { memberships } from '../../src/db/schema/access.js'
+import {
+  membershipCapabilityOverrides,
+  memberships,
+} from '../../src/db/schema/access.js'
 import { users } from '../../src/db/schema/identity.js'
 import { offices, roles } from '../../src/db/schema/org.js'
 import { runSeed } from '../../src/db/seed.js'
@@ -243,9 +246,22 @@ describe.runIf(ready)('team directory', () => {
   })
 })
 
+async function membershipOf(userId: string) {
+  const [row] = await db
+    .select({ id: memberships.id })
+    .from(memberships)
+    .where(and(eq(memberships.userId, userId), eq(memberships.status, 'ACTIVE')))
+    .limit(1)
+
+  if (!row) throw new Error('The user has no active membership.')
+
+  return row.id
+}
+
 /**
- * `roles.manage` يحملها التقني أيضًا، فلا تكفي وحدها: بدون هذه الحراسة
- * يرفع نفسه إلى المدير العام أو يُنهي عضوية المدير العام.
+ * مدير الفريق يدير فريقه وحده، ولا يعطي ما لا يملك، ولا يصنع مديرًا مثله.
+ * كل حالة هنا ثغرة تصعيد لو انكسرت — `roles.manage` عند التقني كانت تكفي
+ * قبلها ليرفع نفسه إلى المدير العام.
  */
 describe.runIf(ready)('membership management', () => {
   beforeEach(async () => {
@@ -288,24 +304,214 @@ describe.runIf(ready)('membership management', () => {
     expect(granted).toHaveLength(0)
   })
 
-  it('lets a tech lead grant a role within its own capabilities', async () => {
-    await createStaffUser({ email: 'tech@greencities.test', roleSlug: 'TECH' })
+  it('lets a team manager add a colleague to their own team only', async () => {
+    await createStaffUser({ email: 'media@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    const member = await createStaffUser({
+      email: 'member@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'operations',
+    })
+
+    const session = await login('media@greencities.test')
+    const memberRole = await roleIdBySlug('MEMBER')
+
+    await request(app)
+      .post(`/api/admin/people/${member.userId}/memberships`)
+      .set('authorization', bearer(session.accessToken))
+      .send({ officeId: await officeIdBySlug('media'), roleId: memberRole })
+      .expect(201)
+
+    await request(app)
+      .post(`/api/admin/people/${member.userId}/memberships`)
+      .set('authorization', bearer(session.accessToken))
+      .send({ officeId: await officeIdBySlug('relations'), roleId: memberRole })
+      .expect(403)
+  })
+
+  /** مدير العمليات يدير قسمي الهندسات والتنفيذ تحته. */
+  it('extends team management to child offices', async () => {
+    await createStaffUser({
+      email: 'ops@greencities.test',
+      roleSlug: 'OPERATIONS',
+      officeSlug: 'operations',
+    })
     const member = await createStaffUser({
       email: 'member@greencities.test',
       roleSlug: 'MEMBER',
       officeSlug: 'media',
     })
 
-    const session = await login('tech@greencities.test')
+    const session = await login('ops@greencities.test')
 
     await request(app)
       .post(`/api/admin/people/${member.userId}/memberships`)
       .set('authorization', bearer(session.accessToken))
       .send({
-        officeId: await officeIdBySlug('operations'),
+        officeId: await officeIdBySlug('operations-engineering'),
         roleId: await roleIdBySlug('MEMBER'),
       })
       .expect(201)
+  })
+
+  it('refuses a team manager touching a fellow manager', async () => {
+    await createStaffUser({ email: 'lead-a@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    const peer = await createStaffUser({
+      email: 'lead-b@greencities.test',
+      roleSlug: 'MEDIA',
+      officeSlug: 'media',
+    })
+
+    const session = await login('lead-a@greencities.test')
+    const base = `/api/admin/people/${peer.userId}/memberships/${await membershipOf(peer.userId)}`
+
+    await request(app)
+      .post(`${base}/end`)
+      .set('authorization', bearer(session.accessToken))
+      .expect(403)
+
+    await request(app)
+      .put(`${base}/capabilities`)
+      .set('authorization', bearer(session.accessToken))
+      .send({ grants: [], revokes: ['media.manage'] })
+      .expect(403)
+  })
+
+  it('refuses moving a member out of the manager teams', async () => {
+    await createStaffUser({ email: 'media@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    const member = await createStaffUser({
+      email: 'member@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+
+    const session = await login('media@greencities.test')
+
+    await request(app)
+      .patch(`/api/admin/people/${member.userId}/memberships/${await membershipOf(member.userId)}`)
+      .set('authorization', bearer(session.accessToken))
+      .send({ officeId: await officeIdBySlug('operations') })
+      .expect(403)
+  })
+
+  /** المساعد: عضو يُعطى بعض ما يملكه المدير ويُنزع منه بعض حزمته. */
+  it('customizes an assistant and the session reflects it at once', async () => {
+    await createStaffUser({ email: 'media@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    const assistant = await createStaffUser({
+      email: 'assistant@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+
+    const lead = await login('media@greencities.test')
+    const membershipId = await membershipOf(assistant.userId)
+
+    const response = await request(app)
+      .put(`/api/admin/people/${assistant.userId}/memberships/${membershipId}/capabilities`)
+      .set('authorization', bearer(lead.accessToken))
+      .send({ grants: ['media.view'], revokes: ['files.upload'] })
+      .expect(200)
+
+    expect(response.body.data.effective).toEqual([
+      'initiatives.view',
+      'media.view',
+      'work.view',
+    ])
+
+    const me = await login('assistant@greencities.test')
+
+    expect(me.body.user.capabilities).toContain('media.view')
+    expect(me.body.user.capabilities).not.toContain('files.upload')
+
+    const detail = await request(app)
+      .get(`/api/admin/people/${assistant.userId}`)
+      .set('authorization', bearer(lead.accessToken))
+      .expect(200)
+
+    expect(detail.body.data.memberships[0]).toMatchObject({
+      overrides: expect.arrayContaining([
+        { capability: 'media.view', effect: 'GRANT' },
+        { capability: 'files.upload', effect: 'REVOKE' },
+      ]),
+      canManage: true,
+      canCustomize: true,
+    })
+  })
+
+  it('refuses granting what the manager does not hold or admin capabilities', async () => {
+    await createStaffUser({ email: 'media@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    const member = await createStaffUser({
+      email: 'member@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+
+    const session = await login('media@greencities.test')
+    const url = `/api/admin/people/${member.userId}/memberships/${await membershipOf(member.userId)}/capabilities`
+
+    for (const grant of ['work.approve', 'team.manage', 'audit.view']) {
+      await request(app)
+        .put(url)
+        .set('authorization', bearer(session.accessToken))
+        .send({ grants: [grant], revokes: [] })
+        .expect(403)
+    }
+  })
+
+  it('drops the overrides when the membership changes role', async () => {
+    await createStaffUser({
+      email: 'director@greencities.test',
+      roleSlug: 'GENERAL_ADMIN',
+      officeSlug: 'general-admin',
+    })
+    const member = await createStaffUser({
+      email: 'member@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+    const membershipId = await membershipOf(member.userId)
+
+    const session = await login('director@greencities.test')
+    const base = `/api/admin/people/${member.userId}/memberships/${membershipId}`
+
+    await request(app)
+      .put(`${base}/capabilities`)
+      .set('authorization', bearer(session.accessToken))
+      .send({ grants: ['audit.view'], revokes: [] })
+      .expect(200)
+
+    await request(app)
+      .patch(base)
+      .set('authorization', bearer(session.accessToken))
+      .send({ roleId: await roleIdBySlug('MEDIA') })
+      .expect(200)
+
+    const left = await db
+      .select({ id: membershipCapabilityOverrides.id })
+      .from(membershipCapabilityOverrides)
+      .where(eq(membershipCapabilityOverrides.membershipId, membershipId))
+
+    expect(left).toHaveLength(0)
+  })
+
+  it('refuses customizing a general director membership', async () => {
+    await createStaffUser({
+      email: 'director@greencities.test',
+      roleSlug: 'GENERAL_ADMIN',
+      officeSlug: 'general-admin',
+    })
+    const other = await createStaffUser({
+      email: 'director-2@greencities.test',
+      roleSlug: 'GENERAL_ADMIN',
+      officeSlug: 'general-admin',
+    })
+
+    const session = await login('director@greencities.test')
+
+    await request(app)
+      .put(`/api/admin/people/${other.userId}/memberships/${await membershipOf(other.userId)}/capabilities`)
+      .set('authorization', bearer(session.accessToken))
+      .send({ grants: [], revokes: ['audit.view'] })
+      .expect(422)
   })
 
   it('refuses a tech lead ending or downgrading the director', async () => {
@@ -316,13 +522,9 @@ describe.runIf(ready)('membership management', () => {
       officeSlug: 'general-admin',
     })
 
-    const [membership] = await db
-      .select({ id: memberships.id })
-      .from(memberships)
-      .where(eq(memberships.userId, director.userId))
-
+    const membershipId = await membershipOf(director.userId)
     const session = await login('tech@greencities.test')
-    const base = `/api/admin/people/${director.userId}/memberships/${membership!.id}`
+    const base = `/api/admin/people/${director.userId}/memberships/${membershipId}`
 
     await request(app)
       .patch(base)
@@ -338,7 +540,7 @@ describe.runIf(ready)('membership management', () => {
     const [after] = await db
       .select({ status: memberships.status, roleId: memberships.roleId })
       .from(memberships)
-      .where(eq(memberships.id, membership!.id))
+      .where(eq(memberships.id, membershipId))
 
     expect(after).toEqual({ status: 'ACTIVE', roleId: director.roleId })
   })
@@ -350,16 +552,78 @@ describe.runIf(ready)('membership management', () => {
       officeSlug: 'general-admin',
     })
 
-    const [membership] = await db
-      .select({ id: memberships.id })
-      .from(memberships)
-      .where(eq(memberships.userId, director.userId))
-
     const session = await login('director@greencities.test')
 
     await request(app)
-      .post(`/api/admin/people/${director.userId}/memberships/${membership!.id}/end`)
+      .post(`/api/admin/people/${director.userId}/memberships/${await membershipOf(director.userId)}/end`)
       .set('authorization', bearer(session.accessToken))
+      .expect(403)
+  })
+})
+
+/** مدير الفريق بلا `users.view` يرى فريقه في الدليل، لا الفريق كله. */
+describe.runIf(ready)('team manager directory', () => {
+  beforeEach(async () => {
+    await resetDatabase()
+    await runSeed({ quiet: true })
+  })
+
+  it('shows a team manager only their own team', async () => {
+    await createStaffUser({ email: 'media@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    await createStaffUser({
+      email: 'in-media@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'media',
+    })
+    const outsider = await createStaffUser({
+      email: 'in-ops@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'operations',
+    })
+
+    const session = await login('media@greencities.test')
+
+    const list = await request(app)
+      .get('/api/admin/people')
+      .set('authorization', bearer(session.accessToken))
+      .expect(200)
+
+    expect(list.body.data.map((row: { email: string }) => row.email).sort()).toEqual([
+      'in-media@greencities.test',
+      'media@greencities.test',
+    ])
+
+    await request(app)
+      .get(`/api/admin/people/${outsider.userId}`)
+      .set('authorization', bearer(session.accessToken))
+      .expect(404)
+  })
+
+  it('finds colleagues to add by name, for managers only', async () => {
+    await createStaffUser({ email: 'media@greencities.test', roleSlug: 'MEDIA', officeSlug: 'media' })
+    await createStaffUser({
+      email: 'rana@greencities.test',
+      roleSlug: 'MEMBER',
+      officeSlug: 'operations',
+      fullNameAr: 'رنا المتطوعة',
+    })
+
+    const lead = await login('media@greencities.test')
+
+    const found = await request(app)
+      .get('/api/admin/people/candidates?q=rana')
+      .set('authorization', bearer(lead.accessToken))
+      .expect(200)
+
+    expect(found.body.data).toEqual([
+      { id: expect.any(String), fullNameAr: 'رنا المتطوعة', email: 'rana@greencities.test' },
+    ])
+
+    const member = await login('rana@greencities.test')
+
+    await request(app)
+      .get('/api/admin/people/candidates?q=media')
+      .set('authorization', bearer(member.accessToken))
       .expect(403)
   })
 })

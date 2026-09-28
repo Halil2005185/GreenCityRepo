@@ -103,13 +103,23 @@ export type RoleSeed = {
   descriptionAr: string
   scope: 'STAFF' | 'PARTNER'
   displayOrder: number
+  /** فريق المنصب (`roles.office_id`)؛ غيابه دور عام يصلح لأي فريق. */
+  officeSlug?: string
   /** `null` تعني «كل قدرات الفريق»، وتُزامَن مع الكتالوج في كل تشغيل. */
   capabilities: readonly Capability[] | null
 }
 
+/**
+ * أدوار حزمتها الكتالوج كله: لا تُحرَّر من الشاشة، والمزامنة تعيدها في
+ * كل نشر حتى لو حُرِّرت — المدير العام هو الحساب الذي يُفترض أنه يملك كل
+ * شيء، ونقصه بصمت يُغلق النظام على من يُصلحه.
+ */
+export const CATALOG_BOUND_ROLE_SLUGS: readonly string[] = ['GENERAL_ADMIN']
+
 export const ROLE_SEEDS: readonly RoleSeed[] = [
   {
     slug: 'GENERAL_ADMIN',
+    officeSlug: 'general-admin',
     nameAr: 'المدير العام',
     nameEn: 'General Director',
     descriptionAr:
@@ -120,6 +130,7 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
   },
   {
     slug: 'RELATIONSHIPS',
+    officeSlug: 'relations',
     nameAr: 'مسؤول العلاقات والشراكات',
     nameEn: 'Relations Lead',
     descriptionAr:
@@ -136,6 +147,7 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'media.notes.view',
       // مفردات التصنيف يكتبها من يستعملها يوميًا، لا المدير العام.
       'relations.taxonomy.manage',
+      'team.manage',
       'charter.acknowledgements.record',
       'documents.confidential.view',
       'contributions.view',
@@ -148,6 +160,7 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
   },
   {
     slug: 'OPERATIONS',
+    officeSlug: 'operations',
     nameAr: 'مسؤول العمليات والتوسع',
     nameEn: 'Operations Lead',
     descriptionAr:
@@ -173,10 +186,12 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'meetings.manage',
       'files.upload',
       'reports.view',
+      'team.manage',
     ],
   },
   {
     slug: 'ADMIN_FINANCE',
+    officeSlug: 'admin-finance',
     nameAr: 'مسؤول الإدارة والمالية',
     nameEn: 'Administration & Finance Lead',
     descriptionAr:
@@ -196,10 +211,12 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'reports.manage',
       'files.upload',
       'files.manage',
+      'team.manage',
     ],
   },
   {
     slug: 'PEOPLE',
+    officeSlug: 'people',
     nameAr: 'مسؤول شؤون الفريق',
     nameEn: 'People Lead',
     descriptionAr:
@@ -219,10 +236,14 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'meetings.manage',
       'initiatives.view',
       'reports.view',
+      // يدعو المقبولين أعضاءً، وحزمة العضو فيها رفع الملفات: لا يُسند ما لا يحمل.
+      'files.upload',
+      'team.manage',
     ],
   },
   {
     slug: 'MEDIA',
+    officeSlug: 'media',
     nameAr: 'مسؤول الإعلام والاتصال',
     nameEn: 'Media Lead',
     descriptionAr: 'الهوية الإعلامية والمحتوى والتوثيق البصري للمبادرات.',
@@ -240,10 +261,12 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'media.notes.view',
       'impact.view',
       'reports.view',
+      'team.manage',
     ],
   },
   {
     slug: 'TECH',
+    officeSlug: 'tech',
     nameAr: 'مسؤول القسم التقني',
     nameEn: 'Technology Lead',
     descriptionAr:
@@ -266,6 +289,7 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'partners.view',
       'impact.view',
       'reports.view',
+      'team.manage',
     ],
   },
   {

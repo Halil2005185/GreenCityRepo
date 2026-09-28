@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js'
 import { bearerAuth, problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
+import { STAFF_CAPABILITIES } from '../access/capabilities.js'
 
 const path = (suffix: string) => `${env.API_PREFIX}/admin/people${suffix}`
 const security = [{ [bearerAuth.name]: [] }]
@@ -64,19 +65,52 @@ registry.registerPath({
       },
     },
     401: problemResponse('غير مصادق'),
-    403: problemResponse('لا يملك القدرة users.view'),
+    403: problemResponse('لا يملك users.view ولا team.manage'),
   },
 })
 
-// لا مخطط مستقل للتفصيل: الشكل نفسه، والفرق أن `memberships` تحمل
-// المنتهية أيضًا. نوع ثانٍ مطابق يضاعف الصيانة ولا يضيف عقدًا.
+const staffCapabilityEnum = z.enum(STAFF_CAPABILITIES as [string, ...string[]])
+
+export const capabilityOverrideSchema = registry.register(
+  'CapabilityOverride',
+  z.object({
+    capability: z.string(),
+    effect: z.enum(['GRANT', 'REVOKE']),
+  }),
+)
+
+export const membershipDetailSchema = registry.register(
+  'TeamMembershipDetail',
+  membershipSummarySchema.extend({
+    roleCapabilities: z.array(z.string()).openapi({
+      description: 'حزمة الدور كما هي، قبل الاستثناءات.',
+    }),
+    overrides: z.array(capabilityOverrideSchema),
+    effective: z.array(z.string()).openapi({
+      description: 'حزمة الدور مع الممنوح وناقص المنزوع — ما يملكه فعلًا في هذا الفريق.',
+    }),
+    canManage: z.boolean().openapi({
+      description:
+        'من منظور المستخدم الحالي: يستطيع تعديل هذه العضوية أو إنهاءها. نفس قرار مسارات الكتابة.',
+    }),
+    canCustomize: z.boolean().openapi({
+      description: 'يستطيع تخصيص صلاحياتها؛ عضوية المدير العام لا تُخصَّص.',
+    }),
+  }),
+)
+
+export const teamMemberDetailSchema = registry.register(
+  'TeamMemberDetail',
+  teamMemberSchema.extend({ memberships: z.array(membershipDetailSchema) }),
+)
+
 registry.registerPath({
   method: 'get',
   path: path('/{id}'),
   tags: ['People'],
   summary: 'ملف عضو الفريق',
   description:
-    'يشمل العضويات المنتهية كتاريخ. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.',
+    'يشمل العضويات المنتهية كتاريخ، ولكل عضوية حزمة دورها واستثناءاتها وقدراتها الفعلية. مدير الفريق بلا users.view يرى أعضاء فرقه وحدهم. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.',
   security,
   request: { params: z.object({ id: z.uuid() }) },
   responses: {
@@ -84,13 +118,87 @@ registry.registerPath({
       description: 'العضو',
       content: {
         'application/json': {
-          schema: z.object({ data: teamMemberSchema }),
+          schema: z.object({ data: teamMemberDetailSchema }),
         },
       },
     },
     401: problemResponse('غير مصادق'),
-    403: problemResponse('لا يملك القدرة users.view'),
-    404: problemResponse('لا يوجد عضو فريق بهذا المعرّف'),
+    403: problemResponse('لا يملك users.view ولا team.manage'),
+    404: problemResponse('لا يوجد عضو فريق بهذا المعرّف ضمن نطاقك'),
+  },
+})
+
+export const candidatesQuerySchema = z.object({
+  q: z.string().trim().min(2, 'اكتب حرفين على الأقل.').max(160),
+})
+
+export const candidateSchema = registry.register(
+  'TeamCandidate',
+  z.object({ id: z.uuid(), fullNameAr: z.string(), email: z.email() }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/candidates'),
+  tags: ['People'],
+  summary: 'بحث عن زميل لضمّه إلى فريق',
+  description:
+    'الاسم والبريد وحدهما لأعضاء الفريق النشطين، عشرون نتيجة على الأكثر. لمدير الفريق الذي لا يرى الدليل كله.',
+  security,
+  request: { query: candidatesQuerySchema },
+  responses: {
+    200: {
+      description: 'المرشحون',
+      content: {
+        'application/json': { schema: z.object({ data: z.array(candidateSchema) }) },
+      },
+    },
+    401: problemResponse('غير مصادق'),
+    403: problemResponse('لا يملك users.view ولا team.manage'),
+  },
+})
+
+export const setMembershipCapabilitiesBodySchema = z
+  .object({
+    grants: z.array(staffCapabilityEnum).max(100),
+    revokes: z.array(staffCapabilityEnum).max(100),
+  })
+  .refine(
+    (data) => !data.grants.some((capability) => data.revokes.includes(capability)),
+    { message: 'لا تُمنح قدرة وتُنزع في الوقت نفسه.', path: ['revokes'] },
+  )
+
+registry.registerPath({
+  method: 'put',
+  path: path('/{id}/memberships/{membershipId}/capabilities'),
+  tags: ['People'],
+  summary: 'تخصيص صلاحيات عضوية',
+  description:
+    'يستبدل الاستثناءات الفردية كلها بما يُرسَل. `grants` قدرات تُضاف فوق حزمة الدور، و`revokes` قدرات تُنزع منها؛ ما لا أثر له يُهمل. يتطلب إدارة فريق العضوية، وكل قدرة يتغيّر وضعها يجب أن يستطيع المنفّذ تفويضها. لا يُنفَّذ على الحساب نفسه ولا على عضوية المدير العام.',
+  security,
+  request: {
+    params: z.object({ id: z.uuid(), membershipId: z.uuid() }),
+    body: {
+      content: {
+        'application/json': { schema: setMembershipCapabilitiesBodySchema },
+      },
+    },
+  },
+  responses: {
+    200: {
+      description: 'القدرات الفعلية بعد الحفظ',
+      content: {
+        'application/json': {
+          schema: z.object({ data: z.object({ effective: z.array(z.string()) }) }),
+        },
+      },
+    },
+    401: problemResponse('غير مصادق'),
+    403: problemResponse(
+      'لا يدير فريق العضوية، أو يغيّر قدرة لا يملك تفويضها، أو الحساب حسابه',
+    ),
+    404: problemResponse('لا توجد عضوية بهذا المعرّف'),
+    422: problemResponse('بيانات غير صالحة، أو العضوية منتهية، أو عضوية المدير العام'),
   },
 })
 
@@ -110,7 +218,7 @@ registry.registerPath({
   tags: ['People'],
   summary: 'إضافة عضوية إضافية لعضو فريق قائم',
   description:
-    'يتطلب roles.manage، ودورًا لا تتجاوز قدراته قدرات المنفّذ، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.',
+    'يتطلب إدارة الفريق المقصود (`team.manage` فيه أو `team.all`)، ودورًا يستطيع المنفّذ تفويض قدراته فيه، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.',
   security,
   request: {
     params: z.object({ id: z.uuid() }),
@@ -125,7 +233,7 @@ registry.registerPath({
     },
     401: problemResponse('غير مصادق'),
     403: problemResponse(
-      'لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه',
+      'لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه',
     ),
     404: problemResponse('لا يوجد عضو فريق بهذا المعرّف'),
     409: problemResponse('العضو لديه عضوية نشطة في هذا المكتب بالفعل'),
@@ -148,7 +256,7 @@ registry.registerPath({
   tags: ['People'],
   summary: 'تعديل عضوية قائمة',
   description:
-    'يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه. الدور الحالي والجديد كلاهما لا يتجاوز قدرات المنفّذ. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.',
+    'يتطلب إدارة فريق العضوية — والفريق الجديد إن نُقلت — ولا يُنفَّذ على الحساب نفسه. قدرات العضوية الفعلية والدور الجديد كلاهما مما يستطيع المنفّذ تفويضه. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة، وتسقط معه استثناءاتها الفردية؛ لا يمسّ عضويات أخرى ولا `isPrimary`.',
   security,
   request: {
     params: z.object({ id: z.uuid(), membershipId: z.uuid() }),
@@ -163,7 +271,7 @@ registry.registerPath({
     },
     401: problemResponse('غير مصادق'),
     403: problemResponse(
-      'لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه',
+      'لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه',
     ),
     404: problemResponse('لا توجد عضوية بهذا المعرّف'),
     409: problemResponse('العضو لديه عضوية نشطة في هذا المكتب بالفعل'),
@@ -177,14 +285,14 @@ registry.registerPath({
   tags: ['People'],
   summary: 'إنهاء عضوية قائمة',
   description:
-    'يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه ولا على عضوية بدور يتجاوز قدرات المنفّذ. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.',
+    'يتطلب إدارة فريق العضوية، ولا يُنفَّذ على الحساب نفسه ولا على عضوية قدراتها الفعلية أوسع مما يستطيع المنفّذ تفويضه. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.',
   security,
   request: { params: z.object({ id: z.uuid(), membershipId: z.uuid() }) },
   responses: {
     204: { description: 'أُنهيت' },
     401: problemResponse('غير مصادق'),
     403: problemResponse(
-      'لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه',
+      'لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه',
     ),
     404: problemResponse('لا توجد عضوية بهذا المعرّف'),
     422: problemResponse('العضوية منتهية بالفعل'),
@@ -192,5 +300,9 @@ registry.registerPath({
 })
 
 export type ListPeopleQuery = z.infer<typeof listPeopleQuerySchema>
+export type CandidatesQuery = z.infer<typeof candidatesQuerySchema>
 export type AddMembershipBody = z.infer<typeof addMembershipBodySchema>
 export type UpdateMembershipBody = z.infer<typeof updateMembershipBodySchema>
+export type SetMembershipCapabilitiesBody = z.infer<
+  typeof setMembershipCapabilitiesBodySchema
+>
