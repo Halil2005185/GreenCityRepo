@@ -3645,6 +3645,32 @@
               "null"
             ]
           },
+          "additionalOfficeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "additionalOfficeNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "additionalRoleId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "additionalRoleNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "expiresAt": {
             "type": "string",
             "format": "date-time"
@@ -3673,6 +3699,10 @@
           "officeNameAr",
           "partnerId",
           "partnerNameAr",
+          "additionalOfficeId",
+          "additionalOfficeNameAr",
+          "additionalRoleId",
+          "additionalRoleNameAr",
           "expiresAt",
           "createdAt",
           "acceptedAt"
@@ -5178,6 +5208,26 @@
           "emailVerifiedAt",
           "createdAt",
           "memberships"
+        ]
+      },
+      "AddMembershipResponse": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              }
+            },
+            "required": [
+              "id"
+            ]
+          }
+        },
+        "required": [
+          "data"
         ]
       },
       "MediaChannel": {
@@ -11097,6 +11147,14 @@
                   "partnerId": {
                     "type": "string",
                     "format": "uuid"
+                  },
+                  "additionalOfficeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "additionalRoleId": {
+                    "type": "string",
+                    "format": "uuid"
                   }
                 },
                 "required": [
@@ -14044,6 +14102,310 @@
           },
           "404": {
             "description": "لا يوجد عضو فريق بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/people/{id}/memberships": {
+      "post": {
+        "tags": [
+          "People"
+        ],
+        "summary": "إضافة عضوية إضافية لعضو فريق قائم",
+        "description": "يتطلب roles.manage — المدير العام حصرًا اليوم. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "officeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "roleId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "officeId",
+                  "roleId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيفت العضوية",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddMembershipResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة roles.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا يوجد عضو فريق بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "العضو لديه عضوية نشطة في هذا المكتب بالفعل",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/people/{id}/memberships/{membershipId}": {
+      "patch": {
+        "tags": [
+          "People"
+        ],
+        "summary": "تعديل عضوية قائمة",
+        "description": "يتطلب roles.manage. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "membershipId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "officeId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "roleId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّلت العضوية",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddMembershipResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة roles.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا توجد عضوية بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "العضو لديه عضوية نشطة في هذا المكتب بالفعل",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة، أو العضوية منتهية",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/people/{id}/memberships/{membershipId}/end": {
+      "post": {
+        "tags": [
+          "People"
+        ],
+        "summary": "إنهاء عضوية قائمة",
+        "description": "يتطلب roles.manage. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "membershipId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "أُنهيت"
+          },
+          "401": {
+            "description": "غير مصادق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك القدرة roles.manage",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا توجد عضوية بهذا المعرّف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "العضوية منتهية بالفعل",
             "content": {
               "application/problem+json": {
                 "schema": {

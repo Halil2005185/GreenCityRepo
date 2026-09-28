@@ -1,11 +1,15 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Ban, Pencil, UserPlus } from "lucide-react";
 import { useParams } from "next/navigation";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
+import { AddMembershipDialog } from "@/components/people/add-membership-dialog";
+import { EditMembershipDialog } from "@/components/people/edit-membership-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/card";
+import { useConfirm } from "@/components/ui/confirm-dialog";
 import {
   DataTable,
   EmptyCell,
@@ -18,8 +22,15 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { DetailSkeleton, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { useAuth } from "@/lib/auth/auth-context";
+import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { ApiError } from "@/lib/api/client";
-import { getPerson, primaryMembership, type TeamMembership } from "@/lib/api/people";
+import {
+  endMembership,
+  getPerson,
+  primaryMembership,
+  type TeamMembership,
+} from "@/lib/api/people";
 import { OPEN_STATUSES, listTasks, type WorkItemSummary } from "@/lib/api/work";
 import { cn, formatDate, formatDateTime } from "@/lib/utils";
 
@@ -30,6 +41,13 @@ const taskCol = columnHelper<WorkItemSummary>();
 
 export default function PersonPage() {
   const { id } = useParams<{ id: string }>();
+  const { canAny } = useAuth();
+  const confirm = useConfirm();
+  const queryClient = useQueryClient();
+  const [addMembershipOpen, setAddMembershipOpen] = useState(false);
+  const [editingMembership, setEditingMembership] = useState<TeamMembership | null>(null);
+
+  const canManageRoles = canAny(CAPABILITIES.rolesManage);
 
   const member = useQuery({
     queryKey: ["people", id],
@@ -78,6 +96,28 @@ export default function PersonPage() {
           id: "endedAt",
           header: "إلى",
           sortUndefined: "last",
+          cell: (info) => cells.date(info.getValue()),
+        }),
+      ]),
+    [],
+  );
+
+  /** نسخة مختصرة للإدارة: نشطة وحدها، فلا حاجة لعمودَي الحالة والانتهاء. */
+  const manageMembershipColumns = useMemo(
+    () =>
+      membershipCol.columns([
+        membershipCol.accessor("officeNameAr", {
+          header: "المكتب",
+          cell: (info) => (
+            <PrimaryCell
+              label={info.getValue()}
+              badge={info.row.original.isPrimary ? <Badge tone="primary">رئيسي</Badge> : null}
+            />
+          ),
+        }),
+        membershipCol.accessor("roleNameAr", { header: "الدور" }),
+        membershipCol.accessor("startedAt", {
+          header: "منذ",
           cell: (info) => cells.date(info.getValue()),
         }),
       ]),
@@ -185,6 +225,86 @@ export default function PersonPage() {
           empty={{ title: "لا عضويات" }}
         />
       </Section>
+
+      {/*
+       * قسم منفصل عن «العضويات» أعلاه لا زر إضافي فيه: الأول للجميع
+       * وللقراءة وحدها، وهذا لا يُركَّب أصلًا لمن لا يحمل `roles.manage`
+       * — لا يظهر فارغًا ولا معطَّلًا، بل يغيب كليًا.
+       */}
+      {canManageRoles ? (
+        <Section
+          title="إدارة صلاحيات العضو"
+          description="إضافة عضوية أو تعديل مكتبها ودورها أو إنهاؤها. يظهر لمن يحمل roles.manage وحده."
+          actions={[
+            {
+              key: "add-membership",
+              label: "إضافة عضوية",
+              icon: UserPlus,
+              onSelect: () => setAddMembershipOpen(true),
+            },
+          ]}
+        >
+          <DataTable
+            caption="إدارة العضويات"
+            columns={manageMembershipColumns}
+            data={person.memberships.filter((membership) => membership.status === "ACTIVE")}
+            getRowId={(membership) => membership.id}
+            pagination={false}
+            empty={{ title: "لا عضويات نشطة" }}
+            rowActions={(membership) => [
+              {
+                key: "edit",
+                label: "تعديل",
+                icon: Pencil,
+                quick: true,
+                onSelect: () => setEditingMembership(membership),
+              },
+              {
+                key: "end",
+                label: "إنهاء العضوية",
+                icon: Ban,
+                destructive: true,
+                onSelect: () =>
+                  void confirm({
+                    title: `إنهاء عضوية ${person.fullNameAr} في ${membership.officeNameAr}؟`,
+                    description: "يفقد صلاحيات هذا المكتب والدور فورًا. لا يُحذف سجل العضوية.",
+                    confirmLabel: "إنهاء العضوية",
+                    destructive: true,
+                    successMessage: "أُنهيت العضوية.",
+                    onConfirm: async () => {
+                      await endMembership(person.id, membership.id);
+                      await queryClient.invalidateQueries({ queryKey: ["people", person.id] });
+                    },
+                  }),
+              },
+            ]}
+          />
+        </Section>
+      ) : null}
+
+      <AddMembershipDialog
+        open={addMembershipOpen}
+        onOpenChange={setAddMembershipOpen}
+        personId={person.id}
+        existingOfficeIds={person.memberships
+          .filter((membership) => membership.status === "ACTIVE")
+          .map((membership) => membership.officeId)}
+      />
+
+      <EditMembershipDialog
+        open={Boolean(editingMembership)}
+        onOpenChange={(open) => {
+          if (!open) setEditingMembership(null);
+        }}
+        personId={person.id}
+        membership={editingMembership}
+        otherActiveOfficeIds={person.memberships
+          .filter(
+            (membership) =>
+              membership.status === "ACTIVE" && membership.id !== editingMembership?.id,
+          )
+          .map((membership) => membership.officeId)}
+      />
 
       <Section title="المهام المفتوحة" description="ما هو مسنَد إليه ولم يُغلق بعد.">
         <DataTable

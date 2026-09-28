@@ -5,24 +5,44 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { officeOptions, useOffices } from "@/components/offices/office-options";
 import { FormDialog } from "@/components/ui/form-dialog";
 import { SelectField, TextField } from "@/components/ui/form-fields";
-import { officeOptions, useOffices } from "@/components/offices/office-options";
 import { OneTimeLink } from "@/components/ui/one-time-link";
 import { createInvitation, listStaffRoles } from "@/lib/api/invitations";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
-const inviteSchema = z.object({
-  email: z.email("صيغة البريد الإلكتروني غير صحيحة."),
-  fullNameAr: z.string().trim().max(160, "الاسم طويل جدًا."),
-  officeId: z.string().min(1, "اختر المكتب."),
-  roleId: z.string().min(1, "اختر الدور."),
-});
+const inviteSchema = z
+  .object({
+    email: z.email("صيغة البريد الإلكتروني غير صحيحة."),
+    fullNameAr: z.string().trim().max(160, "الاسم طويل جدًا."),
+    officeId: z.string().min(1, "اختر المكتب."),
+    roleId: z.string().min(1, "اختر الدور."),
+    /** عضوية ثانية اختيارية — قسم «صلاحيات الأعضاء» — بمكتب مختلف عن الأول. */
+    additionalOfficeId: z.string(),
+    additionalRoleId: z.string(),
+  })
+  .refine(
+    (values) => Boolean(values.additionalOfficeId) === Boolean(values.additionalRoleId),
+    { message: "اختر المكتب والدور معًا للعضوية الإضافية.", path: ["additionalRoleId"] },
+  )
+  .refine(
+    (values) =>
+      !values.additionalOfficeId || values.additionalOfficeId !== values.officeId,
+    { message: "اختر مكتبًا مختلفًا عن مكتب الفريق.", path: ["additionalOfficeId"] },
+  );
 
 type InviteValues = z.infer<typeof inviteSchema>;
 
-const EMPTY: InviteValues = { email: "", fullNameAr: "", officeId: "", roleId: "" };
+const EMPTY: InviteValues = {
+  email: "",
+  fullNameAr: "",
+  officeId: "",
+  roleId: "",
+  additionalOfficeId: "",
+  additionalRoleId: "",
+};
 
 /**
  * دعوة عضو فريق، من دليل الفريق ومن صفحة الدعوات. كانت نموذجًا دائمًا
@@ -49,6 +69,28 @@ export function InviteStaffDialog({
     defaultValues: EMPTY,
   });
 
+  /**
+   * عضويتان مستقلتان حقًا لا حقل مشترك: الفريق إلزامية والأعضاء اختيارية.
+   * المكتب المختار في إحداهما يُستبعد من خيارات الأخرى — لا عضويتان
+   * نشطتان في المكتب نفسه أصلًا (`memberships_active_unique`) — لا يُعطَّل
+   * القسم كله.
+   */
+  const officeIdValue = form.watch("officeId");
+  const additionalOfficeIdValue = form.watch("additionalOfficeId");
+
+  const roleSelectOptions = (roles.data ?? []).map((role) => ({
+    value: role.id,
+    label: role.nameAr,
+    description: role.descriptionAr ?? undefined,
+  }));
+  const allOfficeOptions = officeOptions(offices.data ?? []);
+  const teamOfficeOptions = allOfficeOptions.filter(
+    (option) => option.value !== additionalOfficeIdValue,
+  );
+  const memberOfficeOptions = allOfficeOptions.filter(
+    (option) => option.value !== officeIdValue,
+  );
+
   return (
     <FormDialog
       {...props}
@@ -64,6 +106,12 @@ export function InviteStaffDialog({
           roleId: values.roleId,
           officeId: values.officeId,
           ...(values.fullNameAr ? { fullNameAr: values.fullNameAr } : {}),
+          ...(values.additionalOfficeId && values.additionalRoleId
+            ? {
+                additionalOfficeId: values.additionalOfficeId,
+                additionalRoleId: values.additionalRoleId,
+              }
+            : {}),
         })
       }
       successMessage="أُنشئت الدعوة."
@@ -92,25 +140,52 @@ export function InviteStaffDialog({
           hint="يظهر للمدعوّ عند فتح الرابط."
         />
       </div>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField
-          control={form.control}
-          name="officeId"
-          label="المكتب"
-          loading={offices.isPending}
-          options={officeOptions(offices.data ?? [])}
-        />
-        <SelectField
-          control={form.control}
-          name="roleId"
-          label="الدور"
-          loading={roles.isPending}
-          options={(roles.data ?? []).map((role) => ({
-            value: role.id,
-            label: role.nameAr,
-            description: role.descriptionAr ?? undefined,
-          }))}
-        />
+      <div>
+        <p className="text-[0.800rem] font-medium text-muted-foreground">
+          (صلاحيات الفريق)
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            control={form.control}
+            name="officeId"
+            label="المكتب"
+            loading={offices.isPending}
+            options={teamOfficeOptions}
+            clearable
+          />
+          <SelectField
+            control={form.control}
+            name="roleId"
+            label="الدور"
+            loading={roles.isPending}
+            options={roleSelectOptions}
+            clearable
+          />
+        </div>
+      </div>
+      <div>
+        <p className="text-[0.800rem] font-medium text-muted-foreground">
+          (صلاحيات الأعضاء)
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <SelectField
+            control={form.control}
+            name="additionalOfficeId"
+            label="المكتب"
+            hint="اختياري — مكتب مختلف عن مكتب الفريق أعلاه."
+            loading={offices.isPending}
+            options={memberOfficeOptions}
+            clearable
+          />
+          <SelectField
+            control={form.control}
+            name="additionalRoleId"
+            label="الدور"
+            loading={roles.isPending}
+            options={roleSelectOptions}
+            clearable
+          />
+        </div>
       </div>
     </FormDialog>
   );

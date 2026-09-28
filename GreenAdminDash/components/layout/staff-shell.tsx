@@ -28,7 +28,12 @@ import { CAPABILITIES } from "@/lib/auth/capabilities";
  */
 const NAV_ITEMS: readonly NavItem[] = [
   { href: "/dashboard", label: "الرئيسية", icon: LayoutDashboard },
-  { href: "/dashboard/tasks", label: "المهام", icon: CheckSquare },
+  {
+    href: "/dashboard/tasks",
+    label: "المهام",
+    icon: CheckSquare,
+    requires: [CAPABILITIES.workView],
+  },
   {
     href: "/dashboard/partners",
     label: "الشركاء",

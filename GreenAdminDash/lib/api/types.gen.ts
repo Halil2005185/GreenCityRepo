@@ -3980,6 +3980,10 @@ export interface paths {
                         officeId?: string;
                         /** Format: uuid */
                         partnerId?: string;
+                        /** Format: uuid */
+                        additionalOfficeId?: string;
+                        /** Format: uuid */
+                        additionalRoleId?: string;
                     };
                 };
             };
@@ -5992,6 +5996,273 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/people/{id}/memberships": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إضافة عضوية إضافية لعضو فريق قائم
+         * @description يتطلب roles.manage — المدير العام حصرًا اليوم. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        officeId: string;
+                        /** Format: uuid */
+                        roleId: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيفت العضوية */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AddMembershipResponse"];
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة roles.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يوجد عضو فريق بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description العضو لديه عضوية نشطة في هذا المكتب بالفعل */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/people/{id}/memberships/{membershipId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * تعديل عضوية قائمة
+         * @description يتطلب roles.manage. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    membershipId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        officeId?: string;
+                        /** Format: uuid */
+                        roleId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّلت العضوية */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["AddMembershipResponse"];
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة roles.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا توجد عضوية بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description العضو لديه عضوية نشطة في هذا المكتب بالفعل */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة، أو العضوية منتهية */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/people/{id}/memberships/{membershipId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إنهاء عضوية قائمة
+         * @description يتطلب roles.manage. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    membershipId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description أُنهيت */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك القدرة roles.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا توجد عضوية بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description العضوية منتهية بالفعل */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/relations/media-channels": {
         parameters: {
             query?: never;
@@ -7171,6 +7442,12 @@ export interface components {
             /** Format: uuid */
             partnerId: string | null;
             partnerNameAr: string | null;
+            /** Format: uuid */
+            additionalOfficeId: string | null;
+            additionalOfficeNameAr: string | null;
+            /** Format: uuid */
+            additionalRoleId: string | null;
+            additionalRoleNameAr: string | null;
             /** Format: date-time */
             expiresAt: string;
             /** Format: date-time */
@@ -7522,6 +7799,12 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             memberships: components["schemas"]["TeamMembership"][];
+        };
+        AddMembershipResponse: {
+            data: {
+                /** Format: uuid */
+                id: string;
+            };
         };
         MediaChannel: {
             /** Format: uuid */

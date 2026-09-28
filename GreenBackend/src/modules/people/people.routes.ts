@@ -7,7 +7,11 @@ import {
 } from '../../common/middleware/authorize.js'
 import { validate } from '../../common/middleware/validate.js'
 import * as controller from './people.controller.js'
-import { listPeopleQuerySchema } from './people.schemas.js'
+import {
+  addMembershipBodySchema,
+  listPeopleQuerySchema,
+  updateMembershipBodySchema,
+} from './people.schemas.js'
 
 export const peopleRouter = Router()
 
@@ -27,3 +31,27 @@ peopleRouter.get(
 )
 
 peopleRouter.get('/:id', controller.getPerson)
+
+/**
+ * `roles.manage` فوق `users.view` الموروثة من الموجّه: المدير العام
+ * والقسم التقني وحدهما اليوم يحملان القدرتين معًا.
+ */
+peopleRouter.post(
+  '/:id/memberships',
+  requireCapability('roles.manage'),
+  validate({ body: addMembershipBodySchema }),
+  controller.postAddMembership,
+)
+
+peopleRouter.patch(
+  '/:id/memberships/:membershipId',
+  requireCapability('roles.manage'),
+  validate({ body: updateMembershipBodySchema }),
+  controller.patchMembership,
+)
+
+peopleRouter.post(
+  '/:id/memberships/:membershipId/end',
+  requireCapability('roles.manage'),
+  controller.postEndMembership,
+)

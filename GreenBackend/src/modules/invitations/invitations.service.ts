@@ -1,13 +1,17 @@
 import { and, desc, eq } from 'drizzle-orm'
+import { alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
 import { normalizeEmail, normalizeText } from '../../common/utils/text.js'
 import { env } from '../../config/env.js'
 import { db } from '../../db/client.js'
-import { invitations } from '../../db/schema/access.js'
+import { invitationOfficeRoles, invitations } from '../../db/schema/access.js'
 import { users } from '../../db/schema/identity.js'
 import { offices, roles } from '../../db/schema/org.js'
 import { partners } from '../../db/schema/partners.js'
+
+const additionalOffices = alias(offices, 'additional_offices')
+const additionalRoles = alias(roles, 'additional_roles')
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { generateOpaqueToken, invitationExpiry } from '../auth/token.service.js'
@@ -25,6 +29,10 @@ const invitationColumns = {
   officeNameAr: offices.nameAr,
   partnerId: invitations.partnerId,
   partnerNameAr: partners.displayNameAr,
+  additionalOfficeId: invitationOfficeRoles.officeId,
+  additionalOfficeNameAr: additionalOffices.nameAr,
+  additionalRoleId: invitationOfficeRoles.roleId,
+  additionalRoleNameAr: additionalRoles.nameAr,
   expiresAt: invitations.expiresAt,
   createdAt: invitations.createdAt,
   acceptedAt: invitations.acceptedAt,
@@ -42,6 +50,10 @@ function serialize(row: {
   officeNameAr: string | null
   partnerId: string | null
   partnerNameAr: string | null
+  additionalOfficeId: string | null
+  additionalOfficeNameAr: string | null
+  additionalRoleId: string | null
+  additionalRoleNameAr: string | null
   expiresAt: Date
   createdAt: Date
   acceptedAt: Date | null
@@ -58,6 +70,10 @@ function serialize(row: {
     officeNameAr: row.officeNameAr,
     partnerId: row.partnerId,
     partnerNameAr: row.partnerNameAr,
+    additionalOfficeId: row.additionalOfficeId,
+    additionalOfficeNameAr: row.additionalOfficeNameAr,
+    additionalRoleId: row.additionalRoleId,
+    additionalRoleNameAr: row.additionalRoleNameAr,
     expiresAt: row.expiresAt.toISOString(),
     createdAt: row.createdAt.toISOString(),
     acceptedAt: row.acceptedAt?.toISOString() ?? null,
@@ -153,6 +169,8 @@ export async function createInvitation(
     roleId: string
     officeId?: string | undefined
     partnerId?: string | undefined
+    additionalOfficeId?: string | undefined
+    additionalRoleId?: string | undefined
   },
   actor: AuthContext,
   trace: RequestTrace,
@@ -175,6 +193,52 @@ export async function createInvitation(
     role.scope === 'PARTNER'
       ? await resolvePartnerTarget(input.partnerId)
       : await resolveOfficeTarget(input.officeId)
+
+  /**
+   * العضوية الإضافية («صلاحيات الأعضاء») تتاح لدعوة فريق فقط، بمكتب
+   * مختلف عن الرئيسي — عضوان نشطان بالمكتب نفسه غير ممكنَين أصلًا
+   * (`memberships_active_unique`).
+   */
+  let additional: { officeId: string; roleId: string; roleNameAr: string } | null =
+    null
+
+  if (input.additionalOfficeId || input.additionalRoleId) {
+    if (target.kind !== 'STAFF') {
+      throw errors.unprocessable('العضوية الإضافية تتاح لدعوات الفريق فقط.')
+    }
+
+    if (!input.additionalOfficeId || !input.additionalRoleId) {
+      throw errors.unprocessable('اختر المكتب والدور معًا للعضوية الإضافية.')
+    }
+
+    if (input.additionalOfficeId === target.officeId) {
+      throw errors.unprocessable('اختر مكتبًا مختلفًا للعضوية الإضافية.')
+    }
+
+    const additionalTarget = await resolveOfficeTarget(input.additionalOfficeId)
+
+    // مضمون بوجود المكتب: `resolveOfficeTarget` يرمي خطأً حين لا يجده.
+    if (!additionalTarget.officeId) {
+      throw new Error('resolveOfficeTarget returned a STAFF target without officeId.')
+    }
+
+    const [additionalRole] = await db
+      .select({ id: roles.id, scope: roles.scope, nameAr: roles.nameAr })
+      .from(roles)
+      .where(eq(roles.id, input.additionalRoleId))
+      .limit(1)
+
+    if (!additionalRole) throw errors.unprocessable('الدور الإضافي غير موجود.')
+    if (additionalRole.scope !== 'STAFF') {
+      throw errors.unprocessable('الدور الإضافي يجب أن يكون من أدوار الفريق.')
+    }
+
+    additional = {
+      officeId: additionalTarget.officeId,
+      roleId: additionalRole.id,
+      roleNameAr: additionalRole.nameAr,
+    }
+  }
 
   const [existingUser] = await db
     .select({ id: users.id })
@@ -220,6 +284,14 @@ export async function createInvitation(
 
     if (!created) throw new Error('Failed to create invitation row.')
 
+    if (additional) {
+      await tx.insert(invitationOfficeRoles).values({
+        invitationId: created.id,
+        officeId: additional.officeId,
+        roleId: additional.roleId,
+      })
+    }
+
     /**
      * الرسالة تُدرج في معاملة الدعوة نفسها: دعوة بلا بريد تعني شخصًا
      * ينتظر رابطًا لن يصل، وبريدًا لدعوة تراجعت يعني رابطًا يفتح لا شيء.
@@ -252,6 +324,12 @@ export async function createInvitation(
           roleSlug: role.slug,
           officeId: target.officeId,
           partnerId: target.partnerId,
+          ...(additional
+            ? {
+                additionalOfficeId: additional.officeId,
+                additionalRoleId: additional.roleId,
+              }
+            : {}),
         },
         ...trace,
       },
@@ -267,6 +345,9 @@ export async function createInvitation(
     .innerJoin(roles, eq(invitations.roleId, roles.id))
     .leftJoin(offices, eq(invitations.officeId, offices.id))
     .leftJoin(partners, eq(invitations.partnerId, partners.id))
+    .leftJoin(invitationOfficeRoles, eq(invitationOfficeRoles.invitationId, invitations.id))
+    .leftJoin(additionalOffices, eq(invitationOfficeRoles.officeId, additionalOffices.id))
+    .leftJoin(additionalRoles, eq(invitationOfficeRoles.roleId, additionalRoles.id))
     .where(eq(invitations.id, invitationId))
     .limit(1)
 
@@ -288,6 +369,9 @@ export async function listInvitations(filters: {
     .innerJoin(roles, eq(invitations.roleId, roles.id))
     .leftJoin(offices, eq(invitations.officeId, offices.id))
     .leftJoin(partners, eq(invitations.partnerId, partners.id))
+    .leftJoin(invitationOfficeRoles, eq(invitationOfficeRoles.invitationId, invitations.id))
+    .leftJoin(additionalOffices, eq(invitationOfficeRoles.officeId, additionalOffices.id))
+    .leftJoin(additionalRoles, eq(invitationOfficeRoles.roleId, additionalRoles.id))
     .where(filters.status ? eq(invitations.status, filters.status) : undefined)
     .orderBy(desc(invitations.createdAt))
     .limit(200)

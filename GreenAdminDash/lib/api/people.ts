@@ -30,6 +30,36 @@ export function getPerson(id: string) {
   );
 }
 
+/**
+ * عضوية إضافية لعضو قائم — `roles.manage`. لا تُنهي عضوياته الحالية ولا
+ * تصير رئيسية.
+ */
+export function addMembership(userId: string, input: { officeId: string; roleId: string }) {
+  return apiFetch<{ data: { id: string } }>(`/admin/people/${userId}/memberships`, {
+    method: "POST",
+    body: input,
+  });
+}
+
+/** تعديل مكتب أو دور عضوية نشطة قائمة — `roles.manage`. */
+export function updateMembership(
+  userId: string,
+  membershipId: string,
+  input: { officeId?: string; roleId?: string },
+) {
+  return apiFetch<{ data: { id: string } }>(
+    `/admin/people/${userId}/memberships/${membershipId}`,
+    { method: "PATCH", body: input },
+  );
+}
+
+/** إنهاء عضوية نشطة — سحب صلاحيتها دون حذف سجلها — `roles.manage`. */
+export function endMembership(userId: string, membershipId: string) {
+  return apiFetch<void>(`/admin/people/${userId}/memberships/${membershipId}/end`, {
+    method: "POST",
+  });
+}
+
 /** العضوية النشطة الرئيسية — ما يُعرض بجانب الاسم في الدليل. */
 export function primaryMembership(member: TeamMember) {
   return (

@@ -22,6 +22,9 @@ export function createInvitation(input: {
   roleId: string;
   officeId?: string;
   partnerId?: string;
+  /** عضوية ثانية اختيارية — قسم «صلاحيات الأعضاء» — بمكتب مختلف عن `officeId`. */
+  additionalOfficeId?: string;
+  additionalRoleId?: string;
 }) {
   return apiFetch<CreateInvitationResponse>("/admin/invitations", {
     method: "POST",

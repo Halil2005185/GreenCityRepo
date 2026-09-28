@@ -9,7 +9,7 @@ import {
   varchar,
 } from 'drizzle-orm/pg-core'
 
-import { timestamps, tsColumn, uuidColumn } from './columns.js'
+import { createdAtOnly, timestamps, tsColumn, uuidColumn } from './columns.js'
 import { invitationStatus, membershipStatus, userKind } from './enums.js'
 import { users } from './identity.js'
 import { offices, roles } from './org.js'
@@ -142,7 +142,43 @@ export const invitations = pgTable(
   ],
 )
 
+/**
+ * عضوية ثانية اختيارية تُثبَّت وقت الدعوة إلى جانب `invitations.officeId`/
+ * `roleId` الرئيسيين — قسم «صلاحيات الأعضاء» في نافذة الدعوة. القبول
+ * يحوّل هذا الصف إلى عضوية غير رئيسية (`isPrimary: false`) بجانب
+ * العضوية الرئيسية، لا بدلًا منها.
+ *
+ * صف واحد فقط لكل دعوة اليوم (الواجهة تعرض قسمًا إضافيًا واحدًا)، لكن
+ * الجدول يحتمل أكثر دون تعديل بنيته لاحقًا.
+ */
+export const invitationOfficeRoles = pgTable(
+  'invitation_office_roles',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    invitationId: uuidColumn('invitation_id')
+      .notNull()
+      .references(() => invitations.id, { onDelete: 'cascade' }),
+    officeId: uuidColumn('office_id')
+      .notNull()
+      .references(() => offices.id, { onDelete: 'restrict' }),
+    roleId: uuidColumn('role_id')
+      .notNull()
+      .references(() => roles.id, { onDelete: 'restrict' }),
+    ...createdAtOnly,
+  },
+  (table) => [
+    // لا يتكرر المكتب نفسه في العضوية الإضافية لدعوة واحدة.
+    uniqueIndex('invitation_office_roles_unique').on(
+      table.invitationId,
+      table.officeId,
+    ),
+    index('invitation_office_roles_invitation_idx').on(table.invitationId),
+  ],
+)
+
 export type Membership = typeof memberships.$inferSelect
 export type NewMembership = typeof memberships.$inferInsert
 export type Invitation = typeof invitations.$inferSelect
 export type NewInvitation = typeof invitations.$inferInsert
+export type InvitationOfficeRole = typeof invitationOfficeRoles.$inferSelect
+export type NewInvitationOfficeRole = typeof invitationOfficeRoles.$inferInsert

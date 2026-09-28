@@ -64,7 +64,20 @@ export const postRefresh: RequestHandler = async (request, response) => {
 
   if (!token) throw errors.unauthorized('لا توجد جلسة.')
 
-  const result = await authService.refreshSession(token, requestTrace(request))
+  let result: authService.SessionResult
+
+  try {
+    result = await authService.refreshSession(token, requestTrace(request))
+  } catch (error) {
+    /**
+     * تدوير فاشل (منتهية، مُبطلة، أو إعادة استعمال مكتشفة) يترك كوكي
+     * التحديث وكوكي التلميح كما كانا لو لم تُمسح هنا: يبقى `middleware.ts`
+     * يظن الزائر مسجَّلًا فيعيد توجيه `/login` إلى لوحة لن يدخلها، بينما
+     * العميل يعيد توجيهه إلى `/login` — تكرار توجيه بلا نهاية.
+     */
+    clearRefreshCookie(response)
+    throw error
+  }
 
   setRefreshCookie(response, result.refreshToken, result.user.kind)
   response.status(200).json(serializeSession(result))

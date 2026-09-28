@@ -94,4 +94,96 @@ registry.registerPath({
   },
 })
 
+export const addMembershipBodySchema = z.object({
+  officeId: z.uuid('يجب اختيار المكتب.'),
+  roleId: z.uuid('يجب اختيار الدور.'),
+})
+
+export const addMembershipResponseSchema = registry.register(
+  'AddMembershipResponse',
+  z.object({ data: z.object({ id: z.uuid() }) }),
+)
+
+registry.registerPath({
+  method: 'post',
+  path: path('/{id}/memberships'),
+  tags: ['People'],
+  summary: 'إضافة عضوية إضافية لعضو فريق قائم',
+  description:
+    'يتطلب roles.manage — المدير العام حصرًا اليوم. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.',
+  security,
+  request: {
+    params: z.object({ id: z.uuid() }),
+    body: {
+      content: { 'application/json': { schema: addMembershipBodySchema } },
+    },
+  },
+  responses: {
+    201: {
+      description: 'أُضيفت العضوية',
+      content: { 'application/json': { schema: addMembershipResponseSchema } },
+    },
+    401: problemResponse('غير مصادق'),
+    403: problemResponse('لا يملك القدرة roles.manage'),
+    404: problemResponse('لا يوجد عضو فريق بهذا المعرّف'),
+    409: problemResponse('العضو لديه عضوية نشطة في هذا المكتب بالفعل'),
+    422: problemResponse('بيانات غير صالحة'),
+  },
+})
+
+export const updateMembershipBodySchema = z
+  .object({
+    officeId: z.uuid().optional(),
+    roleId: z.uuid().optional(),
+  })
+  .refine((data) => Boolean(data.officeId) || Boolean(data.roleId), {
+    message: 'حدّد المكتب أو الدور أو كليهما.',
+  })
+
+registry.registerPath({
+  method: 'patch',
+  path: path('/{id}/memberships/{membershipId}'),
+  tags: ['People'],
+  summary: 'تعديل عضوية قائمة',
+  description:
+    'يتطلب roles.manage. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.',
+  security,
+  request: {
+    params: z.object({ id: z.uuid(), membershipId: z.uuid() }),
+    body: {
+      content: { 'application/json': { schema: updateMembershipBodySchema } },
+    },
+  },
+  responses: {
+    200: {
+      description: 'عُدِّلت العضوية',
+      content: { 'application/json': { schema: addMembershipResponseSchema } },
+    },
+    401: problemResponse('غير مصادق'),
+    403: problemResponse('لا يملك القدرة roles.manage'),
+    404: problemResponse('لا توجد عضوية بهذا المعرّف'),
+    409: problemResponse('العضو لديه عضوية نشطة في هذا المكتب بالفعل'),
+    422: problemResponse('بيانات غير صالحة، أو العضوية منتهية'),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/{id}/memberships/{membershipId}/end'),
+  tags: ['People'],
+  summary: 'إنهاء عضوية قائمة',
+  description: 'يتطلب roles.manage. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.',
+  security,
+  request: { params: z.object({ id: z.uuid(), membershipId: z.uuid() }) },
+  responses: {
+    204: { description: 'أُنهيت' },
+    401: problemResponse('غير مصادق'),
+    403: problemResponse('لا يملك القدرة roles.manage'),
+    404: problemResponse('لا توجد عضوية بهذا المعرّف'),
+    422: problemResponse('العضوية منتهية بالفعل'),
+  },
+})
+
 export type ListPeopleQuery = z.infer<typeof listPeopleQuerySchema>
+export type AddMembershipBody = z.infer<typeof addMembershipBodySchema>
+export type UpdateMembershipBody = z.infer<typeof updateMembershipBodySchema>

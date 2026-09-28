@@ -6,7 +6,11 @@ import { AppError, errors } from '../../common/errors/app-error.js'
 import { normalizeEmail, normalizeText } from '../../common/utils/text.js'
 import { env } from '../../config/env.js'
 import { db } from '../../db/client.js'
-import { invitations, memberships } from '../../db/schema/access.js'
+import {
+  invitationOfficeRoles,
+  invitations,
+  memberships,
+} from '../../db/schema/access.js'
 import {
   sessions,
   users,
@@ -628,6 +632,25 @@ export async function acceptInvitation(
         roleId: invitation.roleId,
         isPrimary: true,
       })
+
+      /**
+       * عضوية ثانية اختيارية من قسم «صلاحيات الأعضاء» عند الدعوة — غير
+       * رئيسية، إلى جانب الرئيسية أعلاه لا بدلًا منها.
+       */
+      const [additional] = await tx
+        .select({ officeId: invitationOfficeRoles.officeId, roleId: invitationOfficeRoles.roleId })
+        .from(invitationOfficeRoles)
+        .where(eq(invitationOfficeRoles.invitationId, invitation.id))
+        .limit(1)
+
+      if (additional) {
+        await tx.insert(memberships).values({
+          userId: created.id,
+          officeId: additional.officeId,
+          roleId: additional.roleId,
+          isPrimary: false,
+        })
+      }
     } else if (invitation.partnerId) {
       await tx.insert(partnerMemberships).values({
         userId: created.id,

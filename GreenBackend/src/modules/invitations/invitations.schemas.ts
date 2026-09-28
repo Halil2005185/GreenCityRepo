@@ -6,15 +6,29 @@ import { emailField } from '../auth/auth.schemas.js'
 const path = (suffix: string) => `${env.API_PREFIX}/admin/invitations${suffix}`
 const security = [{ [bearerAuth.name]: [] }]
 
-export const createInvitationBodySchema = z.object({
-  email: emailField,
-  fullNameAr: z.string().min(3).max(160).optional(),
-  roleId: z.uuid('يجب اختيار دور.'),
-  /** إلزامي حين يكون نطاق الدور `STAFF`. */
-  officeId: z.uuid().optional(),
-  /** إلزامي حين يكون نطاق الدور `PARTNER`، والجهة يجب أن تكون نشطة. */
-  partnerId: z.uuid().optional(),
-})
+export const createInvitationBodySchema = z
+  .object({
+    email: emailField,
+    fullNameAr: z.string().min(3).max(160).optional(),
+    roleId: z.uuid('يجب اختيار دور.'),
+    /** إلزامي حين يكون نطاق الدور `STAFF`. */
+    officeId: z.uuid().optional(),
+    /** إلزامي حين يكون نطاق الدور `PARTNER`، والجهة يجب أن تكون نشطة. */
+    partnerId: z.uuid().optional(),
+    /**
+     * عضوية ثانية اختيارية — قسم «صلاحيات الأعضاء» — بمكتب مختلف عن
+     * `officeId` الرئيسي. لدعوات الفريق فقط، وكلاهما معًا أو لا شيء.
+     */
+    additionalOfficeId: z.uuid().optional(),
+    additionalRoleId: z.uuid().optional(),
+  })
+  .refine(
+    (data) => Boolean(data.additionalOfficeId) === Boolean(data.additionalRoleId),
+    {
+      message: 'اختر المكتب والدور معًا للعضوية الإضافية، أو اتركهما فارغين.',
+      path: ['additionalRoleId'],
+    },
+  )
 
 export const invitationSchema = registry.register(
   'Invitation',
@@ -30,6 +44,10 @@ export const invitationSchema = registry.register(
     officeNameAr: z.string().nullable(),
     partnerId: z.uuid().nullable(),
     partnerNameAr: z.string().nullable(),
+    additionalOfficeId: z.uuid().nullable(),
+    additionalOfficeNameAr: z.string().nullable(),
+    additionalRoleId: z.uuid().nullable(),
+    additionalRoleNameAr: z.string().nullable(),
     expiresAt: z.iso.datetime(),
     createdAt: z.iso.datetime(),
     acceptedAt: z.iso.datetime().nullable(),
