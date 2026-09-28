@@ -107,10 +107,14 @@ function LoginForm() {
                   dir="ltr"
                   className="text-start pe-9"
                 />
+                {/*
+                 * `right-0` فيزيائي لا `end-0`: الحقل LTR والغلاف RTL، و`inset-e-0`
+                 * معه كان يثبّت الطرفين فيتمدّد الزر فوق الحقل كله ويبتلع النقر.
+                 */}
                 <button
                   type="button"
                   onClick={() => setShowPassword((value) => !value)}
-                  className="absolute right-0 inset-y-0 inset-e-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+                  className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
                   aria-label={showPassword ? "إخفاء كلمة المرور" : "إظهار كلمة المرور"}
                 >
                   {showPassword ? (
