@@ -18,9 +18,11 @@ import {
   clearAccessToken,
   login as requestLogin,
   logout as requestLogout,
+  onSessionLost,
   refreshSession,
 } from "./api";
 import { clearFieldData } from "./db";
+import { notify } from "./toast";
 
 /**
  * ما يُعرف عن صاحب الجلسة ويُحفظ على الجهاز: اسمه ومعرّفه، لا رمزه ولا
@@ -137,7 +139,14 @@ async function resolveSession(queryClient: QueryClient): Promise<Resolution> {
     // الخادم أجاب: لا جلسة. الهوية المحفوظة تبقى لتُقارَن بمن يدخل بعدها.
     return session ? await adopt(session.user, queryClient) : ANONYMOUS;
   } catch (error) {
-    if (!(error instanceof OfflineError)) {
+    /**
+     * الخادم لم يُسأل (انقطاع) أو سُئل فتعثّر (429، 5xx): في الحالين لم يقل
+     * «لا جلسة»، فيُعمل بما على الجهاز ويُعاد السؤال عند عودة الشبكة.
+     */
+    const unanswered =
+      error instanceof OfflineError || error instanceof FieldApiError;
+
+    if (!unanswered) {
       // عطل لا نعرفه: صفحة الدخول أصدق من شاشة تحميل لا تنتهي.
       console.error("[field] تعذّر استئناف الجلسة:", error);
 
@@ -190,6 +199,22 @@ export function FieldSessionProvider({
       window.removeEventListener("online", resume);
     };
   }, [queryClient, apply]);
+
+  /**
+   * الخادم قال «لا جلسة» في منتصف العمل. الهوية المحفوظة تبقى لتُقارَن بمن
+   * يدخل بعدها، وما في الطابور يبقى على الهاتف باسم صاحبه ويُرسَل حين يدخل.
+   */
+  useEffect(
+    () =>
+      onSessionLost(() => {
+        apply(ANONYMOUS);
+        notify(
+          "انتهت جلستك. سجّل الدخول من جديد — ما سجّلته محفوظ على هذا الهاتف ويُرسَل بعد دخولك.",
+          "danger",
+        );
+      }),
+    [apply],
+  );
 
   const login = useCallback(
     async (email: string, password: string) => {

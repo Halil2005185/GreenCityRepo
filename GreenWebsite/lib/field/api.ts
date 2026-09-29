@@ -48,6 +48,7 @@ let accessToken: string | null = null;
 let accessTokenExpiresAt = 0;
 
 export function setAccessToken(token: string, expiresInSeconds: number) {
+  sessionKnownLost = false;
   accessToken = token;
   // هامش عشر ثوانٍ يمنع إرسال رمز ينتهي أثناء عبور الطلب لشبكة بطيئة.
   accessTokenExpiresAt = Date.now() + (expiresInSeconds - 10) * 1000;
@@ -143,11 +144,31 @@ async function toApiError(response: Response) {
 }
 
 /**
+ * من يُبلَّغ حين يقول الخادم «لا جلسة» لطلبٍ من تطبيق يظنّ أن له جلسة:
+ * انتهت مدتها، أو أُبطلت من اللوحة، أو دوّرها تبويب آخر. بلا هذا البلاغ يبقى
+ * التطبيق يعرض صاحبه داخلًا وطابوره واقفًا بلا سبب يُقرأ.
+ */
+const sessionLostListeners = new Set<() => void>();
+
+/** طلبات متزامنة تكتشف الخروج معًا؛ يُبلَّغ به مرة حتى الدخول التالي. */
+let sessionKnownLost = false;
+
+export function onSessionLost(listener: () => void) {
+  sessionLostListeners.add(listener);
+
+  return () => {
+    sessionLostListeners.delete(listener);
+  };
+}
+
+/**
  * طلب تدوير واحد مهما تزامنت عليه الطلبات: تدويران متوازيان يُبطل ثانيهما
  * رمز الأول، فيقرؤه الخادم إعادة استعمال — أي سرقة — ويُسقط الجلسة كلها.
  *
- * يعيد `null` حين يرفض الخادم (لا جلسة)، ويرمي `OfflineError` حين لا يصل
- * الطلب: الأول يعني «سجّل الدخول»، والثاني «اعمل بما على الجهاز».
+ * ثلاثة أجوبة بثلاثة معانٍ: `null` حين يقول الخادم «لا جلسة» (401) فيلزم
+ * الدخول؛ و`OfflineError` حين لا يصل الطلب فيُعمل بما على الجهاز؛
+ * و`FieldApiError` حين يتعثّر الخادم نفسه (429، 5xx) — عطل عابر لا يُخرج
+ * أحدًا من جلسته.
  */
 let refreshInFlight: Promise<SessionResponse | null> | null = null;
 
@@ -159,7 +180,8 @@ export function refreshSession(): Promise<SessionResponse | null> {
         withCookies: true,
       });
 
-      if (!response.ok) return null;
+      if (response.status === 401) return null;
+      if (!response.ok) throw await toApiError(response);
 
       const session = (await response.json()) as SessionResponse;
 
@@ -226,6 +248,13 @@ export async function fieldFetch<T>(
 
     if (session) {
       response = await send(path, { ...options, token: session.accessToken });
+    } else {
+      clearAccessToken();
+
+      if (!sessionKnownLost) {
+        sessionKnownLost = true;
+        for (const listener of sessionLostListeners) listener();
+      }
     }
   }
 

@@ -7,7 +7,11 @@ import { usePathname } from "next/navigation";
 import { InstallBanner } from "@/components/field/install-banner";
 import { SyncBadge } from "@/components/field/sync-badge";
 import { BrandLockup } from "@/components/layout/logo";
-import { FIELD_APP_NAME, FIELD_ROUTES } from "@/lib/field/config";
+import {
+  FIELD_APP_NAME,
+  FIELD_APP_SHORT_NAME,
+  FIELD_ROUTES,
+} from "@/lib/field/config";
 import { useCurrentGroup } from "@/lib/field/current-group";
 import { formatDay } from "@/lib/field/labels";
 import { useFieldHome } from "@/lib/field/queries";
@@ -58,7 +62,7 @@ export function FieldChrome({ children }: { children: React.ReactNode }) {
   return (
     <div data-field-app className="flex min-h-dvh flex-col bg-background">
       <BrowserHeader pathname={pathname} showTabs={showTabs} />
-      <AppHeader pathname={pathname} />
+      <AppHeader pathname={pathname} signedOut={status === "anonymous"} />
 
       <InstallBanner />
 
@@ -143,20 +147,37 @@ function BrowserHeader({
  * لون صلب بلا لوحة مرسومة: صور الموقع تمرّ بمحسِّن الصور ولا تُحفظ مع
  * القشرة، ورأسٌ تغيب خلفيته بلا شبكة أسوأ من رأس بلا لوحة.
  */
-function AppHeader({ pathname }: { pathname: string }) {
+function AppHeader({
+  pathname,
+  signedOut,
+}: {
+  pathname: string;
+  signedOut: boolean;
+}) {
   const home = useFieldHome();
   const { current } = useCurrentGroup(home.data?.groups);
 
-  const group = GROUP_TABS.some((href) => isActive(pathname, href))
-    ? current
-    : null;
+  /**
+   * بلا جلسة لا مجموعة في الرأس، ولو بقيت ورقتها في المحفوظ: من انتهت جلسته
+   * يرى دعوة الدخول، لا اسم مجموعة فوقها. وأثناء التحقق من الجلسة تبقى
+   * المجموعة المحفوظة ظاهرة، فلا يومض الرأس عند كل فتح.
+   */
+  const group =
+    !signedOut && GROUP_TABS.some((href) => isActive(pathname, href))
+      ? current
+      : null;
 
   /**
    * «اليوم» يحمل اسم المجموعة عنوانًا وموقعَها وموعدها تحته. وبقية تبويباتها
    * تحمل اسمها هي، والمجموعة تحته: القائد يعرف أين هو ولمن يسجّل.
    */
   const onHome = isActive(pathname, FIELD_ROUTES.home);
-  const title = (onHome ? group?.nameAr : TITLES[pathname]) ?? "اليوم";
+  // صفحتا الدخول و«بلا اتصال» لهما اسمهما دائمًا؛ وبقية الأسماء لمن له جلسة.
+  const open =
+    pathname === FIELD_ROUTES.login || pathname === FIELD_ROUTES.offline;
+  const title = signedOut && !open
+    ? FIELD_APP_SHORT_NAME
+    : ((onHome ? group?.nameAr : TITLES[pathname]) ?? "اليوم");
   const subtitle = !group
     ? FIELD_APP_NAME
     : onHome
