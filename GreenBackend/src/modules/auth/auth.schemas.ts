@@ -33,6 +33,10 @@ export const membershipSchema = registry.register(
     roleSlug: z.string(),
     roleNameAr: z.string(),
     isPrimary: z.boolean(),
+    capabilities: z.array(z.string()).openapi({
+      description:
+        'قدرات هذه العضوية وحدها بعد الاستثناءات الفردية. القدرة المقيّدة بمكتب تسري في مكتب العضوية وأقسامه فقط.',
+    }),
   }),
 )
 

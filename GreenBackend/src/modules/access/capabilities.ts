@@ -28,6 +28,17 @@ type CapabilityDefinition = {
   readonly nameAr: string
   readonly group: CapabilityGroup
   readonly scope: 'STAFF' | 'PARTNER'
+  /**
+   * تسري في مكتب العضوية التي منحتها وأقسامه الفرعية لا في المنظمة كلها.
+   * ما لم يُعلَّم يسري أينما حُمل، لأن بياناته لا تنتمي إلى مكتب.
+   */
+  readonly officeScoped?: true
+  /**
+   * قدرات إدارية: من يحملها يوزّع الصلاحيات أو يطّلع على ما فوق الفرق.
+   * لا يمنحها ولا ينزعها إلا حامل `roles.manage` — فلا يصنع مدير فريق
+   * مديرًا مثله ولا مشرفًا عامًا.
+   */
+  readonly tier?: 'ADMIN'
 }
 
 /**
@@ -37,10 +48,19 @@ type CapabilityDefinition = {
 export const CAPABILITY_CATALOG = [
   // ── إدارة الوصول ─────────────────────────────────────────────────────
   { key: 'users.view', nameAr: 'عرض المستخدمين', group: 'access', scope: 'STAFF' },
-  { key: 'users.manage', nameAr: 'إدارة المستخدمين وتعطيلهم', group: 'access', scope: 'STAFF' },
-  { key: 'invitations.manage', nameAr: 'إرسال الدعوات وإلغاؤها', group: 'access', scope: 'STAFF' },
-  { key: 'roles.manage', nameAr: 'إدارة الأدوار وقدراتها', group: 'access', scope: 'STAFF' },
-  { key: 'offices.manage', nameAr: 'إدارة المكاتب والأقسام', group: 'access', scope: 'STAFF' },
+  { key: 'users.manage', nameAr: 'إدارة المستخدمين وتعطيلهم', group: 'access', scope: 'STAFF', tier: 'ADMIN' },
+  { key: 'invitations.manage', nameAr: 'إرسال الدعوات وإلغاؤها', group: 'access', scope: 'STAFF', tier: 'ADMIN' },
+  { key: 'roles.manage', nameAr: 'إدارة الأدوار وقدراتها', group: 'access', scope: 'STAFF', tier: 'ADMIN' },
+  { key: 'offices.manage', nameAr: 'إدارة المكاتب والأقسام', group: 'access', scope: 'STAFF', tier: 'ADMIN' },
+  {
+    key: 'team.manage',
+    nameAr: 'إدارة أعضاء الفريق وصلاحياتهم',
+    group: 'access',
+    scope: 'STAFF',
+    officeScoped: true,
+    tier: 'ADMIN',
+  },
+  { key: 'team.all', nameAr: 'إدارة أعضاء كل الفرق', group: 'access', scope: 'STAFF', tier: 'ADMIN' },
 
   // ── الشركاء ──────────────────────────────────────────────────────────
   { key: 'partners.view', nameAr: 'عرض سجل الشركاء', group: 'partners', scope: 'STAFF' },
@@ -50,6 +70,7 @@ export const CAPABILITY_CATALOG = [
     nameAr: 'اعتماد الشراكة النهائي',
     group: 'partners',
     scope: 'STAFF',
+    tier: 'ADMIN',
   },
   { key: 'partners.consent.manage', nameAr: 'إدارة موافقات الإظهار', group: 'partners', scope: 'STAFF' },
   { key: 'partners.notes.view', nameAr: 'الاطلاع على ملاحظات إيفا الداخلية', group: 'partners', scope: 'STAFF' },
@@ -131,7 +152,7 @@ export const CAPABILITY_CATALOG = [
   // ── التقارير والنظام ─────────────────────────────────────────────────
   { key: 'reports.view', nameAr: 'عرض التقارير', group: 'reports', scope: 'STAFF' },
   { key: 'reports.manage', nameAr: 'إنشاء التقارير ونشرها', group: 'reports', scope: 'STAFF' },
-  { key: 'audit.view', nameAr: 'الاطلاع على سجل التدقيق', group: 'system', scope: 'STAFF' },
+  { key: 'audit.view', nameAr: 'الاطلاع على سجل التدقيق', group: 'system', scope: 'STAFF', tier: 'ADMIN' },
 
   // ── بوابة الشريك ─────────────────────────────────────────────────────
   { key: 'partner.profile.manage', nameAr: 'تحديث ملف الجهة وبيانات الاتصال', group: 'partnerPortal', scope: 'PARTNER' },
@@ -163,6 +184,74 @@ export function isCapability(value: string): value is Capability {
   return CAPABILITY_KEYS.has(value)
 }
 
+const DEFINITIONS: readonly CapabilityDefinition[] = CAPABILITY_CATALOG
+
+export const ADMIN_CAPABILITIES: readonly Capability[] = DEFINITIONS.filter(
+  (definition) => definition.tier === 'ADMIN',
+).map((definition) => definition.key as Capability)
+
+const ADMIN_KEYS = new Set<string>(ADMIN_CAPABILITIES)
+
+const OFFICE_SCOPED_KEYS = new Set<string>(
+  DEFINITIONS.filter((definition) => definition.officeScoped).map(
+    (definition) => definition.key,
+  ),
+)
+
+const NAMES_AR = new Map<string, string>(
+  DEFINITIONS.map((definition) => [definition.key, definition.nameAr]),
+)
+
+/** الاسم العربي للقدرة في رسائل الخطأ؛ القدرة الميتة تُعرض بمفتاحها. */
+export function capabilityNameAr(value: string): string {
+  return NAMES_AR.get(value) ?? value
+}
+
+export function isAdminCapability(value: Capability): boolean {
+  return ADMIN_KEYS.has(value)
+}
+
+export function isOfficeScoped(value: Capability): boolean {
+  return OFFICE_SCOPED_KEYS.has(value)
+}
+
+/**
+ * القدرة العامة المقابلة لكل قدرة مقيّدة بمكتب: من يحملها تسري قدرته
+ * المقيّدة في كل المكاتب. المدير العام يحملها كلها لأنه يحمل الكتالوج.
+ */
+export const ORG_WIDE_COUNTERPART: Partial<Record<Capability, Capability>> = {
+  'team.manage': 'team.all',
+}
+
+export type CapabilityOverride = {
+  capability: string
+  effect: 'GRANT' | 'REVOKE'
+}
+
+/**
+ * قدرات عضوية واحدة: حزمة دورها مع ما مُنح لصاحبها فيها وناقص ما نُزع.
+ * القدرة الميتة — في الدور أو في الاستثناء — تُتجاهل كما في `loadAuthContext`.
+ */
+export function effectiveCapabilities(
+  roleCapabilities: readonly string[],
+  overrides: readonly CapabilityOverride[],
+): Capability[] {
+  const result = new Set<Capability>()
+
+  for (const value of roleCapabilities) {
+    if (isCapability(value)) result.add(value)
+  }
+
+  for (const override of overrides) {
+    if (!isCapability(override.capability)) continue
+
+    if (override.effect === 'GRANT') result.add(override.capability)
+    else result.delete(override.capability)
+  }
+
+  return [...result].sort()
+}
+
 /**
  * يُستدعى قبل حفظ أي دور. قدرة غير معروفة تعني إما خطأً مطبعيًا أو قدرة
  * حُذفت من الكود وبقيت في القاعدة — وكلاهما يجب أن يُرفض لا أن يُتجاهل
@@ -176,24 +265,6 @@ export function assertKnownCapabilities(values: readonly string[]): Capability[]
   }
 
   return values as Capability[]
-}
-
-/**
- * لا يمنح أحدٌ دورًا أوسع مما يحمله هو، ولا يمسّ عضوية بدور كهذا.
- *
- * `roles.manage` وحدها لا تكفي: مسؤول القسم التقني يحملها، وبدون هذا
- * الشرط يمنح نفسه أو غيره «المدير العام» فيرى ما حُجب عنه عمدًا، أو ينهي
- * عضوية المدير العام نفسه. القدرة الميتة تُتجاهل هنا كما في `loadAuthContext`.
- */
-export function canGrantRole(
-  held: readonly Capability[],
-  roleCapabilities: readonly string[],
-): boolean {
-  const granted = new Set<string>(held)
-
-  return roleCapabilities.every(
-    (value) => !isCapability(value) || granted.has(value),
-  )
 }
 
 /** الدور لا يخلط النطاقين: دور فريق لا يحمل قدرة بوابة شريك والعكس. */

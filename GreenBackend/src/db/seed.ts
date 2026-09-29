@@ -13,7 +13,12 @@ import { db } from './client.js'
 import { memberships } from './schema/access.js'
 import { users } from './schema/identity.js'
 import { offices, roles } from './schema/org.js'
-import { OFFICE_SEEDS, ROLE_SEEDS, resolveSeedCapabilities } from './seed-data.js'
+import {
+  CATALOG_BOUND_ROLE_SLUGS,
+  OFFICE_SEEDS,
+  ROLE_SEEDS,
+  resolveSeedCapabilities,
+} from './seed-data.js'
 import { type ReferenceSeedResult, seedReferenceData } from './seed-reference.js'
 
 /**
@@ -87,25 +92,33 @@ export async function seedOffices() {
 }
 
 /**
- * قدرات أدوار النظام يملكها الكود، فتُكتب فوق ما في القاعدة في كل نشر.
+ * أدوار النظام تبدأ من البذرة، وتبقى البذرة تملكها ما لم يحرّرها أحد:
  *
- * هذا صحيح ما دامت اللوحة لا تحرّر الأدوار — `org.routes` قراءة فقط.
- * يوم تُبنى شاشة الأدوار يجب أن يتغيّر هذا، وإلا صار كل نشر يُرجع ما
- * عدّله المدير فيها.
+ * - دور لم يُحرَّر من الشاشة (`customized_at` فارغ) يُعاد إلى البذرة في
+ *   كل نشر، فتصل تعديلات الكود — قدرة جديدة لمسؤول — إلى الإنتاج بالدمج.
+ * - دور حرّره أحد من شاشة الأدوار يملكه من حرّره: لا يُعاد اسمه ولا
+ *   قدراته ولا فريقه، وإلا صار كل نشر يمحو قرار المدير.
+ * - المدير العام استثناء (`CATALOG_BOUND_ROLE_SLUGS`): يُعاد إلى الكتالوج
+ *   كاملًا دائمًا، فتصله كل قدرة جديدة ولا يُنقَص بصمت.
  *
- * وكل تغيّر فعلي في قدرات دور قائم يُسجَّل في التدقيق: المزامنة تجري الآن
- * في كل نشر بلا إنسان يشغّلها، فالسجل هو الأثر الوحيد لسؤال «متى حصل
- * هذا الدور على هذه القدرة؟».
+ * وكل تغيّر فعلي في قدرات دور قائم يُسجَّل في التدقيق: المزامنة تجري في
+ * كل نشر بلا إنسان يشغّلها، فالسجل هو الأثر الوحيد لسؤال «متى حصل هذا
+ * الدور على هذه القدرة؟».
  */
-export async function seedRoles() {
+export async function seedRoles(officeIds: ReadonlyMap<string, string>) {
   const bySlug = new Map<string, string>()
 
   const before = new Map(
     (
       await db
-        .select({ slug: roles.slug, capabilities: roles.capabilities })
+        .select({
+          id: roles.id,
+          slug: roles.slug,
+          capabilities: roles.capabilities,
+          customizedAt: roles.customizedAt,
+        })
         .from(roles)
-    ).map((row) => [row.slug, row.capabilities]),
+    ).map((row) => [row.slug, row]),
   )
 
   for (const role of ROLE_SEEDS) {
@@ -120,7 +133,22 @@ export async function seedRoles() {
       )
     }
 
-    const previous = before.get(role.slug)
+    const officeId = role.officeSlug ? officeIds.get(role.officeSlug) : null
+
+    if (role.officeSlug && !officeId) {
+      throw new Error(
+        `Role "${role.slug}" references unknown office "${role.officeSlug}".`,
+      )
+    }
+
+    const existing = before.get(role.slug)
+
+    if (existing?.customizedAt && !CATALOG_BOUND_ROLE_SLUGS.includes(role.slug)) {
+      bySlug.set(role.slug, existing.id)
+      continue
+    }
+
+    const previous = existing?.capabilities
     const added = previous
       ? capabilities.filter((capability) => !previous.includes(capability))
       : []
@@ -139,6 +167,7 @@ export async function seedRoles() {
           nameEn: role.nameEn,
           descriptionAr: role.descriptionAr,
           scope: role.scope,
+          officeId: officeId ?? null,
           displayOrder: role.displayOrder,
           capabilities: [...capabilities],
           isSystem: true,
@@ -150,6 +179,7 @@ export async function seedRoles() {
             nameEn: role.nameEn,
             descriptionAr: role.descriptionAr,
             scope: role.scope,
+            officeId: officeId ?? null,
             displayOrder: role.displayOrder,
             capabilities: [...capabilities],
           },
@@ -197,7 +227,7 @@ export type SyncResult = Pick<SeedResult, 'officeIds' | 'roleIds' | 'reference'>
  */
 export async function syncSystemData(): Promise<SyncResult> {
   const officeIds = await seedOffices()
-  const roleIds = await seedRoles()
+  const roleIds = await seedRoles(officeIds)
   const reference = await seedReferenceData(officeIds)
 
   return { officeIds, roleIds, reference }

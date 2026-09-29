@@ -10,7 +10,12 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { createdAtOnly, timestamps, tsColumn, uuidColumn } from './columns.js'
-import { invitationStatus, membershipStatus, userKind } from './enums.js'
+import {
+  invitationStatus,
+  membershipStatus,
+  overrideEffect,
+  userKind,
+} from './enums.js'
 import { users } from './identity.js'
 import { offices, roles } from './org.js'
 import { partners } from './partners.js'
@@ -176,9 +181,41 @@ export const invitationOfficeRoles = pgTable(
   ],
 )
 
+/**
+ * استثناءات فردية على حزمة الدور، لكل عضوية على حدة: مساعد مدير الفريق
+ * يُنزع منه بعض ما يحمله دوره، أو عضو يُعطى قدرة واحدة دون دور أوسع.
+ *
+ * الاستثناء تعديل على منصب في فريق بعينه، لا على الشخص: يسقط مع العضوية
+ * (`cascade`)، ويُمسح حين يتغيّر دورها أو مكتبها.
+ */
+export const membershipCapabilityOverrides = pgTable(
+  'membership_capability_overrides',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    membershipId: uuidColumn('membership_id')
+      .notNull()
+      .references(() => memberships.id, { onDelete: 'cascade' }),
+    capability: varchar('capability', { length: 64 }).notNull(),
+    effect: overrideEffect('effect').notNull(),
+    createdById: uuidColumn('created_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    ...createdAtOnly,
+  },
+  (table) => [
+    // قدرة واحدة إما ممنوحة أو منزوعة في العضوية الواحدة، لا الاثنان.
+    uniqueIndex('membership_capability_overrides_unique').on(
+      table.membershipId,
+      table.capability,
+    ),
+  ],
+)
+
 export type Membership = typeof memberships.$inferSelect
 export type NewMembership = typeof memberships.$inferInsert
 export type Invitation = typeof invitations.$inferSelect
 export type NewInvitation = typeof invitations.$inferInsert
 export type InvitationOfficeRole = typeof invitationOfficeRoles.$inferSelect
 export type NewInvitationOfficeRole = typeof invitationOfficeRoles.$inferInsert
+export type MembershipCapabilityOverride =
+  typeof membershipCapabilityOverrides.$inferSelect

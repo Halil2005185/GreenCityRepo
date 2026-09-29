@@ -29,6 +29,11 @@ type AuthValue = {
   user: AuthUser | null;
   login: (email: string, password: string) => Promise<AuthUser>;
   logout: () => Promise<void>;
+  /**
+   * يعيد قراءة المستخدم من الخادم. القدرات تُحل على الخادم في كل طلب،
+   * فتعديل دور يحمله المستخدم نفسه يسري فورًا هناك، وهذا يلحق الواجهة به.
+   */
+  reload: () => Promise<void>;
   can: (capability: Capability) => boolean;
   canAny: (...capabilities: Capability[]) => boolean;
 };
@@ -96,6 +101,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const reload = useCallback(async () => {
+    setUser(await apiFetch<AuthUser>("/auth/me"));
+  }, []);
+
   const value = useMemo<AuthValue>(() => {
     const granted = new Set(user?.capabilities ?? []);
 
@@ -104,11 +113,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       user,
       login,
       logout,
+      reload,
       can: (capability) => granted.has(capability),
       canAny: (...capabilities) =>
         capabilities.some((capability) => granted.has(capability)),
     };
-  }, [status, user, login, logout]);
+  }, [status, user, login, logout, reload]);
 
   return <AuthContext value={value}>{children}</AuthContext>;
 }

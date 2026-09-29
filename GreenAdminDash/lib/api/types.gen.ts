@@ -4866,7 +4866,67 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        /**
+         * إنشاء دور فريق
+         * @description يتطلب roles.manage. كل قدرة في الحزمة — قبل التعديل وبعده — يجب أن يحملها المنفّذ، وتغيير أي قدرة إدارية (tier ADMIN) محصور بمن يحمل القدرات الإدارية كلها. أدوار الشريك ودور المدير العام لا تُحرَّر. الدور الجديد غير نظامي، ويمكن حذفه ما لم يُسنَد.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr: string;
+                        descriptionAr?: string | null;
+                        /** Format: uuid */
+                        officeId?: string | null;
+                        capabilities: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                    };
+                };
+            };
+            responses: {
+                /** @description أُنشئ الدور */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RoleIdResponse"];
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك roles.manage أو قدرة في الحزمة */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -4921,6 +4981,161 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/admin/roles/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * حذف دور لم يُسنَد
+         * @description يتطلب roles.manage. كل قدرة في الحزمة — قبل التعديل وبعده — يجب أن يحملها المنفّذ، وتغيير أي قدرة إدارية (tier ADMIN) محصور بمن يحمل القدرات الإدارية كلها. أدوار الشريك ودور المدير العام لا تُحرَّر. أدوار النظام لا تُحذف، والدور المُسنَد في أي عضوية أو دعوة لا يُحذف.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذف */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك roles.manage أو قدرة في الحزمة */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يوجد دور بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الدور مُسنَد */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description دور نظام أو دور شريك أو دور المدير العام */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * تحرير دور فريق
+         * @description يتطلب roles.manage. كل قدرة في الحزمة — قبل التعديل وبعده — يجب أن يحملها المنفّذ، وتغيير أي قدرة إدارية (tier ADMIN) محصور بمن يحمل القدرات الإدارية كلها. أدوار الشريك ودور المدير العام لا تُحرَّر. التحرير يغيّر صلاحيات كل من يحمل الدور، ويجعل المزامنة تتركه كما هو.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr?: string;
+                        descriptionAr?: string | null;
+                        /** Format: uuid */
+                        officeId?: string | null;
+                        capabilities?: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                    };
+                };
+            };
+            responses: {
+                /** @description حُرِّر الدور */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["RoleIdResponse"];
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك roles.manage أو قدرة في الحزمة */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يوجد دور بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة، أو دور شريك، أو دور المدير العام */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/partner/me": {
@@ -5907,7 +6122,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة users.view */
+                /** @description لا يملك users.view ولا team.manage */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5935,7 +6150,7 @@ export interface paths {
         };
         /**
          * ملف عضو الفريق
-         * @description يشمل العضويات المنتهية كتاريخ. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.
+         * @description يشمل العضويات المنتهية كتاريخ، ولكل عضوية حزمة دورها واستثناءاتها وقدراتها الفعلية. مدير الفريق بلا users.view يرى أعضاء فرقه وحدهم. المهام المسندة تُقرأ من `/admin/work?assigneeUserId=` بدل تكرارها هنا.
          */
         get: {
             parameters: {
@@ -5955,7 +6170,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            data: components["schemas"]["TeamMember"];
+                            data: components["schemas"]["TeamMemberDetail"];
                         };
                     };
                 };
@@ -5968,7 +6183,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة users.view */
+                /** @description لا يملك users.view ولا team.manage */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -5977,7 +6192,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يوجد عضو فريق بهذا المعرّف */
+                /** @description لا يوجد عضو فريق بهذا المعرّف ضمن نطاقك */
                 404: {
                     headers: {
                         [name: string]: unknown;
@@ -5996,6 +6211,156 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/people/candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * بحث عن زميل لضمّه إلى فريق
+         * @description الاسم والبريد وحدهما لأعضاء الفريق النشطين، عشرون نتيجة على الأكثر. لمدير الفريق الذي لا يرى الدليل كله.
+         */
+        get: {
+            parameters: {
+                query: {
+                    q: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المرشحون */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["TeamCandidate"][];
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يملك users.view ولا team.manage */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/people/{id}/memberships/{membershipId}/capabilities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * تخصيص صلاحيات عضوية
+         * @description يستبدل الاستثناءات الفردية كلها بما يُرسَل. `grants` قدرات تُضاف فوق حزمة الدور، و`revokes` قدرات تُنزع منها؛ ما لا أثر له يُهمل. يتطلب إدارة فريق العضوية، وكل قدرة يتغيّر وضعها يجب أن يستطيع المنفّذ تفويضها. لا يُنفَّذ على الحساب نفسه ولا على عضوية المدير العام.
+         */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    membershipId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        grants: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        revokes: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                    };
+                };
+            };
+            responses: {
+                /** @description القدرات الفعلية بعد الحفظ */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: {
+                                effective: string[];
+                            };
+                        };
+                    };
+                };
+                /** @description غير مصادق */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا يدير فريق العضوية، أو يغيّر قدرة لا يملك تفويضها، أو الحساب حسابه */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا توجد عضوية بهذا المعرّف */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة، أو العضوية منتهية، أو عضوية المدير العام */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/people/{id}/memberships": {
         parameters: {
             query?: never;
@@ -6007,7 +6372,7 @@ export interface paths {
         put?: never;
         /**
          * إضافة عضوية إضافية لعضو فريق قائم
-         * @description يتطلب roles.manage، ودورًا لا تتجاوز قدراته قدرات المنفّذ، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.
+         * @description يتطلب إدارة الفريق المقصود (`team.manage` فيه أو `team.all`)، ودورًا يستطيع المنفّذ تفويض قدراته فيه، ولا يُنفَّذ على الحساب نفسه. يضيف مكتبًا ودورًا جديدين للعضو دون إنهاء عضوياته الحالية؛ العضوية الجديدة غير رئيسية.
          */
         post: {
             parameters: {
@@ -6047,7 +6412,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه */
+                /** @description لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6106,7 +6471,7 @@ export interface paths {
         head?: never;
         /**
          * تعديل عضوية قائمة
-         * @description يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه. الدور الحالي والجديد كلاهما لا يتجاوز قدرات المنفّذ. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة؛ لا يمسّ عضويات أخرى ولا `isPrimary`.
+         * @description يتطلب إدارة فريق العضوية — والفريق الجديد إن نُقلت — ولا يُنفَّذ على الحساب نفسه. قدرات العضوية الفعلية والدور الجديد كلاهما مما يستطيع المنفّذ تفويضه. يغيّر المكتب أو الدور أو كليهما على عضوية نشطة، وتسقط معه استثناءاتها الفردية؛ لا يمسّ عضويات أخرى ولا `isPrimary`.
          */
         patch: {
             parameters: {
@@ -6147,7 +6512,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه */
+                /** @description لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6198,7 +6563,7 @@ export interface paths {
         put?: never;
         /**
          * إنهاء عضوية قائمة
-         * @description يتطلب roles.manage، ولا يُنفَّذ على الحساب نفسه ولا على عضوية بدور يتجاوز قدرات المنفّذ. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.
+         * @description يتطلب إدارة فريق العضوية، ولا يُنفَّذ على الحساب نفسه ولا على عضوية قدراتها الفعلية أوسع مما يستطيع المنفّذ تفويضه. يُنهي عضوية نشطة (سحب صلاحيتها)؛ لا يحذف سجلها.
          */
         post: {
             parameters: {
@@ -6228,7 +6593,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description لا يملك القدرة roles.manage، أو الدور يتجاوز قدراته، أو الحساب حسابه */
+                /** @description لا يدير الفريق، أو الدور أو العضوية تتجاوز ما يستطيع تفويضه، أو الحساب حسابه */
                 403: {
                     headers: {
                         [name: string]: unknown;
@@ -6661,6 +7026,8 @@ export interface components {
             roleSlug: string;
             roleNameAr: string;
             isPrimary: boolean;
+            /** @description قدرات هذه العضوية وحدها بعد الاستثناءات الفردية. القدرة المقيّدة بمكتب تسري في مكتب العضوية وأقسامه فقط. */
+            capabilities: string[];
         };
         /** @description الجهة التي يمثلها المستخدم. `null` لأعضاء الفريق. كل استعلامات البوابة تُقيَّد بهذا المعرّف على الخادم. */
         AuthPartner: {
@@ -7587,8 +7954,21 @@ export interface components {
             descriptionAr: string | null;
             /** @enum {string} */
             scope: "STAFF" | "PARTNER";
+            /**
+             * Format: uuid
+             * @description الفريق الذي ينتمي إليه المنصب؛ `null` دور عام يصلح لأي فريق.
+             */
+            officeId: string | null;
             capabilities: string[];
             isSystem: boolean;
+            /** @description حزمته الكتالوج كله (المدير العام): لا تُحرَّر ولا تُخصَّص عضوياته. */
+            isLocked: boolean;
+            /**
+             * Format: date-time
+             * @description آخر تحرير من شاشة الأدوار. ما دام `null` تعيده المزامنة إلى البذرة.
+             */
+            customizedAt: string | null;
+            activeMembers: number;
             displayOrder: number;
         };
         CapabilityDefinition: {
@@ -7597,6 +7977,19 @@ export interface components {
             group: string;
             /** @enum {string} */
             scope: "STAFF" | "PARTNER";
+            /** @description تسري في مكتب العضوية وأقسامه فقط، لا في المنظمة كلها. */
+            officeScoped?: boolean;
+            /**
+             * @description قدرة إدارية لا يمنحها ولا ينزعها إلا حامل roles.manage.
+             * @enum {string}
+             */
+            tier?: "ADMIN";
+        };
+        RoleIdResponse: {
+            data: {
+                /** Format: uuid */
+                id: string;
+            };
         };
         PartnerSelf: {
             /** Format: uuid */
@@ -7799,6 +8192,32 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
             memberships: components["schemas"]["TeamMembership"][];
+        };
+        CapabilityOverride: {
+            capability: string;
+            /** @enum {string} */
+            effect: "GRANT" | "REVOKE";
+        };
+        TeamMembershipDetail: components["schemas"]["TeamMembership"] & {
+            /** @description حزمة الدور كما هي، قبل الاستثناءات. */
+            roleCapabilities: string[];
+            overrides: components["schemas"]["CapabilityOverride"][];
+            /** @description حزمة الدور مع الممنوح وناقص المنزوع — ما يملكه فعلًا في هذا الفريق. */
+            effective: string[];
+            /** @description من منظور المستخدم الحالي: يستطيع تعديل هذه العضوية أو إنهاءها. نفس قرار مسارات الكتابة. */
+            canManage: boolean;
+            /** @description يستطيع تخصيص صلاحياتها؛ عضوية المدير العام لا تُخصَّص. */
+            canCustomize: boolean;
+        };
+        TeamMemberDetail: components["schemas"]["TeamMember"] & {
+            memberships?: components["schemas"]["TeamMembershipDetail"][];
+        };
+        TeamCandidate: {
+            /** Format: uuid */
+            id: string;
+            fullNameAr: string;
+            /** Format: email */
+            email: string;
         };
         AddMembershipResponse: {
             data: {
