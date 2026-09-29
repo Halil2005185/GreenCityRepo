@@ -15,6 +15,7 @@ export type CapabilityGroup =
   | 'media'
   | 'charter'
   | 'operations'
+  | 'field'
   | 'contributions'
   | 'impact'
   | 'documents'
@@ -120,6 +121,25 @@ export const CAPABILITY_CATALOG = [
   },
   { key: 'meetings.manage', nameAr: 'إدارة الاجتماعات ومحاضرها', group: 'operations', scope: 'STAFF' },
   { key: 'geo.manage', nameAr: 'إدارة المناطق الجغرافية', group: 'operations', scope: 'STAFF' },
+
+  // ── الميدان ──────────────────────────────────────────────────────────
+  //
+  // قدرتان لا واحدة: قائد المجموعة يسجّل من الموقع ما يخص مجموعته وحدها،
+  // والمنسّق يكوّن المجموعات ويسمّي قادتها. ولا تُشتقّان من `work.*` ولا
+  // `impact.*`: قائد متطوع من خارج الفريق يُدخل عدد الأشجار من موقعه، ولا
+  // يصير بذلك ممن يسجّلون قيود الأثر في اللوحة أو يديرون المهام.
+  {
+    key: 'field.lead',
+    nameAr: 'قيادة مجموعة ميدانية والتسجيل من موقعها',
+    group: 'field',
+    scope: 'STAFF',
+  },
+  {
+    key: 'field.manage',
+    nameAr: 'تكوين المجموعات الميدانية وتسمية قادتها',
+    group: 'field',
+    scope: 'STAFF',
+  },
 
   // ── المساهمات والأثر ─────────────────────────────────────────────────
   { key: 'contributions.view', nameAr: 'عرض مساهمات الشركاء', group: 'contributions', scope: 'STAFF' },

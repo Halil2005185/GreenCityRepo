@@ -177,6 +177,9 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'work.view',
       'work.manage',
       'work.approve',
+      // المنسّق يكوّن المجموعات، ويقود واحدة حين ينقص القادة يوم الحملة.
+      'field.manage',
+      'field.lead',
       'contributions.view',
       'contributions.manage',
       'contributions.verify',
@@ -188,6 +191,22 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'reports.view',
       'team.manage',
     ],
+  },
+  /**
+   * دور لمن يقود مجموعة في الميدان ولا عمل له في اللوحة: عضو من الفريق أو
+   * متطوع موثوق دُعي لهذا وحده. يرى المبادرة ومهامها ليفهم ورقة يومه،
+   * ولا يدير شيئًا خارج مجموعته — التطبيق الميداني يقصره على ما يقوده.
+   */
+  {
+    slug: 'FIELD_LEAD',
+    officeSlug: 'operations-execution',
+    nameAr: 'قائد مجموعة ميداني',
+    nameEn: 'Field Group Lead',
+    descriptionAr:
+      'يقود مجموعة متطوعين في موقع تنفيذ: يسجّل الحضور والأعداد والصور من التطبيق الميداني.',
+    scope: 'STAFF',
+    displayOrder: 35,
+    capabilities: ['field.lead', 'initiatives.view', 'work.view'],
   },
   {
     slug: 'ADMIN_FINANCE',
@@ -238,6 +257,8 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'reports.view',
       // يدعو المقبولين أعضاءً، وحزمة العضو فيها رفع الملفات: لا يُسند ما لا يحمل.
       'files.upload',
+      // وللسبب نفسه: قائد مجموعة من خارج الفريق يدخل بدعوة يرسلها هذا المكتب.
+      'field.lead',
       'team.manage',
     ],
   },

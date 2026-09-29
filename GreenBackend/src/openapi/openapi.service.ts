@@ -29,6 +29,12 @@ import '../modules/programs/programs.schemas.js'
 import '../modules/relations/relations.schemas.js'
 import '../modules/uploads/uploads.schemas.js'
 import '../modules/work/work.schemas.js'
+/**
+ * الميدان آخرًا لا في موضعه الأبجدي: يستورد مخططات المبادرات والمهام
+ * والمؤشرات، وترتيب التسجيل هو ترتيب العقد. لو سبقها لسُجّلت قبل وحداتها
+ * فانقلب ترتيب العقد كله، وصار كل تعديل عليه فرقًا بآلاف الأسطر.
+ */
+import '../modules/field/field.schemas.js'
 
 let cachedDocument: Record<string, unknown> | null = null
 
@@ -62,6 +68,7 @@ export function buildOpenApiDocument() {
       { name: 'Initiatives', description: 'المبادرات ومواقعها وأهدافها وبوابة بدء التنفيذ' },
       { name: 'Work', description: 'المراحل والمهام على أي نطاق' },
       { name: 'Impact', description: 'دفتر قيود الأثر والتقدم' },
+      { name: 'Field', description: 'التطبيق الميداني: المجموعات وورقة اليوم، وتكوينها من اللوحة' },
       { name: 'Map', description: 'خريطة سورية: الحملات والنقاط الخضراء' },
       { name: 'Partner Portal', description: 'ما يراه ممثل الجهة الشريكة عن جهته' },
       { name: 'Dashboard', description: 'ملخّص لوحة المكتب' },

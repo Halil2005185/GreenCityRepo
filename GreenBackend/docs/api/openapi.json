@@ -64,6 +64,10 @@
       "description": "دفتر قيود الأثر والتقدم"
     },
     {
+      "name": "Field",
+      "description": "التطبيق الميداني: المجموعات وورقة اليوم، وتكوينها من اللوحة"
+    },
+    {
       "name": "Map",
       "description": "خريطة سورية: الحملات والنقاط الخضراء"
     },
@@ -5503,6 +5507,581 @@
           "publicUrl",
           "expiresInSeconds"
         ]
+      },
+      "FieldGroup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteNameAr": {
+            "type": "string"
+          },
+          "siteStatus": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "leadUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "leadNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meetsAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "meetingPointAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instructionsAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "initiativeId",
+          "siteId",
+          "siteNameAr",
+          "siteStatus",
+          "nameAr",
+          "leadUserId",
+          "leadNameAr",
+          "meetsAt",
+          "meetingPointAr",
+          "instructionsAr",
+          "displayOrder",
+          "createdAt"
+        ]
+      },
+      "InitiativeField": {
+        "type": "object",
+        "properties": {
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldGroup"
+            }
+          }
+        },
+        "required": [
+          "initiativeId",
+          "groups"
+        ],
+        "description": "ميدان المبادرة كاملًا. كل مسار كتابة يعيده، فتتحدّث لوحة المنسّق بنداء واحد."
+      },
+      "FieldLeadCandidate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "roleNameAr": {
+            "type": "string"
+          },
+          "officeNameAr": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fullNameAr",
+          "roleNameAr",
+          "officeNameAr"
+        ],
+        "description": "عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم."
+      },
+      "FieldGroupCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "meetsAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "meetingPointAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initiativeNameAr": {
+            "type": "string"
+          },
+          "initiativeStatus": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PLANNING",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "siteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteNameAr": {
+            "type": "string"
+          },
+          "siteStatus": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "areaNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "taskCount": {
+            "type": "integer"
+          },
+          "openTaskCount": {
+            "type": "integer",
+            "description": "مهام الموقع التي لم تُنجز ولم تُلغَ."
+          }
+        },
+        "required": [
+          "id",
+          "nameAr",
+          "meetsAt",
+          "meetingPointAr",
+          "initiativeId",
+          "initiativeNameAr",
+          "initiativeStatus",
+          "siteId",
+          "siteNameAr",
+          "siteStatus",
+          "areaNameAr",
+          "taskCount",
+          "openTaskCount"
+        ]
+      },
+      "FieldHome": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "STAFF"
+            ]
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullNameAr": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "fullNameAr"
+            ]
+          },
+          "canLead": {
+            "type": "boolean"
+          },
+          "canManage": {
+            "type": "boolean"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldGroupCard"
+            },
+            "description": "المجموعات التي يقودها صاحب الجلسة، الأقرب موعدًا أولًا. مجموعات المبادرات الملغاة والمواقع الملغاة لا تظهر."
+          }
+        },
+        "required": [
+          "kind",
+          "user",
+          "canLead",
+          "canManage",
+          "groups"
+        ]
+      },
+      "FieldTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titleAr": {
+            "type": "string"
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "TODO",
+              "IN_PROGRESS",
+              "BLOCKED",
+              "IN_REVIEW",
+              "DONE",
+              "CANCELLED"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH",
+              "URGENT"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "SITE",
+              "INITIATIVE"
+            ],
+            "description": "`SITE` مهمة معلَّقة على موقع المجموعة. `INITIATIVE` مهمة على المبادرة أُسندت إلى قائد المجموعة نفسه."
+          },
+          "milestoneTitleAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dueAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "blockedReasonAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assigneeNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "commentCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "titleAr",
+          "descriptionAr",
+          "status",
+          "priority",
+          "scope",
+          "milestoneTitleAr",
+          "dueAt",
+          "isOverdue",
+          "blockedReasonAr",
+          "assigneeNameAr",
+          "commentCount"
+        ]
+      },
+      "FieldTarget": {
+        "type": "object",
+        "properties": {
+          "metricId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metricNameAr": {
+            "type": "string"
+          },
+          "unitAr": {
+            "type": "string"
+          },
+          "decimals": {
+            "type": "integer"
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "SUM",
+              "MAX",
+              "LATEST"
+            ]
+          },
+          "target": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "actual": {
+            "type": "number",
+            "description": "الموثَّق وحده."
+          },
+          "unverified": {
+            "type": "number",
+            "description": "ما أُدخل وينتظر تحقق المنسّق — ومنه ما يُدخل من الميدان."
+          }
+        },
+        "required": [
+          "metricId",
+          "metricNameAr",
+          "unitAr",
+          "decimals",
+          "aggregation",
+          "target",
+          "actual",
+          "unverified"
+        ]
+      },
+      "FieldSheet": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "meetsAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "meetingPointAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "instructionsAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "leadUserId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "leadNameAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "meetsAt",
+              "meetingPointAr",
+              "instructionsAr",
+              "leadUserId",
+              "leadNameAr"
+            ]
+          },
+          "initiative": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PLANNING",
+                  "ACTIVE",
+                  "COMPLETED",
+                  "CANCELLED"
+                ]
+              },
+              "acceptsEntries": {
+                "type": "boolean",
+                "description": "هل يُقبل تسجيل من الميدان الآن: المبادرة جارية، أو أُغلقت قريبًا فيُقبل ما التُقط قبل إغلاقها ووصل بعده."
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "status",
+              "acceptsEntries"
+            ]
+          },
+          "site": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "descriptionAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PLANNED",
+                  "IN_PROGRESS",
+                  "COMPLETED",
+                  "CANCELLED"
+                ]
+              },
+              "areaNameAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lng": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "descriptionAr",
+              "status",
+              "areaNameAr",
+              "lat",
+              "lng"
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldTask"
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldTarget"
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "وقت الخادم عند بناء الورقة. التطبيق يحفظها ويعرضها بلا شبكة، وهذا ما يقوله عن عمرها."
+          }
+        },
+        "required": [
+          "group",
+          "initiative",
+          "site",
+          "tasks",
+          "targets",
+          "generatedAt"
+        ],
+        "description": "ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز."
       }
     },
     "parameters": {}
@@ -12745,6 +13324,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -12946,6 +13527,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -14803,6 +15386,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -14856,6 +15441,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -15740,6 +16327,487 @@
           },
           "422": {
             "description": "نوع أو حجم غير مسموح، أو التخزين غير مهيّأ",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/me": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "هويتي ومجموعاتي",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الهوية والمجموعات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldHome"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "بلا جلسة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "الحساب ليس من الفريق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "ورقة يوم المجموعة",
+        "description": "لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ورقة اليوم",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldSheet"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "ميدان المبادرة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المجموعات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك `field.manage`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/lead-candidates": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "من يصلح قائدًا لمجموعة",
+        "description": "الأعضاء النشطون الحاملون `field.lead` بعد الاستثناءات الفردية. مسار خاص لأن المنسّق لا يحمل بالضرورة `users.view`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المرشحون",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldLeadCandidate"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/groups": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إضافة مجموعة ميدانية",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "siteId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "leadUserId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "meetsAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "meetingPointAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  },
+                  "instructionsAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 4000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999
+                  }
+                },
+                "required": [
+                  "siteId",
+                  "nameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيفت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "في الموقع مجموعة بالاسم نفسه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/groups/{groupId}": {
+      "patch": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تعديل مجموعة أو تسمية قائدها",
+        "description": "`leadUserId: null` يترك المجموعة بلا قائد.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "siteId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "leadUserId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "meetsAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "meetingPointAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  },
+                  "instructionsAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 4000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "في الموقع مجموعة بالاسم نفسه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "حذف مجموعة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "حُذفت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة في هذه المبادرة",
             "content": {
               "application/problem+json": {
                 "schema": {

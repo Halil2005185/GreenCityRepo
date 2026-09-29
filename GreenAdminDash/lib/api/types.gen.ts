@@ -4884,7 +4884,7 @@ export interface paths {
                         descriptionAr?: string | null;
                         /** Format: uuid */
                         officeId?: string | null;
-                        capabilities: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        capabilities: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
                     };
                 };
             };
@@ -5084,7 +5084,7 @@ export interface paths {
                         descriptionAr?: string | null;
                         /** Format: uuid */
                         officeId?: string | null;
-                        capabilities?: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        capabilities?: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
                     };
                 };
             };
@@ -6297,8 +6297,8 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        grants: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
-                        revokes: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        grants: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        revokes: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
                     };
                 };
             };
@@ -6982,6 +6982,387 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/field/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** هويتي ومجموعاتي */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الهوية والمجموعات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldHome"];
+                    };
+                };
+                /** @description بلا جلسة */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الحساب ليس من الفريق */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * ورقة يوم المجموعة
+         * @description لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description ورقة اليوم */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldSheet"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ميدان المبادرة */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المجموعات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InitiativeField"];
+                    };
+                };
+                /** @description لا يملك `field.manage` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/lead-candidates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * من يصلح قائدًا لمجموعة
+         * @description الأعضاء النشطون الحاملون `field.lead` بعد الاستثناءات الفردية. مسار خاص لأن المنسّق لا يحمل بالضرورة `users.view`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المرشحون */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldLeadCandidate"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/groups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** إضافة مجموعة ميدانية */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        siteId: string;
+                        nameAr: string;
+                        /** Format: uuid */
+                        leadUserId?: string | null;
+                        /** Format: date-time */
+                        meetsAt?: string | null;
+                        meetingPointAr?: string | null;
+                        instructionsAr?: string | null;
+                        displayOrder?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيفت */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InitiativeField"];
+                    };
+                };
+                /** @description في الموقع مجموعة بالاسم نفسه */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/groups/{groupId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** حذف مجموعة */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذفت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InitiativeField"];
+                    };
+                };
+                /** @description المجموعة غير موجودة في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * تعديل مجموعة أو تسمية قائدها
+         * @description `leadUserId: null` يترك المجموعة بلا قائد.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        siteId?: string;
+                        nameAr?: string;
+                        /** Format: uuid */
+                        leadUserId?: string | null;
+                        /** Format: date-time */
+                        meetsAt?: string | null;
+                        meetingPointAr?: string | null;
+                        instructionsAr?: string | null;
+                        displayOrder?: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InitiativeField"];
+                    };
+                };
+                /** @description المجموعة غير موجودة في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description في الموقع مجموعة بالاسم نفسه */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
 }
@@ -8249,6 +8630,155 @@ export interface components {
             uploadUrl: string;
             publicUrl: string;
             expiresInSeconds: number;
+        };
+        FieldGroup: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            initiativeId: string;
+            /** Format: uuid */
+            siteId: string;
+            siteNameAr: string;
+            /** @enum {string} */
+            siteStatus: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+            nameAr: string;
+            /** Format: uuid */
+            leadUserId: string | null;
+            leadNameAr: string | null;
+            /** Format: date-time */
+            meetsAt: string | null;
+            meetingPointAr: string | null;
+            instructionsAr: string | null;
+            displayOrder: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description ميدان المبادرة كاملًا. كل مسار كتابة يعيده، فتتحدّث لوحة المنسّق بنداء واحد. */
+        InitiativeField: {
+            /** Format: uuid */
+            initiativeId: string;
+            groups: components["schemas"]["FieldGroup"][];
+        };
+        /** @description عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم. */
+        FieldLeadCandidate: {
+            /** Format: uuid */
+            id: string;
+            fullNameAr: string;
+            roleNameAr: string;
+            officeNameAr: string;
+        };
+        FieldGroupCard: {
+            /** Format: uuid */
+            id: string;
+            nameAr: string;
+            /** Format: date-time */
+            meetsAt: string | null;
+            meetingPointAr: string | null;
+            /** Format: uuid */
+            initiativeId: string;
+            initiativeNameAr: string;
+            /** @enum {string} */
+            initiativeStatus: "DRAFT" | "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+            /** Format: uuid */
+            siteId: string;
+            siteNameAr: string;
+            /** @enum {string} */
+            siteStatus: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+            areaNameAr: string | null;
+            taskCount: number;
+            /** @description مهام الموقع التي لم تُنجز ولم تُلغَ. */
+            openTaskCount: number;
+        };
+        FieldHome: {
+            /** @enum {string} */
+            kind: "STAFF";
+            user: {
+                /** Format: uuid */
+                id: string;
+                fullNameAr: string;
+            };
+            canLead: boolean;
+            canManage: boolean;
+            /** @description المجموعات التي يقودها صاحب الجلسة، الأقرب موعدًا أولًا. مجموعات المبادرات الملغاة والمواقع الملغاة لا تظهر. */
+            groups: components["schemas"]["FieldGroupCard"][];
+        };
+        FieldTask: {
+            /** Format: uuid */
+            id: string;
+            titleAr: string;
+            descriptionAr: string | null;
+            /** @enum {string} */
+            status: "TODO" | "IN_PROGRESS" | "BLOCKED" | "IN_REVIEW" | "DONE" | "CANCELLED";
+            /** @enum {string} */
+            priority: "LOW" | "NORMAL" | "HIGH" | "URGENT";
+            /**
+             * @description `SITE` مهمة معلَّقة على موقع المجموعة. `INITIATIVE` مهمة على المبادرة أُسندت إلى قائد المجموعة نفسه.
+             * @enum {string}
+             */
+            scope: "SITE" | "INITIATIVE";
+            milestoneTitleAr: string | null;
+            /** Format: date-time */
+            dueAt: string | null;
+            isOverdue: boolean;
+            blockedReasonAr: string | null;
+            assigneeNameAr: string | null;
+            commentCount: number;
+        };
+        FieldTarget: {
+            /** Format: uuid */
+            metricId: string;
+            metricNameAr: string;
+            unitAr: string;
+            decimals: number;
+            /** @enum {string} */
+            aggregation: "SUM" | "MAX" | "LATEST";
+            target: number | null;
+            /** @description الموثَّق وحده. */
+            actual: number;
+            /** @description ما أُدخل وينتظر تحقق المنسّق — ومنه ما يُدخل من الميدان. */
+            unverified: number;
+        };
+        /** @description ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز. */
+        FieldSheet: {
+            group: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+                /** Format: date-time */
+                meetsAt: string | null;
+                meetingPointAr: string | null;
+                instructionsAr: string | null;
+                /** Format: uuid */
+                leadUserId: string | null;
+                leadNameAr: string | null;
+            };
+            initiative: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+                /** @enum {string} */
+                status: "DRAFT" | "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+                /** @description هل يُقبل تسجيل من الميدان الآن: المبادرة جارية، أو أُغلقت قريبًا فيُقبل ما التُقط قبل إغلاقها ووصل بعده. */
+                acceptsEntries: boolean;
+            };
+            site: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+                descriptionAr: string | null;
+                /** @enum {string} */
+                status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+                areaNameAr: string | null;
+                lat: number | null;
+                lng: number | null;
+            };
+            tasks: components["schemas"]["FieldTask"][];
+            targets: components["schemas"]["FieldTarget"][];
+            /**
+             * Format: date-time
+             * @description وقت الخادم عند بناء الورقة. التطبيق يحفظها ويعرضها بلا شبكة، وهذا ما يقوله عن عمرها.
+             */
+            generatedAt: string;
         };
     };
     responses: never;

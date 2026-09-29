@@ -1,0 +1,196 @@
+"use client";
+
+import { CalendarCheck, UserRound } from "lucide-react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+import { ConnectionBadge } from "@/components/field/connection-badge";
+import { InstallBanner } from "@/components/field/install-banner";
+import { BrandLockup } from "@/components/layout/logo";
+import { FIELD_APP_NAME, FIELD_ROUTES } from "@/lib/field/config";
+import { useCurrentGroup } from "@/lib/field/current-group";
+import { formatDay } from "@/lib/field/labels";
+import { useFieldHome } from "@/lib/field/queries";
+import { useFieldSession } from "@/lib/field/session";
+import { cn } from "@/lib/utils";
+
+const TABS = [
+  { href: FIELD_ROUTES.home, label: "اليوم", icon: CalendarCheck },
+  { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
+] as const;
+
+const TITLES: Record<string, string> = {
+  [FIELD_ROUTES.me]: "أنا",
+  [FIELD_ROUTES.login]: "تسجيل الدخول",
+  [FIELD_ROUTES.offline]: "بلا اتصال",
+};
+
+/** عرض الهاتف حتى على الحاسوب: التطبيق للجوال وحده، ولا تخطيط عريض له. */
+const COLUMN = "mx-auto w-full max-w-[30rem] px-4";
+
+/**
+ * قشرتا التطبيق في صفحة واحدة، والمتصفح يعرض إحداهما.
+ *
+ * كلتاهما تُرسمان على الخادم، و`app:` يختار بينهما في CSS: في المتصفح رأس
+ * الموقع بشعاره وروابط داخل الصفحة، ومن الأيقونة المثبّتة شريط مرسوم باسم
+ * المجموعة وشريط تبويب سفلي. لا تبديل في JavaScript، فلا وميض بين التصميمين.
+ *
+ * `data-field-app` على الجذر هو ما يفتح رموز وضع التطبيق في `globals.css`.
+ */
+export function FieldChrome({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { status } = useFieldSession();
+
+  // صفحة الدخول بلا تبويبات: لا شيء يُنتقل إليه قبل الدخول.
+  const showTabs = status === "authenticated" || status === "offline";
+
+  return (
+    <div data-field-app className="flex min-h-dvh flex-col bg-background">
+      <BrowserHeader pathname={pathname} showTabs={showTabs} />
+      <AppHeader pathname={pathname} />
+
+      <InstallBanner />
+
+      <main
+        id="main"
+        className={cn(
+          COLUMN,
+          "flex-1 py-6",
+          // يُفسح لشريط التبويب الثابت وما تحته من حافة الجهاز.
+          showTabs && "app:pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
+        )}
+      >
+        {children}
+      </main>
+
+      {showTabs ? <TabBar pathname={pathname} /> : null}
+    </div>
+  );
+}
+
+const isActive = (pathname: string, href: string) =>
+  pathname === href || pathname.startsWith(`${href}/`);
+
+function BrowserHeader({
+  pathname,
+  showTabs,
+}: {
+  pathname: string;
+  showTabs: boolean;
+}) {
+  return (
+    <header className="app:hidden border-b border-border bg-background">
+      <div className={cn(COLUMN, "flex items-center justify-between gap-3 py-4")}>
+        {/* الشعار يعيد إلى الموقع: هذا وضعه، والتطبيق صفحة منه. */}
+        <Link
+          href="/"
+          className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          <BrandLockup />
+        </Link>
+
+        <span className="rounded-full bg-surface-strong px-3 py-1 text-xs font-medium text-accent-ink">
+          التطبيق الميداني
+        </span>
+      </div>
+
+      {showTabs ? (
+        <nav aria-label="أقسام التطبيق" className={cn(COLUMN, "flex gap-1 pb-3")}>
+          {TABS.map((tab) => (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={isActive(pathname, tab.href) ? "page" : undefined}
+              className={cn(
+                "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                isActive(pathname, tab.href)
+                  ? "bg-accent-ink text-background"
+                  : "text-muted-foreground hover:bg-accent hover:text-foreground",
+              )}
+            >
+              {tab.label}
+            </Link>
+          ))}
+        </nav>
+      ) : null}
+    </header>
+  );
+}
+
+/**
+ * رأس التطبيق: شريط أخضر عميق يقول أين أنت وهل أنت متصل.
+ *
+ * لون صلب بلا لوحة مرسومة: صور الموقع تمرّ بمحسِّن الصور ولا تُحفظ مع
+ * القشرة، ورأسٌ تغيب خلفيته بلا شبكة أسوأ من رأس بلا لوحة.
+ */
+function AppHeader({ pathname }: { pathname: string }) {
+  const home = useFieldHome();
+  const { current } = useCurrentGroup(home.data?.groups);
+
+  const onHome = isActive(pathname, FIELD_ROUTES.home);
+  const group = onHome ? current : null;
+
+  const title = group?.nameAr ?? TITLES[pathname] ?? "اليوم";
+  const subtitle = group
+    ? [group.siteNameAr, group.meetsAt ? formatDay(group.meetsAt) : null]
+        .filter(Boolean)
+        .join(" · ")
+    : FIELD_APP_NAME;
+
+  return (
+    <header className="on-painted sticky top-0 z-40 hidden rounded-b-3xl bg-background pt-[env(safe-area-inset-top)] shadow-sm app:block">
+      <div className={cn(COLUMN, "flex items-start justify-between gap-3 py-4")}>
+        <div className="min-w-0 space-y-1">
+          <h1 className="truncate text-xl font-bold leading-snug text-foreground">
+            {title}
+          </h1>
+          {/* بيجٌ كامل لا مخفَّف: قاعدة الشريط المرسوم في `globals.css`. */}
+          <p className="truncate text-sm text-foreground">{subtitle}</p>
+        </div>
+
+        <ConnectionBadge className="mt-1" />
+      </div>
+    </header>
+  );
+}
+
+function TabBar({ pathname }: { pathname: string }) {
+  return (
+    <nav
+      aria-label="تبويبات التطبيق"
+      className="fixed inset-x-0 bottom-0 z-40 hidden border-t border-border bg-card pb-[env(safe-area-inset-bottom)] app:block"
+    >
+      <ul className={cn(COLUMN, "flex items-stretch justify-around gap-1 py-2")}>
+        {TABS.map((tab) => {
+          const active = isActive(pathname, tab.href);
+
+          return (
+            <li key={tab.href} className="flex-1">
+              <Link
+                href={tab.href}
+                aria-current={active ? "page" : undefined}
+                className={cn(
+                  // هدف لمس بارتفاع 56px: يُضغط بإبهام وقفّاز.
+                  "flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl text-xs font-semibold transition-colors",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  active ? "text-accent-ink" : "text-muted-foreground",
+                )}
+              >
+                <span
+                  className={cn(
+                    "inline-flex h-8 w-14 items-center justify-center rounded-full transition-colors",
+                    active && "bg-primary text-primary-foreground",
+                  )}
+                >
+                  <tab.icon className="size-5" aria-hidden />
+                </span>
+                {tab.label}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </nav>
+  );
+}

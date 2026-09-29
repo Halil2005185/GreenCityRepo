@@ -42,6 +42,9 @@ export const CAPABILITIES = {
   workManage: "work.manage",
   workApprove: "work.approve",
 
+  fieldLead: "field.lead",
+  fieldManage: "field.manage",
+
   contributionsView: "contributions.view",
   contributionsVerify: "contributions.verify",
   contributionsValueView: "contributions.value.view",
