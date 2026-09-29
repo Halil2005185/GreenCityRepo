@@ -2,7 +2,9 @@
 
 import {
   CalendarClock,
+  ChevronLeft,
   CircleCheck,
+  ClipboardCheck,
   CloudOff,
   ExternalLink,
   ImageOff,
@@ -15,10 +17,13 @@ import {
   UserRound,
   Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import Link from "next/link";
+import { useQueryClient } from "@tanstack/react-query";
+import { useId, useMemo, useState } from "react";
 
 import { Announcements } from "@/components/field/announcements";
 import { Button, buttonVariants } from "@/components/field/button";
+import { INPUT_CLASS } from "@/components/field/form";
 import {
   FieldCard as Card,
   FieldNotice,
@@ -30,14 +35,17 @@ import {
   type FieldCardMembership,
   OfflineError,
 } from "@/lib/field/api";
+import { FIELD_ROUTES } from "@/lib/field/config";
+import { chooseGroup } from "@/lib/field/current-group";
 import { formatAge, formatDay, formatTime } from "@/lib/field/labels";
 import { mapsUrl, staticMapUrl } from "@/lib/field/map";
 import { enqueue, useOutbox } from "@/lib/field/outbox";
 import { overlayCard } from "@/lib/field/overlay";
-import { useFieldCard } from "@/lib/field/queries";
+import { fieldKeys, useFieldCard } from "@/lib/field/queries";
+import { submitSelfCheckin } from "@/lib/field/self-checkin";
 import { useFieldSession, useOnline } from "@/lib/field/session";
-import { dialable } from "@/lib/field/text";
-import { attempt } from "@/lib/field/toast";
+import { dialable, latinDigits } from "@/lib/field/text";
+import { attempt, notify } from "@/lib/field/toast";
 import { cn, formatNumber } from "@/lib/utils";
 
 /**
@@ -196,10 +204,15 @@ function Membership({
   const { group, site } = membership;
   const cancelled = site.status === "CANCELLED";
   const attended = membership.attendedOn.length > 0;
+  const here = membership.attendedOn.includes(today);
   const hasPlace = site.lat !== null && site.lng !== null;
 
   return (
     <div className="space-y-4">
+      {membership.role === "ASSISTANT" && !cancelled ? (
+        <AssistantDoor groupId={group.id} groupNameAr={group.nameAr} />
+      ) : null}
+
       <Card>
         <p className="text-xs font-medium text-muted-foreground">
           {group.nameAr}
@@ -287,6 +300,14 @@ function Membership({
 
       {open && !cancelled && !attended ? (
         <Rsvp membership={membership} />
+      ) : null}
+
+      {open && !cancelled ? (
+        <SelfCheckin
+          groupId={group.id}
+          groupNameAr={group.nameAr}
+          present={here}
+        />
       ) : null}
 
       {attended ? (
@@ -454,6 +475,190 @@ function Rsvp({ membership }: { membership: FieldCardMembership }) {
           </div>
         </>
       )}
+    </Card>
+  );
+}
+
+/**
+ * مساعد القائد: المنسّق سمّاه مساعدًا في هذه المجموعة، فيسجّل حضورها من
+ * هاتفه برابطه — عند نقطة اللقاء يدان أسرع من يد.
+ */
+function AssistantDoor({
+  groupId,
+  groupNameAr,
+}: {
+  groupId: string;
+  groupNameAr: string;
+}) {
+  return (
+    <Link
+      href={FIELD_ROUTES.attendance}
+      // التبويب يتبع المجموعة المختارة؛ من يساعد في مجموعتين يدخل هذه.
+      onClick={() => chooseGroup(groupId)}
+      className="flex items-center gap-3 rounded-xl border border-accent-ink/25 bg-card p-4 shadow-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-accent-ink/10 text-accent-ink">
+        <ClipboardCheck className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-base font-bold text-foreground">
+          أنت مساعد القائد
+        </span>
+        <span className="block text-sm leading-relaxed text-foreground">
+          سجّل حضور {groupNameAr} من هاتفك.
+        </span>
+      </span>
+      <ChevronLeft
+        className="size-5 shrink-0 text-muted-foreground"
+        aria-hidden
+      />
+    </Link>
+  );
+}
+
+/**
+ * «وصلت»: المتطوع يكتب الرمز الظاهر على هاتف قائده فيُسجَّل حضوره، بلا أن
+ * يقف في طابور عند القائد.
+ *
+ * مطويٌّ حتى يُطلب: قبل يوم الحملة لا رمز يُكتب، وحقل فارغ في رأس البطاقة
+ * يسأل سؤالًا لا جواب له بعد.
+ */
+function SelfCheckin({
+  groupId,
+  groupNameAr,
+  present,
+}: {
+  groupId: string;
+  groupNameAr: string;
+  /** حاضر اليوم — بيد قائده، أو برمزٍ كتبه ولو لم يُرسَل بعد. */
+  present: boolean;
+}) {
+  const id = useId();
+  const queryClient = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [refused, setRefused] = useState<string | null>(null);
+
+  const digits = latinDigits(code).replace(/[^0-9]/g, "").slice(0, 6);
+
+  // حاضر: لا شيء يُسجَّل.
+  if (present) return null;
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+
+    if (digits.length !== 6) {
+      setRefused("الرمز ستة أرقام.");
+
+      return;
+    }
+
+    setBusy(true);
+    setRefused(null);
+
+    try {
+      const outcome = await submitSelfCheckin({
+        groupId,
+        groupNameAr,
+        code: digits,
+      });
+
+      if (outcome.state === "refused") {
+        setRefused(outcome.message);
+
+        return;
+      }
+
+      if (outcome.state === "recorded") {
+        queryClient.setQueryData(fieldKeys.card, outcome.card);
+      }
+
+      setCode("");
+      setOpen(false);
+      notify(
+        outcome.state === "recorded"
+          ? "سُجّل حضورك. أهلًا بك."
+          : "حُفظ رمزك على هاتفك، ويُرسَل حين تعود الشبكة.",
+      );
+    } catch (error) {
+      console.error("[field] تعذّر تسجيل الحضور:", error);
+      setRefused("تعذّر حفظ الرمز على هذا الجهاز. حاول مرة أخرى.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (!open) {
+    return (
+      <Button
+        variant="outline"
+        size="lg"
+        className="w-full"
+        onClick={() => setOpen(true)}
+      >
+        <ClipboardCheck aria-hidden />
+        وصلتُ — أسجّل حضوري
+      </Button>
+    );
+  }
+
+  return (
+    <Card title="سجّل حضورك">
+      <form onSubmit={(event) => void submit(event)} className="space-y-3">
+        <label
+          htmlFor={id}
+          className="block text-sm leading-relaxed text-foreground"
+        >
+          اكتب الرمز الظاهر على هاتف قائد مجموعتك. يتبدّل كل دقيقة.
+        </label>
+        <input
+          id={id}
+          dir="ltr"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          enterKeyHint="done"
+          autoFocus
+          value={digits}
+          onChange={(event) => {
+            setCode(event.target.value);
+            setRefused(null);
+          }}
+          aria-invalid={refused !== null}
+          aria-describedby={refused ? `${id}-error` : undefined}
+          placeholder="000000"
+          className={cn(
+            INPUT_CLASS,
+            "numeric h-14 text-center text-2xl font-bold tracking-[0.3em]",
+          )}
+        />
+        {refused ? (
+          <p
+            id={`${id}-error`}
+            role="alert"
+            className="text-sm leading-relaxed text-destructive"
+          >
+            {refused}
+          </p>
+        ) : null}
+        <div className="grid grid-cols-2 gap-3">
+          <Button type="submit" size="lg" disabled={busy}>
+            {busy ? "…لحظة" : "سجّل حضوري"}
+          </Button>
+          <Button
+            type="button"
+            size="lg"
+            variant="ghost"
+            disabled={busy}
+            onClick={() => {
+              setOpen(false);
+              setRefused(null);
+            }}
+          >
+            ليس الآن
+          </Button>
+        </div>
+      </form>
     </Card>
   );
 }

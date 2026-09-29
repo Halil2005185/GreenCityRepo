@@ -38,12 +38,16 @@ export function useFieldCard() {
   });
 }
 
+/**
+ * ورقة المجموعة لقائدها ولمساعده. المساعد حامل رابط، ومجموعاته تأتي من
+ * بطاقته؛ والخادم يردّ من ليس مساعدًا فيها.
+ */
 export function useFieldSheet(groupId: string | null) {
-  const canRead = useCanRead();
+  const kind = useSessionKind();
 
   return useQuery({
     queryKey: fieldKeys.sheet(groupId ?? "none"),
     queryFn: ({ signal }) => getFieldSheet(groupId!, signal),
-    enabled: canRead && groupId !== null,
+    enabled: kind !== null && groupId !== null,
   });
 }

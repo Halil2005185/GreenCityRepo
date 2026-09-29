@@ -13,8 +13,13 @@ import {
 } from "./api";
 import { fieldDb } from "./db";
 import { damascusDay } from "./labels";
-import type { OutboxDraft, OutboxItem, PhotoItem } from "./outbox-types";
-import { applyItem, applyRsvp, forDay, isCurrentShape } from "./overlay";
+import {
+  type OutboxDraft,
+  type OutboxItem,
+  type PhotoItem,
+  isCardItem,
+} from "./outbox-types";
+import { applyCardItem, applyItem, forDay, isCurrentShape } from "./overlay";
 import { fieldKeys } from "./queries";
 
 export type OutboxState = {
@@ -269,6 +274,16 @@ function send(item: OutboxItem) {
         body: item.payload,
       });
 
+    case "self-checkin":
+      return fieldFetch("/field/me/checkin", {
+        method: "POST",
+        body: {
+          clientId: item.clientId,
+          groupId: item.groupId,
+          ...item.payload,
+        },
+      });
+
     case "attendance":
       return fieldFetch(`${group}/attendance`, {
         method: "POST",
@@ -333,7 +348,7 @@ function send(item: OutboxItem) {
  * ما يُعاد من تلقائه: الخادم مشغول أو متعثّر، أو رابط الرفع انتهى عمره.
  * وما عداه رفضٌ لن يتغيّر بالتكرار — بيانات لا تُقبل، أو مجموعة لم تعد له.
  */
-function isTransient(error: FieldApiError) {
+export function isTransient(error: FieldApiError) {
   return (
     error.status === 408 ||
     error.status === 425 ||
@@ -443,9 +458,9 @@ async function drain(current: NonNullable<typeof engine>) {
        * الأثر يُثبَّت في الورقة المحفوظة قبل أن يخرج الفعل من الطابور، فلا
        * تمرّ لحظة تختفي فيها علامة الحضور بين الإرسال وجواب الخادم.
        */
-      if (item.kind === "rsvp") {
+      if (isCardItem(item)) {
         current.queryClient.setQueryData<FieldCard>(fieldKeys.card, (card) =>
-          card ? applyRsvp(card, item) : card,
+          card ? applyCardItem(card, item) : card,
         );
         cardTouched = true;
       } else {

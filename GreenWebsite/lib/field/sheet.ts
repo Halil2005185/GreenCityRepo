@@ -2,14 +2,21 @@
 
 import { useMemo, useSyncExternalStore } from "react";
 
-import type { FieldSheet, FieldTarget, FieldTask } from "./api";
+import type {
+  FieldCard,
+  FieldGroupCard,
+  FieldSheet,
+  FieldTarget,
+  FieldTask,
+} from "./api";
 import { useCurrentGroup } from "./current-group";
 import { damascusDay } from "./labels";
 import { discard, enqueue, useOutbox } from "./outbox";
 import { clientIdOf } from "./outbox-types";
 import { isCurrentShape, overlay } from "./overlay";
 import { type PhotoLocation, PHOTO_CONTENT_TYPE } from "./photos";
-import { useFieldHome, useFieldSheet } from "./queries";
+import { useFieldCard, useFieldHome, useFieldSheet } from "./queries";
+import { useSessionKind } from "./session";
 
 type Member = FieldSheet["members"][number];
 
@@ -38,6 +45,54 @@ export function useToday() {
 }
 
 /**
+ * المجموعات التي يساعد المتطوع قائدها، بشكل مجموعات القائد: التبويب نفسه
+ * يعرضها، ولا يعرف من أين جاءت. أعدادها أصفار — البطاقة لا تحملها، والورقة
+ * تأتي بها.
+ */
+function assistedGroups(card: FieldCard | undefined) {
+  return card?.memberships
+    .filter(
+      (membership) =>
+        membership.role === "ASSISTANT" &&
+        membership.site.status !== "CANCELLED",
+    )
+    .map(
+      (membership): FieldGroupCard => ({
+        id: membership.group.id,
+        nameAr: membership.group.nameAr,
+        meetsAt: membership.group.meetsAt,
+        meetingPointAr: membership.group.meetingPointAr,
+        initiativeId: card.initiative.id,
+        initiativeNameAr: card.initiative.nameAr,
+        initiativeStatus: card.initiative.status,
+        siteId: membership.site.id,
+        siteNameAr: membership.site.nameAr,
+        siteStatus: membership.site.status,
+        areaNameAr: membership.site.areaNameAr,
+        taskCount: 0,
+        openTaskCount: 0,
+        memberCount: 0,
+        presentToday: 0,
+      }),
+    );
+}
+
+/**
+ * مجموعات صاحب الجلسة: ما يقوده عضو الفريق، أو ما يساعد فيه المتطوع.
+ * `source` الاستعلام الذي جاءت منه — حاله حال القائمة.
+ */
+export function useMyGroups() {
+  const kind = useSessionKind();
+  const home = useFieldHome();
+  const card = useFieldCard();
+  const assisted = useMemo(() => assistedGroups(card.data), [card.data]);
+
+  return kind === "PARTICIPANT"
+    ? { kind, source: card, groups: assisted }
+    : { kind, source: home, groups: home.data?.groups };
+}
+
+/**
  * ورقة المجموعة الحالية كما تُعرض: ورقة الخادم وعليها ما ينتظر الإرسال.
  *
  * تبويبات التطبيق كلها تقرأ من هنا، فالحضور الذي سُجّل بلا شبكة يظهر في
@@ -45,7 +100,8 @@ export function useToday() {
  */
 export function useGroupSheet() {
   const home = useFieldHome();
-  const { current, select } = useCurrentGroup(home.data?.groups);
+  const mine = useMyGroups();
+  const { current, select } = useCurrentGroup(mine.groups);
   const query = useFieldSheet(current?.id ?? null);
   const outbox = useOutbox();
   const today = useToday();
@@ -58,7 +114,16 @@ export function useGroupSheet() {
     [query.data, outbox.items, today],
   );
 
-  return { home, group: current, select, query, sheet, outbox };
+  return {
+    home,
+    source: mine.source,
+    groups: mine.groups,
+    group: current,
+    select,
+    query,
+    sheet,
+    outbox,
+  };
 }
 
 const now = () => new Date().toISOString();

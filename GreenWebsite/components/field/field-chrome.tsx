@@ -20,8 +20,8 @@ import {
 } from "@/lib/field/config";
 import { useCurrentGroup } from "@/lib/field/current-group";
 import { formatDay } from "@/lib/field/labels";
-import { useFieldHome } from "@/lib/field/queries";
 import { useFieldSession, useSessionKind } from "@/lib/field/session";
+import { useMyGroups } from "@/lib/field/sheet";
 import { cn } from "@/lib/utils";
 
 const LEAD_TABS = [
@@ -37,13 +37,25 @@ const VOLUNTEER_TABS = [
   { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
 ] as const;
 
-type Tab = (typeof LEAD_TABS | typeof VOLUNTEER_TABS)[number];
+/** مساعد القائد متطوع يسجّل حضور مجموعته: بطاقته، والحضور، وما يخصّه. */
+const ASSISTANT_TABS = [
+  { href: FIELD_ROUTES.home, label: "بطاقتي", icon: IdCard },
+  { href: FIELD_ROUTES.attendance, label: "الحضور", icon: Users },
+  { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
+] as const;
+
+type Tab = (
+  | typeof LEAD_TABS
+  | typeof VOLUNTEER_TABS
+  | typeof ASSISTANT_TABS
+)[number];
 
 const TITLES: Record<string, string> = {
   [FIELD_ROUTES.attendance]: "الحضور",
   [FIELD_ROUTES.photos]: "الصور",
   [FIELD_ROUTES.me]: "أنا",
   [FIELD_ROUTES.link]: "بطاقتي",
+  [FIELD_ROUTES.checkin]: "تسجيل الحضور",
   [FIELD_ROUTES.login]: "تسجيل الدخول",
   [FIELD_ROUTES.offline]: "بلا اتصال",
 };
@@ -71,11 +83,16 @@ export function FieldChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { status } = useFieldSession();
   const kind = useSessionKind();
+  const { groups } = useMyGroups();
 
   // صفحة الدخول بلا تبويبات: لا شيء يُنتقل إليه قبل الدخول.
   const showTabs = kind !== null;
   const tabs: readonly Tab[] =
-    kind === "PARTICIPANT" ? VOLUNTEER_TABS : LEAD_TABS;
+    kind !== "PARTICIPANT"
+      ? LEAD_TABS
+      : groups && groups.length > 0
+        ? ASSISTANT_TABS
+        : VOLUNTEER_TABS;
 
   return (
     <div data-field-app className="flex min-h-dvh flex-col bg-background">
@@ -183,8 +200,8 @@ function AppHeader({
   volunteer: boolean;
 }) {
   const { identity } = useFieldSession();
-  const home = useFieldHome();
-  const { current } = useCurrentGroup(home.data?.groups);
+  const { groups } = useMyGroups();
+  const { current } = useCurrentGroup(groups);
 
   /**
    * بلا جلسة لا مجموعة في الرأس، ولو بقيت ورقتها في المحفوظ: من انتهت جلسته
@@ -209,7 +226,8 @@ function AppHeader({
     : volunteer && onHome
       ? "بطاقتي"
       : ((onHome ? group?.nameAr : TITLES[pathname]) ?? "اليوم");
-  const subtitle = volunteer && identity?.kind === "PARTICIPANT"
+  // المساعد في «الحضور» يرى أي مجموعة يسجّل لها؛ وفي غيره مبادرة بطاقته.
+  const subtitle = volunteer && identity?.kind === "PARTICIPANT" && (onHome || !group)
     ? identity.initiativeNameAr
     : !group
     ? FIELD_APP_NAME

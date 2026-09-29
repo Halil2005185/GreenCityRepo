@@ -22,6 +22,8 @@ export const FIELD_ROUTES = {
   me: "/app/me",
   /** مدخل الرابط الشخصي للمتطوع؛ الرمز في جزء العنوان بعده. */
   link: "/app/link",
+  /** ما يفتحه الرمز المربّع عند نقطة اللقاء؛ المجموعة ورمزها في جزء العنوان. */
+  checkin: "/app/checkin",
   login: "/app/login",
   offline: "/app/offline",
 } as const;
@@ -35,8 +37,9 @@ export const FIELD_APP_SHORT_NAME = "الميدان";
  *
  * 2: ورقة اليوم صارت تحمل الأعضاء والصور ويومها وما يُسمح به.
  * 3: الورقة والبطاقة تحملان إعلانات المنسّق.
+ * 4: الورقة تحمل رمز الحضور الذاتي، وما يُسمح به لمساعد القائد.
  */
-export const FIELD_DATA_VERSION = "3";
+export const FIELD_DATA_VERSION = "4";
 
 /** ورقة اليوم تبقى مقروءة بلا شبكة أسبوعًا من آخر جلب. */
 export const FIELD_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

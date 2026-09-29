@@ -279,11 +279,20 @@ describe.runIf(ready)('personal links', () => {
     }).expect(200)
     const token = tokenOf((response.body.links as IssuedLink[])[0]!.url)
 
-    await getSheet(token, groupId).expect(403)
+    /**
+     * الورقة والحضور يفتحهما مساعد القائد برابطه، فمن ليس مساعدًا يأخذ جواب
+     * «غير موجودة» كقائد يسأل عن مجموعة غيره. وما عداهما للفريق وحده.
+     */
+    await getSheet(token, groupId).expect(404)
 
     await fieldPost(token, `/groups/${groupId}/attendance`, {
       clientId: newClientId(),
       participantId: heba.participantId,
+    }).expect(404)
+
+    await fieldPost(token, `/groups/${groupId}/photos/sign`, {
+      contentType: 'image/jpeg',
+      size: 1000,
     }).expect(403)
 
     await fieldPost(stage.lead.token, '/me/rsvp', {

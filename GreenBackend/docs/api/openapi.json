@@ -6167,11 +6167,37 @@
               "canApproveTasks": {
                 "type": "boolean",
                 "description": "من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة."
+              },
+              "attendanceOnly": {
+                "type": "boolean",
+                "description": "ورقة مساعد القائد: حضور وحده. المهام والأعداد والصور فارغة فيها، والهواتف محجوبة."
               }
             },
             "required": [
-              "canApproveTasks"
+              "canApproveTasks",
+              "attendanceOnly"
             ]
+          },
+          "checkin": {
+            "type": "object",
+            "properties": {
+              "secret": {
+                "type": "string",
+                "description": "سرّ رمز الحضور الذاتي، ست‌عشري. منه يحسب الهاتف الرمز بلا شبكة. لا يُعرض."
+              },
+              "periodSeconds": {
+                "type": "integer"
+              },
+              "digits": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "secret",
+              "periodSeconds",
+              "digits"
+            ],
+            "description": "رمز الحضور الذاتي: HOTP على SHA-256، عدّاده الوقت مقسومًا على `periodSeconds`."
           },
           "announcements": {
             "type": "array",
@@ -6220,6 +6246,7 @@
           "site",
           "day",
           "permissions",
+          "checkin",
           "announcements",
           "tasks",
           "targets",
@@ -18240,13 +18267,124 @@
         }
       }
     },
+    "/api/field/me/checkin": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تسجيل المتطوع حضورَه برمز قائده",
+        "description": "لحامل الرابط الشخصي، في مجموعة هو عضو فيها. الرمز يتبدّل كل دقيقة ويُقبل دقيقتين قبل وقت كتابته وبعده. آمن التكرار.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية."
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[0-9]{6}$",
+                    "description": "الرمز الظاهر على هاتف قائد المجموعة."
+                  },
+                  "scannedAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "وقت كتابة الرمز على الهاتف. من كتبه بلا شبكة يُرسَل طلبه لاحقًا، والرمز يُفحص على وقت كتابته."
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "groupId",
+                  "code"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّل حضوره",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldCard"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "المسار لحامل رابط شخصي",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "ليس عضوًا في هذه المجموعة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "الرمز غير صحيح أو انتهى وقته",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "محاولات كثيرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/field/groups/{id}": {
       "get": {
         "tags": [
           "Field"
         ],
         "summary": "ورقة يوم المجموعة",
-        "description": "لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.",
+        "description": "لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`، ولمساعد قائدها برابطه الشخصي — وورقته حضور وحده. مجموعة ليست لك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.",
         "security": [
           {
             "bearerAuth": []
@@ -18293,7 +18431,7 @@
           "Field"
         ],
         "summary": "تسجيل حضور",
-        "description": "آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.",
+        "description": "للقائد ولمساعده. آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.",
         "security": [
           {
             "bearerAuth": []
@@ -18406,7 +18544,7 @@
           "Field"
         ],
         "summary": "التراجع عن حضور",
-        "description": "بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.",
+        "description": "للقائد ولمساعده. بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.",
         "security": [
           {
             "bearerAuth": []

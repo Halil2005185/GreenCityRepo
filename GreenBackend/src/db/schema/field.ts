@@ -120,6 +120,13 @@ export const fieldGroups = pgTable(
     instructionsAr: text('instructions_ar'),
     displayOrder: integer('display_order').default(0).notNull(),
 
+    /**
+     * سرّ رمز الحضور الذاتي: منه يحسب هاتف القائد رمزًا يتبدّل كل دقيقة،
+     * بلا شبكة، ويتحقق الخادم منه حين يكتبه المتطوع. يُولَّد عند أول فتح
+     * لورقة المجموعة، ولا يخرج إلا إلى قائدها ومساعديه.
+     */
+    checkinSecret: varchar('checkin_secret', { length: 64 }),
+
     ...timestamps,
   },
   (table) => [
@@ -261,6 +268,13 @@ export const attendance = pgTable(
     checkedInById: uuidColumn('checked_in_by_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    /**
+     * من سجّله حين يكون مشاركًا لا عضو فريق: مساعد القائد، أو المتطوع نفسه
+     * برمز الحضور. واحد من العمودين على الأكثر.
+     */
+    checkedInByParticipantId: uuidColumn(
+      'checked_in_by_participant_id',
+    ).references(() => participants.id, { onDelete: 'set null' }),
     method: attendanceMethod('method').notNull(),
 
     /** معرّف المُرسِل: نقرة أُعيد إرسالها بعد انقطاع لا تصير حضورين. */
@@ -270,10 +284,19 @@ export const attendance = pgTable(
     undoneById: uuidColumn('undone_by_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    undoneByParticipantId: uuidColumn('undone_by_participant_id').references(
+      () => participants.id,
+      { onDelete: 'set null' },
+    ),
 
     ...createdAtOnly,
   },
   (table) => [
+    check(
+      'attendance_single_recorder',
+      sql`num_nonnulls(${table.checkedInById},
+                       ${table.checkedInByParticipantId}) <= 1`,
+    ),
     uniqueIndex('attendance_client_unique')
       .on(table.clientId)
       .where(sql`${table.clientId} is not null`),

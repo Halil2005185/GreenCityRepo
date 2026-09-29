@@ -87,6 +87,22 @@ export const linkRedeemRateLimit = buildLimiter({
 })
 
 /**
+ * محاولات رمز الحضور — على المشارك لا على العنوان: متطوعو المجموعة كلهم
+ * يكتبون رموزهم من شبكة واحدة عند نقطة اللقاء.
+ *
+ * الرمز ستة أرقام تُقبل منها خمسة في أي لحظة؛ ثلاثون محاولة في ربع ساعة
+ * تسع من يخطئ في الكتابة، ولا تسع من يجرّب الأرقام.
+ */
+export const selfCheckinRateLimit = buildLimiter({
+  windowMs: 15 * 60_000,
+  limit: 30,
+  keyGenerator: (request) =>
+    request.field?.kind === 'PARTICIPANT'
+      ? `checkin:${request.field.participantId}`
+      : ipKeyGenerator(request.ip ?? ''),
+})
+
+/**
  * كتابات التطبيق الميداني — على الحساب لا على العنوان.
  *
  * قادة موقع واحد على شبكة جوال واحدة يخرجون من عنوان واحد، فحدٌّ على العنوان

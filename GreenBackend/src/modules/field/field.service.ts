@@ -26,7 +26,12 @@ import { workItems } from '../../db/schema/work.js'
 import { loadScopeProgress } from '../impact/impact.service.js'
 import { listTasks } from '../work/work.service.js'
 import { loadAnnouncements } from './field-announcements.service.js'
-import type { StaffPrincipal } from './field-auth.js'
+import type { FieldPrincipal, StaffPrincipal } from './field-auth.js'
+import {
+  CHECKIN_DIGITS,
+  CHECKIN_PERIOD_SECONDS,
+  ensureCheckinSecret,
+} from './field-checkin.service.js'
 import {
   DAY_MS,
   acceptsEntries,
@@ -320,31 +325,44 @@ async function loadGroupPhotos(groupId: string) {
 /**
  * ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من
  * الجهاز. كل ما تحتاجه تبويبات التطبيق هنا، فلا تبويب ينتظر الشبكة.
+ *
+ * **ورقة المساعد ورقة حضور وحده.** مساعد القائد متطوع برابطه، ينوب عن القائد
+ * في عدّ من وصل: يأخذ الأسماء بلا هواتفها، ولا مهام ولا أعداد ولا صور. ما
+ * لا يُعرض لا يُرسَل — لا يُخفى في الواجهة ويبقى في الجواب.
  */
-export async function loadSheet(groupId: string, principal: StaffPrincipal) {
+export async function loadSheet(groupId: string, principal: FieldPrincipal) {
   const { group, leadNameAr, initiative, site, areaNameAr } =
     await requireAccessibleGroup(groupId, principal)
 
   const day = damascusDay(new Date())
+  const staff = principal.kind === 'STAFF' ? principal : null
 
-  const [tasks, targets, members, gallery, announcements] = await Promise.all([
-    loadSheetTasks(
-      {
-        siteId: site.id,
+  const [tasks, targets, roster, gallery, announcements, secret] =
+    await Promise.all([
+      staff
+        ? loadSheetTasks(
+            {
+              siteId: site.id,
+              initiativeId: initiative.id,
+              leadUserId: group.leadUserId,
+            },
+            staff,
+          )
+        : [],
+      staff ? loadSheetTargets(site.id, initiative.id) : [],
+      loadMembers(group.id, day),
+      staff ? loadGroupPhotos(group.id) : { photos: [], photoCount: 0 },
+      loadAnnouncements({
         initiativeId: initiative.id,
-        leadUserId: group.leadUserId,
-      },
-      principal,
-    ),
-    loadSheetTargets(site.id, initiative.id),
-    loadMembers(group.id, day),
-    loadGroupPhotos(group.id),
-    loadAnnouncements({
-      initiativeId: initiative.id,
-      groupIds: [group.id],
-      reader: 'LEADS',
-    }),
-  ])
+        groupIds: [group.id],
+        reader: staff ? 'LEADS' : 'VOLUNTEERS',
+      }),
+      ensureCheckinSecret(group),
+    ])
+
+  const members = staff
+    ? roster
+    : roster.map((member) => ({ ...member, phone: null }))
 
   return {
     group: {
@@ -377,7 +395,14 @@ export async function loadSheet(groupId: string, principal: StaffPrincipal) {
        * من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للاعتماد.
        * التطبيق يعرض الفعل الذي سيقع فعلًا، لا فعلًا يُرفض بعد النقر.
        */
-      canApproveTasks: principal.auth.capabilities.includes('work.approve'),
+      canApproveTasks:
+        staff?.auth.capabilities.includes('work.approve') ?? false,
+      attendanceOnly: staff === null,
+    },
+    checkin: {
+      secret,
+      periodSeconds: CHECKIN_PERIOD_SECONDS,
+      digits: CHECKIN_DIGITS,
     },
     announcements,
     tasks,

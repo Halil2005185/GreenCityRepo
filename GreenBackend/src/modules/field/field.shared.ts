@@ -1,13 +1,13 @@
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import { alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
 import { db } from '../../db/client.js'
-import { fieldGroups } from '../../db/schema/field.js'
+import { fieldGroupMembers, fieldGroups } from '../../db/schema/field.js'
 import { areas } from '../../db/schema/geo.js'
 import { users } from '../../db/schema/identity.js'
 import { initiativeSites, initiatives } from '../../db/schema/programs.js'
-import type { StaffPrincipal } from './field-auth.js'
+import type { FieldPrincipal } from './field-auth.js'
 
 export const DAY_MS = 86_400_000
 
@@ -79,17 +79,8 @@ export function clientMoment(value: string | undefined, now = new Date()) {
   return moment.getTime() > now.getTime() ? now : moment
 }
 
-/**
- * المجموعة كما يراها مبدأ بعينه، أو 404.
- *
- * «ليست لك» و«غير موجودة» جواب واحد: قائد يجرّب معرّفات لا يعرف منها أي
- * مجموعات قائمة. وكل مسار ميداني يمرّ من هنا، قراءةً وكتابةً، فلا يبقى
- * مسار نسي أن يسأل «أهي مجموعته؟».
- */
-export async function requireAccessibleGroup(
-  groupId: string,
-  principal: StaffPrincipal,
-) {
+/** المجموعة بمبادرتها وموقعها، بلا سؤال عمّن يطلبها. */
+export async function loadGroupContext(groupId: string) {
   const [row] = await db
     .select({
       group: fieldGroups,
@@ -106,31 +97,81 @@ export async function requireAccessibleGroup(
     .where(eq(fieldGroups.id, groupId))
     .limit(1)
 
-  const { auth } = principal
+  return row ?? null
+}
+
+export type AccessibleGroup = NonNullable<
+  Awaited<ReturnType<typeof loadGroupContext>>
+>
+
+/**
+ * مساعد القائد: مشارك برابطه، سمّاه المنسّق مساعدًا في **هذه** المجموعة.
+ * عضو عادي فيها لا يفتح ورقتها، ومساعد في غيرها لا يفتح هذه.
+ */
+async function isAssistant(
+  group: AccessibleGroup['group'],
+  principal: Extract<FieldPrincipal, { kind: 'PARTICIPANT' }>,
+) {
+  if (group.initiativeId !== principal.initiativeId) return false
+
+  const [member] = await db
+    .select({ id: fieldGroupMembers.id })
+    .from(fieldGroupMembers)
+    .where(
+      and(
+        eq(fieldGroupMembers.groupId, group.id),
+        eq(fieldGroupMembers.participantId, principal.participantId),
+        eq(fieldGroupMembers.role, 'ASSISTANT'),
+      ),
+    )
+    .limit(1)
+
+  return member !== undefined
+}
+
+/**
+ * المجموعة كما يراها مبدأ بعينه، أو 404.
+ *
+ * «ليست لك» و«غير موجودة» جواب واحد: قائد يجرّب معرّفات لا يعرف منها أي
+ * مجموعات قائمة. وكل مسار ميداني يمرّ من هنا، قراءةً وكتابةً، فلا يبقى
+ * مسار نسي أن يسأل «أهي مجموعته؟».
+ *
+ * ثلاثة يفتحونها: قائدها، ومن يدير الميدان، ومساعد قائدها. المسارات التي
+ * لا تجوز للمساعد — الأعداد والمهام والصور — يحرسها `requireFieldStaff`
+ * قبل أن تصل إلى هنا.
+ */
+export async function requireAccessibleGroup(
+  groupId: string,
+  principal: FieldPrincipal,
+) {
+  const row = await loadGroupContext(groupId)
+
+  if (!row) throw errors.notFound('المجموعة غير موجودة.')
 
   const allowed =
-    row !== undefined &&
-    (auth.capabilities.includes('field.manage') ||
-      (auth.capabilities.includes('field.lead') &&
-        row.group.leadUserId === auth.userId))
+    principal.kind === 'STAFF'
+      ? principal.auth.capabilities.includes('field.manage') ||
+        (principal.auth.capabilities.includes('field.lead') &&
+          row.group.leadUserId === principal.userId)
+      : await isAssistant(row.group, principal)
 
-  if (!row || !allowed) throw errors.notFound('المجموعة غير موجودة.')
+  if (!allowed) throw errors.notFound('المجموعة غير موجودة.')
 
   return row
 }
 
-export type AccessibleGroup = Awaited<ReturnType<typeof requireAccessibleGroup>>
-
 /**
- * بوابة الكتابة الميدانية: المجموعة له، والمبادرة تقبل تسجيلًا، والموقع
- * قائم. الرسالة تقول للقائد ما يفعله لا ما فشل.
+ * من يُنسب إليه ما يُسجَّل: عضو فريق بحسابه، أو مشارك برابطه. عمودان لا عمود
+ * واحد: كلٌّ مفتاح إلى جدوله، فلا يبقى حضور منسوبًا إلى معرّف لا يُعرف لمن.
  */
-export async function requireWritableGroup(
-  groupId: string,
-  principal: StaffPrincipal,
-) {
-  const row = await requireAccessibleGroup(groupId, principal)
+export function recorderOf(principal: FieldPrincipal) {
+  return principal.kind === 'STAFF'
+    ? { userId: principal.userId, participantId: null }
+    : { userId: null, participantId: principal.participantId }
+}
 
+/** هل تقبل المجموعة تسجيلًا الآن؟ الرسالة تقول ما يُفعل لا ما فشل. */
+export function assertWritable(row: AccessibleGroup) {
   if (!acceptsEntries(row.initiative)) {
     throw errors.conflict(
       row.initiative.status === 'DRAFT' || row.initiative.status === 'PLANNING'
@@ -144,4 +185,15 @@ export async function requireWritableGroup(
   }
 
   return row
+}
+
+/**
+ * بوابة الكتابة الميدانية: المجموعة له، والمبادرة تقبل تسجيلًا، والموقع
+ * قائم.
+ */
+export async function requireWritableGroup(
+  groupId: string,
+  principal: FieldPrincipal,
+) {
+  return assertWritable(await requireAccessibleGroup(groupId, principal))
 }

@@ -7346,6 +7346,109 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/field/me/checkin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل المتطوع حضورَه برمز قائده
+         * @description لحامل الرابط الشخصي، في مجموعة هو عضو فيها. الرمز يتبدّل كل دقيقة ويُقبل دقيقتين قبل وقت كتابته وبعده. آمن التكرار.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية.
+                         */
+                        clientId: string;
+                        /** Format: uuid */
+                        groupId: string;
+                        /** @description الرمز الظاهر على هاتف قائد المجموعة. */
+                        code: string;
+                        /**
+                         * Format: date-time
+                         * @description وقت كتابة الرمز على الهاتف. من كتبه بلا شبكة يُرسَل طلبه لاحقًا، والرمز يُفحص على وقت كتابته.
+                         */
+                        scannedAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل حضوره */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description ليس عضوًا في هذه المجموعة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الرمز غير صحيح أو انتهى وقته */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description محاولات كثيرة */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/field/groups/{id}": {
         parameters: {
             query?: never;
@@ -7355,7 +7458,7 @@ export interface paths {
         };
         /**
          * ورقة يوم المجموعة
-         * @description لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.
+         * @description لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`، ولمساعد قائدها برابطه الشخصي — وورقته حضور وحده. مجموعة ليست لك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.
          */
         get: {
             parameters: {
@@ -7407,7 +7510,7 @@ export interface paths {
         put?: never;
         /**
          * تسجيل حضور
-         * @description آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.
+         * @description للقائد ولمساعده. آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.
          */
         post: {
             parameters: {
@@ -7497,7 +7600,7 @@ export interface paths {
         put?: never;
         /**
          * التراجع عن حضور
-         * @description بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.
+         * @description للقائد ولمساعده. بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.
          */
         post: {
             parameters: {
@@ -10816,6 +10919,15 @@ export interface components {
             permissions: {
                 /** @description من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة. */
                 canApproveTasks: boolean;
+                /** @description ورقة مساعد القائد: حضور وحده. المهام والأعداد والصور فارغة فيها، والهواتف محجوبة. */
+                attendanceOnly: boolean;
+            };
+            /** @description رمز الحضور الذاتي: HOTP على SHA-256، عدّاده الوقت مقسومًا على `periodSeconds`. */
+            checkin: {
+                /** @description سرّ رمز الحضور الذاتي، ست‌عشري. منه يحسب الهاتف الرمز بلا شبكة. لا يُعرض. */
+                secret: string;
+                periodSeconds: number;
+                digits: number;
             };
             /** @description أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر. */
             announcements: components["schemas"]["FieldAnnouncement"][];

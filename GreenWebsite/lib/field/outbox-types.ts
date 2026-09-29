@@ -99,11 +99,27 @@ export type RsvpItem = Base & {
   payload: { memberId: string; coming: boolean };
 };
 
-/** ما يسجّله القائد على ورقة مجموعته. */
-export type SheetItem = Exclude<OutboxItem, RsvpItem>;
+/**
+ * تسجيل المتطوع حضورَه برمز قائده. وقت كتابة الرمز يُحفظ معه: من كتبه بلا
+ * شبكة يُرسَل طلبه لاحقًا، والخادم يفحص الرمز على وقت كتابته.
+ */
+export type SelfCheckinItem = Base & {
+  kind: "self-checkin";
+  payload: { code: string; scannedAt: string };
+};
+
+/** ما يسجّله المتطوع على بطاقته. */
+export type CardItem = RsvpItem | SelfCheckinItem;
+
+/** ما يسجّله القائد — أو مساعده — على ورقة مجموعته. */
+export type SheetItem = Exclude<OutboxItem, CardItem>;
+
+export const isCardItem = (item: OutboxItem): item is CardItem =>
+  item.kind === "rsvp" || item.kind === "self-checkin";
 
 export type OutboxItem =
   | RsvpItem
+  | SelfCheckinItem
   | AttendanceItem
   | WalkInItem
   | UndoItem

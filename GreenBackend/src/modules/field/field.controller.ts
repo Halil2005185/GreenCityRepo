@@ -12,6 +12,7 @@ import {
 } from './field-auth.js'
 import * as capture from './field-capture.service.js'
 import * as card from './field-card.service.js'
+import * as checkin from './field-checkin.service.js'
 import * as links from './field-links.service.js'
 import * as push from './field-push.service.js'
 import * as service from './field.service.js'
@@ -45,7 +46,7 @@ export const getHome: RequestHandler = async (request, response) => {
 export const getSheet: RequestHandler = async (request, response) => {
   const sheet = await service.loadSheet(
     readId(request),
-    staffPrincipal(request),
+    fieldPrincipal(request),
   )
 
   response.status(200).json(sheet)
@@ -99,6 +100,16 @@ export const postPushUnsubscribe: RequestHandler = async (
   response.status(200).json(state)
 }
 
+export const postSelfCheckin: RequestHandler = async (request, response) => {
+  const updated = await checkin.selfCheckIn(
+    participantPrincipal(request),
+    request.body as dto.SelfCheckinBody,
+    requestTrace(request),
+  )
+
+  response.status(200).json(updated)
+}
+
 // ── التطبيق: الكتابة ───────────────────────────────────────────────────
 //
 // كلها تردّ 200 لا 201: الطلب المُعاد بعد انقطاع يعيد ما كُتب أول مرة، فلا
@@ -108,7 +119,7 @@ export const postAttendance: RequestHandler = async (request, response) => {
   const recorded = await capture.recordAttendance(
     readId(request),
     request.body as dto.AttendanceBody,
-    staffPrincipal(request),
+    fieldPrincipal(request),
     requestTrace(request),
   )
 
@@ -119,7 +130,7 @@ export const postAttendanceUndo: RequestHandler = async (request, response) => {
   const undone = await capture.undoAttendance(
     readId(request),
     request.body as dto.UndoAttendanceBody,
-    staffPrincipal(request),
+    fieldPrincipal(request),
     requestTrace(request),
   )
 

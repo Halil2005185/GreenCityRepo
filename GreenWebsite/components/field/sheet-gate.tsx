@@ -47,34 +47,44 @@ export type SheetView = {
 export function SheetGate({
   title,
   heading,
+  assistants = false,
   children,
 }: {
   /** عنوان التبويب في وضع المتصفح؛ في التطبيق يحمله الشريط المرسوم. */
   title: string;
   /** عنوان غير اسم التبويب متى عُرفت المجموعة — «اليوم» يحمل اسمها. */
   heading?: (group: FieldGroupCard) => { title: string; description: string };
+  /** التبويب مفتوح لمساعد القائد: «الحضور» وحده. */
+  assistants?: boolean;
   children: (view: SheetView) => React.ReactNode;
 }) {
   const router = useRouter();
   const { status, identity } = useFieldSession();
   const online = useOnline();
-  const { home, group, select, query, sheet } = useGroupSheet();
+  const { home, source, groups, group, select, query, sheet } = useGroupSheet();
 
-  // تبويبات المجموعة للقائد. حامل رابط شخصي فتح عنوانها يعود إلى بطاقته.
   const volunteer =
     identity?.kind === "PARTICIPANT" &&
     (status === "authenticated" || status === "offline");
 
-  useEffect(() => {
-    if (volunteer) router.replace(FIELD_ROUTES.home);
-  }, [volunteer, router]);
+  /**
+   * تبويبات المجموعة للقائد، و«الحضور» لمساعده أيضًا. حامل رابط شخصي فتح
+   * عنوانًا ليس له يعود إلى بطاقته: تبويبًا للقائد وحده، أو «الحضور» وهو
+   * ليس مساعدًا في مجموعة.
+   */
+  const misplaced =
+    volunteer && (!assistants || (groups !== undefined && groups.length === 0));
 
-  if (status === "loading" || volunteer) return <FieldSkeleton />;
+  useEffect(() => {
+    if (misplaced) router.replace(FIELD_ROUTES.home);
+  }, [misplaced, router]);
+
+  if (status === "loading" || misplaced) return <FieldSkeleton />;
 
   if (status === "anonymous") return <Welcome />;
 
-  if (!home.data) {
-    if (home.isError) return <HomeError error={home.error} />;
+  if (!source.data) {
+    if (source.isError) return <HomeError error={source.error} />;
 
     return (
       <>
@@ -88,6 +98,9 @@ export function SheetGate({
   }
 
   if (!group) {
+    // المساعد بلا مجموعة أُعيد إلى بطاقته أعلاه؛ من يصل هنا عضو فريق.
+    if (!home.data) return <FieldSkeleton />;
+
     const { canLead, canManage, user } = home.data;
 
     return (
@@ -119,9 +132,9 @@ export function SheetGate({
         })}
       />
 
-      {home.data.groups.length > 1 ? (
+      {groups && groups.length > 1 ? (
         <GroupSwitcher
-          groups={home.data.groups}
+          groups={groups}
           currentId={group.id}
           onSelect={select}
         />
@@ -135,7 +148,7 @@ export function SheetGate({
             sheet.initiative.acceptsEntries && sheet.site.status !== "CANCELLED",
           // من الجهاز متى تعذّر سؤال الخادم، بأي وجه عُرف ذلك.
           stale:
-            query.isError || home.isError || !online || status === "offline",
+            query.isError || source.isError || !online || status === "offline",
           refreshing: query.isFetching,
           refresh: () => void query.refetch(),
         })
@@ -221,7 +234,7 @@ function SheetError({ error }: { error: Error }) {
       title={gone ? "هذه المجموعة لم تعد لك" : "تعذّر تحميل ورقة اليوم"}
       description={
         gone
-          ? "أعفاك المنسّق من قيادتها أو حُذفت. حدّث الصفحة لترى مجموعاتك."
+          ? "أعفاك المنسّق منها أو حُذفت. حدّث الصفحة لترى مجموعاتك."
           : error.message
       }
     />

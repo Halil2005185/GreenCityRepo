@@ -9,6 +9,7 @@ import {
 import {
   fieldWriteRateLimit,
   linkRedeemRateLimit,
+  selfCheckinRateLimit,
 } from '../../common/middleware/rate-limit.js'
 import { validate } from '../../common/middleware/validate.js'
 import * as adminSchemas from './field-admin.schemas.js'
@@ -28,7 +29,8 @@ import * as schemas from './field.schemas.js'
  * باسم قدرة على مسار. كل كتابة تمرّ من `requireWritableGroup`.
  *
  * مبدآن يدخلان من هنا: عضو الفريق وحامل الرابط الشخصي. `/me` لهما معًا،
- * وما تحت `/groups` و`/tasks` للفريق، وما تحت `/me/…` لحامل الرابط.
+ * وما تحت `/me/…` لحامل الرابط. وورقة المجموعة وحضورها للقائد ولمساعده —
+ * والمساعد حامل رابط — وما عداهما تحت `/groups` و`/tasks` للفريق وحده.
  */
 export const fieldRouter = Router()
 
@@ -55,6 +57,14 @@ fieldRouter.post(
   controller.postRsvp,
 )
 
+fieldRouter.post(
+  '/me/checkin',
+  requireFieldParticipant,
+  selfCheckinRateLimit,
+  validate({ body: schemas.selfCheckinBodySchema }),
+  controller.postSelfCheckin,
+)
+
 // الإشعارات للمبدأين: القائد يشترك بحسابه، والمتطوع برابطه.
 fieldRouter.get('/push/key', controller.getPushKey)
 
@@ -72,17 +82,19 @@ fieldRouter.post(
   controller.postPushUnsubscribe,
 )
 
-// كل ما بعدها للفريق: حارس واحد على البادئة يرثه أي مسار يُضاف تحتها.
-fieldRouter.use(['/groups', '/tasks'], requireFieldStaff)
-
-fieldRouter.get(
-  '/groups/:id',
-  validate({ params: schemas.groupIdParamsSchema }),
-  controller.getSheet,
-)
-
 const group = schemas.groupIdParamsSchema
 const task = schemas.taskIdParamsSchema
+
+/**
+ * الورقة والحضور قبل حارس الفريق: يدخلها مساعد القائد برابطه. «أهو مساعد
+ * هذه المجموعة؟» تسأله الخدمة (`requireAccessibleGroup`)، كما تسأل القائد
+ * «أهي مجموعتك؟».
+ */
+fieldRouter.get(
+  '/groups/:id',
+  validate({ params: group }),
+  controller.getSheet,
+)
 
 fieldRouter.post(
   '/groups/:id/attendance',
@@ -97,6 +109,9 @@ fieldRouter.post(
   validate({ params: group, body: schemas.undoAttendanceBodySchema }),
   controller.postAttendanceUndo,
 )
+
+// كل ما بعدها للفريق: حارس واحد على البادئة يرثه أي مسار يُضاف تحتها.
+fieldRouter.use(['/groups', '/tasks'], requireFieldStaff)
 
 fieldRouter.post(
   '/groups/:id/impact',

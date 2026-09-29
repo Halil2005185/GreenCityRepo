@@ -1,9 +1,12 @@
 import type { FieldCard, FieldSheet } from "./api";
 import { damascusDay } from "./labels";
 import {
+  type CardItem,
   type OutboxItem,
   type RsvpItem,
+  type SelfCheckinItem,
   type SheetItem,
+  isCardItem,
   pendingId,
 } from "./outbox-types";
 import { withReading } from "./targets";
@@ -26,7 +29,8 @@ export function isCurrentShape(
     Array.isArray(sheet.targets) &&
     Array.isArray(sheet.tasks) &&
     typeof sheet.day === "string" &&
-    typeof sheet.permissions === "object"
+    typeof sheet.permissions === "object" &&
+    typeof sheet.checkin === "object"
   );
 }
 
@@ -182,7 +186,7 @@ export function overlay(
   return items
     .filter(
       (item): item is SheetItem =>
-        item.kind !== "rsvp" &&
+        !isCardItem(item) &&
         item.groupId === sheet.group.id &&
         item.status === "pending",
     )
@@ -206,6 +210,33 @@ export function applyRsvp(card: FieldCard, item: RsvpItem): FieldCard {
   };
 }
 
+/**
+ * أثر تسجيلٍ ذاتي لم يُرسَل بعد: حضورٌ في يوم كتابة الرمز. الخادم قد يرفض
+ * الرمز حين يصله؛ حتى ذلك الحين البطاقة تقول ما سجّله صاحبها.
+ */
+export function applySelfCheckin(
+  card: FieldCard,
+  item: SelfCheckinItem,
+): FieldCard {
+  const day = damascusDay(item.payload.scannedAt);
+
+  return {
+    ...card,
+    memberships: card.memberships.map((membership) =>
+      membership.group.id === item.groupId &&
+      !membership.attendedOn.includes(day)
+        ? { ...membership, attendedOn: [...membership.attendedOn, day].sort() }
+        : membership,
+    ),
+  };
+}
+
+export function applyCardItem(card: FieldCard, item: CardItem): FieldCard {
+  return item.kind === "rsvp"
+    ? applyRsvp(card, item)
+    : applySelfCheckin(card, item);
+}
+
 /** البطاقة وعليها ما ينتظر الإرسال؛ آخر تأكيد يغلب ما قبله. */
 export function overlayCard(
   card: FieldCard,
@@ -213,8 +244,7 @@ export function overlayCard(
 ): FieldCard {
   return items
     .filter(
-      (item): item is RsvpItem =>
-        item.kind === "rsvp" && item.status === "pending",
+      (item): item is CardItem => isCardItem(item) && item.status === "pending",
     )
-    .reduce(applyRsvp, card);
+    .reduce(applyCardItem, card);
 }

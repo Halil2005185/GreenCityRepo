@@ -232,7 +232,24 @@ export const fieldSheetSchema = registry.register(
           description:
             'من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة.',
         }),
+        attendanceOnly: z.boolean().openapi({
+          description:
+            'ورقة مساعد القائد: حضور وحده. المهام والأعداد والصور فارغة فيها، والهواتف محجوبة.',
+        }),
       }),
+      checkin: z
+        .object({
+          secret: z.string().openapi({
+            description:
+              'سرّ رمز الحضور الذاتي، ست‌عشري. منه يحسب الهاتف الرمز بلا شبكة. لا يُعرض.',
+          }),
+          periodSeconds: z.number().int(),
+          digits: z.number().int(),
+        })
+        .openapi({
+          description:
+            'رمز الحضور الذاتي: HOTP على SHA-256، عدّاده الوقت مقسومًا على `periodSeconds`.',
+        }),
       announcements,
       tasks: z.array(fieldTaskSchema),
       targets: z.array(fieldTargetSchema),
@@ -494,6 +511,39 @@ registry.registerPath({
   },
 })
 
+export const selfCheckinBodySchema = z.object({
+  clientId,
+  groupId: z.uuid(),
+  code: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{6}$/, 'الرمز ستة أرقام.')
+    .openapi({ description: 'الرمز الظاهر على هاتف قائد المجموعة.' }),
+  scannedAt: z.iso.datetime().optional().openapi({
+    description:
+      'وقت كتابة الرمز على الهاتف. من كتبه بلا شبكة يُرسَل طلبه لاحقًا، والرمز يُفحص على وقت كتابته.',
+  }),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/me/checkin'),
+  tags: ['Field'],
+  summary: 'تسجيل المتطوع حضورَه برمز قائده',
+  description:
+    'لحامل الرابط الشخصي، في مجموعة هو عضو فيها. الرمز يتبدّل كل دقيقة ويُقبل دقيقتين قبل وقت كتابته وبعده. آمن التكرار.',
+  security,
+  request: { body: json(selfCheckinBodySchema) },
+  responses: {
+    200: { description: 'سُجّل حضوره', ...json(fieldCardSchema) },
+    403: problemResponse('المسار لحامل رابط شخصي'),
+    404: problemResponse('ليس عضوًا في هذه المجموعة'),
+    409: problemResponse('المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى'),
+    422: problemResponse('الرمز غير صحيح أو انتهى وقته'),
+    429: problemResponse('محاولات كثيرة'),
+  },
+})
+
 export const groupIdParamsSchema = z.object({ id: z.uuid() })
 
 registry.registerPath({
@@ -502,7 +552,7 @@ registry.registerPath({
   tags: ['Field'],
   summary: 'ورقة يوم المجموعة',
   description:
-    'لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.',
+    'لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`، ولمساعد قائدها برابطه الشخصي — وورقته حضور وحده. مجموعة ليست لك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.',
   security,
   request: { params: groupIdParamsSchema },
   responses: {
@@ -556,7 +606,7 @@ registry.registerPath({
   tags: ['Field'],
   summary: 'تسجيل حضور',
   description:
-    'آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.',
+    'للقائد ولمساعده. آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.',
   security,
   request: { params: groupIdParamsSchema, body: json(attendanceBodySchema) },
   responses: {
@@ -586,7 +636,8 @@ registry.registerPath({
   path: path('/groups/{id}/attendance/undo'),
   tags: ['Field'],
   summary: 'التراجع عن حضور',
-  description: 'بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.',
+  description:
+    'للقائد ولمساعده. بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.',
   security,
   request: { params: groupIdParamsSchema, body: json(undoAttendanceBodySchema) },
   responses: {
@@ -766,6 +817,7 @@ registry.registerPath({
 
 export type RedeemLinkBody = z.infer<typeof redeemLinkBodySchema>
 export type RsvpBody = z.infer<typeof rsvpBodySchema>
+export type SelfCheckinBody = z.infer<typeof selfCheckinBodySchema>
 export type PushSubscribeBody = z.infer<typeof pushSubscribeBodySchema>
 export type PushUnsubscribeBody = z.infer<typeof pushUnsubscribeBodySchema>
 export type AttendanceBody = z.infer<typeof attendanceBodySchema>

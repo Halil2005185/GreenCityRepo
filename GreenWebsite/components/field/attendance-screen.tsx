@@ -1,8 +1,17 @@
 "use client";
 
-import { Check, Phone, Search, Undo2, UserPlus, Users } from "lucide-react";
+import {
+  Check,
+  Phone,
+  QrCode,
+  Search,
+  Undo2,
+  UserPlus,
+  Users,
+} from "lucide-react";
 import { useId, useMemo, useState } from "react";
 
+import { CheckinCode } from "@/components/field/checkin-code";
 import { ClosedNotice } from "@/components/field/closed-notice";
 import { Field, INPUT_CLASS } from "@/components/field/form";
 import { SheetGate, type SheetView } from "@/components/field/sheet-gate";
@@ -35,7 +44,8 @@ const SEARCH_FROM = 8;
  */
 export function AttendanceScreen() {
   return (
-    <SheetGate title="الحضور">
+    // مفتوح لمساعد القائد: عند نقطة اللقاء يدان أسرع من يد.
+    <SheetGate title="الحضور" assistants>
       {(view) => <Attendance {...view} />}
     </SheetGate>
   );
@@ -45,6 +55,7 @@ function Attendance({ sheet, actions, writable }: SheetView) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("all");
   const [adding, setAdding] = useState(false);
+  const [showingCode, setShowingCode] = useState(false);
 
   const present = sheet.members.filter((member) => member.attendance).length;
   const total = sheet.members.length;
@@ -81,15 +92,32 @@ function Attendance({ sheet, actions, writable }: SheetView) {
           </div>
 
           {writable ? (
-            <Button
-              variant="secondary"
-              size="sm"
-              aria-expanded={adding}
-              onClick={() => setAdding((open) => !open)}
-            >
-              <UserPlus aria-hidden />
-              حضر بلا تسجيل
-            </Button>
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-expanded={showingCode}
+                onClick={() => {
+                  setShowingCode((open) => !open);
+                  setAdding(false);
+                }}
+              >
+                <QrCode aria-hidden />
+                رمز الحضور
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-expanded={adding}
+                onClick={() => {
+                  setAdding((open) => !open);
+                  setShowingCode(false);
+                }}
+              >
+                <UserPlus aria-hidden />
+                حضر بلا تسجيل
+              </Button>
+            </div>
           ) : null}
         </div>
 
@@ -106,6 +134,12 @@ function Attendance({ sheet, actions, writable }: SheetView) {
               className="h-full rounded-full bg-primary transition-[inline-size] duration-300"
               style={{ inlineSize: `${Math.round((present / total) * 100)}%` }}
             />
+          </div>
+        ) : null}
+
+        {showingCode && writable ? (
+          <div className="mt-4 border-t border-border pt-4">
+            <CheckinCode groupId={sheet.group.id} settings={sheet.checkin} />
           </div>
         ) : null}
 
@@ -236,6 +270,8 @@ function MemberRow({
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {member.role === "ASSISTANT" ? <span>مساعد القائد</span> : null}
           {attendance?.method === "WALK_IN" ? <span>بلا تسجيل مسبق</span> : null}
+          {/* من لا يراه القائد عند نقطة اللقاء يتراجع عن حضوره. */}
+          {attendance?.method === "SELF" ? <span>سجّل نفسه</span> : null}
           {!attendance && rsvp ? <span>{rsvp}</span> : null}
           {attendance ? (
             <span>
