@@ -33,6 +33,7 @@ import { formSubmissions, formVersions, forms } from '../../db/schema/forms.js'
 import { users } from '../../db/schema/identity.js'
 import { impactEntries } from '../../db/schema/metrics.js'
 import { offices, roles } from '../../db/schema/org.js'
+import { partners } from '../../db/schema/partners.js'
 import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import { workItems } from '../../db/schema/work.js'
 import {
@@ -60,6 +61,8 @@ const groupColumns = {
   nameAr: fieldGroups.nameAr,
   leadUserId: fieldGroups.leadUserId,
   leadNameAr: groupLead.fullNameAr,
+  partnerId: fieldGroups.partnerId,
+  partnerNameAr: partners.displayNameAr,
   contactPhone: fieldGroups.contactPhone,
   meetsAt: fieldGroups.meetsAt,
   meetingPointAr: fieldGroups.meetingPointAr,
@@ -103,6 +106,7 @@ function groupQuery() {
     .from(fieldGroups)
     .innerJoin(initiativeSites, eq(fieldGroups.siteId, initiativeSites.id))
     .leftJoin(groupLead, eq(fieldGroups.leadUserId, groupLead.id))
+    .leftJoin(partners, eq(fieldGroups.partnerId, partners.id))
 }
 
 type GroupRow = Awaited<ReturnType<typeof groupQuery>>[number]
@@ -403,6 +407,51 @@ async function requireGroup(initiativeId: string, groupId: string) {
   return row
 }
 
+const activePartner = and(
+  eq(partners.stage, 'ACTIVE'),
+  isNull(partners.suspendedAt),
+)
+
+/**
+ * الجهات التي تُنسب إليها مجموعة: النشطة غير المعلّقة. اسمها ونوعها وحدهما —
+ * المنسّق يختار من قائمة، ولا يقرأ سجل الشركاء.
+ */
+export async function listPartnerOptions() {
+  return db
+    .select({
+      id: partners.id,
+      displayNameAr: partners.displayNameAr,
+      organizationKind: partners.organizationKind,
+    })
+    .from(partners)
+    .where(activePartner)
+    .orderBy(asc(partners.displayNameAr))
+}
+
+/**
+ * جهة تُنسب إليها مجموعة جديدة: شريك نشط. ما نُسب قبل أن تُعلَّق الجهة أو
+ * تنتهي شراكتها يبقى كما هو — هو تاريخ ما جرى.
+ */
+async function requireTeamPartner(partnerId: string) {
+  const [row] = await db
+    .select({ id: partners.id, displayNameAr: partners.displayNameAr })
+    .from(partners)
+    .where(and(eq(partners.id, partnerId), activePartner))
+    .limit(1)
+
+  if (!row) {
+    throw errors.unprocessable('الجهة ليست شريكًا نشطًا.', [
+      {
+        path: 'partnerId',
+        in: 'body',
+        message: 'اختر جهة شريكة نشطة غير معلّقة.',
+      },
+    ])
+  }
+
+  return row
+}
+
 /**
  * الفهرس الفريد هو الحَكَم حين يتسابق منسّقان على الاسم نفسه؛ ترجمته هنا
  * تُبقي الجواب تعارضًا مفهومًا بدل خطأ داخلي.
@@ -431,6 +480,9 @@ export async function createGroup(
 
   const site = await requireLiveSite(initiativeId, input.siteId)
   const leader = input.leadUserId ? await requireLead(input.leadUserId) : null
+  const partner = input.partnerId
+    ? await requireTeamPartner(input.partnerId)
+    : null
   const nameAr = normalizeText(input.nameAr)
 
   await guardName(() =>
@@ -442,6 +494,7 @@ export async function createGroup(
           siteId: site.id,
           nameAr,
           leadUserId: leader?.userId ?? null,
+          partnerId: partner?.id ?? null,
           contactPhone: input.contactPhone?.trim() || null,
           meetsAt: input.meetsAt ? new Date(input.meetsAt) : null,
           meetingPointAr: input.meetingPointAr
@@ -468,6 +521,7 @@ export async function createGroup(
             initiativeId,
             siteId: site.id,
             leadUserId: leader?.userId ?? null,
+            partnerId: partner?.id ?? null,
           },
           ...trace,
         },
@@ -500,7 +554,15 @@ export async function updateGroup(
   const leader =
     leadChanged && input.leadUserId ? await requireLead(input.leadUserId) : null
 
+  const partnerChanged =
+    input.partnerId !== undefined && input.partnerId !== existing.partnerId
+
+  if (partnerChanged && input.partnerId) {
+    await requireTeamPartner(input.partnerId)
+  }
+
   const changes = {
+    ...(partnerChanged ? { partnerId: input.partnerId ?? null } : {}),
     ...(input.siteId ? { siteId: input.siteId } : {}),
     ...(input.nameAr ? { nameAr: normalizeText(input.nameAr) } : {}),
     ...(leadChanged ? { leadUserId: input.leadUserId ?? null } : {}),
@@ -557,6 +619,12 @@ export async function updateGroup(
                 ? {
                     previousLeadUserId: existing.leadUserId,
                     leadUserId: input.leadUserId ?? null,
+                  }
+                : {}),
+              ...(partnerChanged
+                ? {
+                    previousPartnerId: existing.partnerId,
+                    partnerId: input.partnerId ?? null,
                   }
                 : {}),
             },

@@ -5275,6 +5275,56 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/partner/me/field-teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * فرق جهتي في الميدان
+         * @description المجموعات الميدانية المنسوبة إلى الجهة في المبادرات التي بدأ تنفيذها، بأعداد الحضور. النطاق من الجلسة.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الفرق، الأحدث موعدًا أولًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["PartnerFieldTeam"][];
+                        };
+                    };
+                };
+                /** @description الحساب لا يمثل جهة */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/partners": {
         parameters: {
             query?: never;
@@ -8269,6 +8319,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/initiatives/{id}/field/partner-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * الجهات التي تُنسب إليها مجموعة
+         * @description الجهات النشطة غير المعلّقة. مسار خاص لأن المنسّق لا يحمل بالضرورة `partners.view`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الجهات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldPartnerOption"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/initiatives/{id}/field/groups": {
         parameters: {
             query?: never;
@@ -8296,6 +8389,11 @@ export interface paths {
                         nameAr: string;
                         /** Format: uuid */
                         leadUserId?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة.
+                         */
+                        partnerId?: string | null;
                         contactPhone?: string | null;
                         /** Format: date-time */
                         meetsAt?: string | null;
@@ -8324,7 +8422,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء */
+                /** @description الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو الجهة ليست شريكًا نشطًا، أو المبادرة نقطة خضراء */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -8420,6 +8518,11 @@ export interface paths {
                         nameAr?: string;
                         /** Format: uuid */
                         leadUserId?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة.
+                         */
+                        partnerId?: string | null;
                         contactPhone?: string | null;
                         /** Format: date-time */
                         meetsAt?: string | null;
@@ -10515,6 +10618,27 @@ export interface components {
                 acknowledgedByNameAr: string;
             }[];
         };
+        /** @description فريق ميداني منسوب إلى الجهة، بأعداده وحدها. لا أسماء ولا وسائل تواصل: المتطوعون أعطوا بياناتهم للمشروع لا للجهة. */
+        PartnerFieldTeam: {
+            /** Format: uuid */
+            groupId: string;
+            groupNameAr: string;
+            initiativeNameAr: string;
+            initiativeStatus: string;
+            siteNameAr: string;
+            areaNameAr: string | null;
+            /** Format: date-time */
+            meetsAt: string | null;
+            memberCount: number;
+            /** @description من أكّدوا حضورهم من بطاقاتهم. */
+            comingCount: number;
+            /** @description من حضر من الفريق يومًا واحدًا على الأقل. */
+            attendedCount: number;
+            /** @description مجموع أيام الحضور: شخص حضر يومين يُعدّ يومين. */
+            attendanceDays: number;
+            /** Format: date */
+            lastAttendedOn: string | null;
+        };
         PartnerSummary: {
             /** Format: uuid */
             id: string;
@@ -11063,6 +11187,12 @@ export interface components {
             /** Format: uuid */
             leadUserId: string | null;
             leadNameAr: string | null;
+            /**
+             * Format: uuid
+             * @description الجهة الشريكة التي تُنسب إليها المجموعة، فتظهر في بوابتها بأعدادها.
+             */
+            partnerId: string | null;
+            partnerNameAr: string | null;
             /** @description وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق. */
             contactPhone: string | null;
             /** Format: date-time */
@@ -11102,6 +11232,13 @@ export interface components {
             fullNameAr: string;
             roleNameAr: string;
             officeNameAr: string;
+        };
+        /** @description جهة شريكة نشطة تُنسب إليها مجموعة. اسمها ونوعها وحدهما: سجل الشركاء لمن يحمل صلاحيته. */
+        FieldPartnerOption: {
+            /** Format: uuid */
+            id: string;
+            displayNameAr: string;
+            organizationKind: string;
         };
         FieldGroupMember: {
             /** Format: uuid */

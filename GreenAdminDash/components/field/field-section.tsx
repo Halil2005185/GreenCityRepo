@@ -112,6 +112,11 @@ function GroupsSection({
                   ? `اللقاء عند: ${info.row.original.meetingPointAr}`
                   : null
               }
+              badge={
+                info.row.original.partnerNameAr ? (
+                  <Badge tone="outline">فريق {info.row.original.partnerNameAr}</Badge>
+                ) : null
+              }
             />
           ),
         }),

@@ -34,6 +34,11 @@ export const fieldGroupSchema = registry.register(
     nameAr: z.string(),
     leadUserId: z.uuid().nullable(),
     leadNameAr: z.string().nullable(),
+    partnerId: z.uuid().nullable().openapi({
+      description:
+        'الجهة الشريكة التي تُنسب إليها المجموعة، فتظهر في بوابتها بأعدادها.',
+    }),
+    partnerNameAr: z.string().nullable(),
     contactPhone: z.string().nullable().openapi({
       description:
         'وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق.',
@@ -136,8 +141,42 @@ registry.registerPath({
   },
 })
 
+export const fieldPartnerOptionSchema = registry.register(
+  'FieldPartnerOption',
+  z
+    .object({
+      id: z.uuid(),
+      displayNameAr: z.string(),
+      organizationKind: z.string(),
+    })
+    .openapi({
+      description:
+        'جهة شريكة نشطة تُنسب إليها مجموعة. اسمها ونوعها وحدهما: سجل الشركاء لمن يحمل صلاحيته.',
+    }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/partner-options'),
+  tags: ['Field'],
+  summary: 'الجهات التي تُنسب إليها مجموعة',
+  description:
+    'الجهات النشطة غير المعلّقة. مسار خاص لأن المنسّق لا يحمل بالضرورة `partners.view`.',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: {
+      description: 'الجهات',
+      ...json(z.object({ data: z.array(fieldPartnerOptionSchema) })),
+    },
+  },
+})
+
 const meetingFields = {
   leadUserId: z.uuid().nullable().optional(),
+  partnerId: z.uuid().nullable().optional().openapi({
+    description: 'جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة.',
+  }),
   contactPhone: z
     .string()
     .trim()
@@ -167,7 +206,7 @@ registry.registerPath({
     201: { description: 'أُضيفت', ...json(initiativeFieldSchema) },
     409: problemResponse('في الموقع مجموعة بالاسم نفسه'),
     422: problemResponse(
-      'الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء',
+      'الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو الجهة ليست شريكًا نشطًا، أو المبادرة نقطة خضراء',
     ),
   },
 })

@@ -17,6 +17,7 @@ import { attendanceMethod, fieldMemberRole, fieldRsvp } from './enums.js'
 import { formSubmissions, forms } from './forms.js'
 import { users } from './identity.js'
 import { impactEntries } from './metrics.js'
+import { partners } from './partners.js'
 import { initiativeSites, initiatives } from './programs.js'
 import { workItems } from './work.js'
 
@@ -108,6 +109,15 @@ export const fieldGroups = pgTable(
     }),
 
     /**
+     * فريق جهة شريكة: شركة تأتي بموظفيها، أو جمعية بمتطوعيها. به تظهر
+     * المجموعة في بوابة الجهة بأعدادها. وانتهاء الشراكة لا يمحو المجموعة
+     * ولا حضورها: تبقى بلا جهة.
+     */
+    partnerId: uuidColumn('partner_id').references(() => partners.id, {
+      onDelete: 'set null',
+    }),
+
+    /**
      * وسيلة تواصل واحدة تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق:
      * هاتف القائد إن رضي، أو رقم المنسّق. ليست هاتف القائد من حسابه — ذاك
      * لم يُعطَ ليُنشر على مئة متطوع.
@@ -134,6 +144,7 @@ export const fieldGroups = pgTable(
     uniqueIndex('field_groups_site_name_unique').on(table.siteId, table.nameAr),
     index('field_groups_initiative_idx').on(table.initiativeId),
     index('field_groups_lead_idx').on(table.leadUserId),
+    index('field_groups_partner_idx').on(table.partnerId),
   ],
 )
 

@@ -212,6 +212,10 @@ export const getLeadCandidates: RequestHandler = async (_request, response) => {
   response.status(200).json({ data: await admin.listLeadCandidates() })
 }
 
+export const getPartnerOptions: RequestHandler = async (_request, response) => {
+  response.status(200).json({ data: await admin.listPartnerOptions() })
+}
+
 export const postGroup: RequestHandler = async (request, response) => {
   const field = await admin.createGroup(
     readId(request),

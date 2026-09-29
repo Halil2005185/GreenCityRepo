@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 
 import { errors } from '../../common/errors/app-error.js'
 import { normalizeText } from '../../common/utils/text.js'
@@ -8,11 +8,18 @@ import {
   charterVersions,
 } from '../../db/schema/charter.js'
 import {
+  attendance,
+  fieldGroupMembers,
+  fieldGroups,
+} from '../../db/schema/field.js'
+import { areas } from '../../db/schema/geo.js'
+import {
   partnerConsentEvents,
   partnerContacts,
   partnerPartnerships,
   partners,
 } from '../../db/schema/partners.js'
+import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import type { DisplayConsentBody, UpdateSelfBody } from './portal.schemas.js'
@@ -117,6 +124,72 @@ export async function loadSelf(context: AuthContext) {
       acknowledgedByNameAr: item.acknowledgedByNameAr,
     })),
   }
+}
+
+/**
+ * فرق الجهة في الميدان، بأعدادها وحدها.
+ *
+ * لا أسماء ولا هواتف: المتطوع أعطى بياناته للمشروع ليُنظَّم يومه، لا للجهة
+ * التي جاء معها. الجهة تعرف كم حضر من فريقها، لا من.
+ *
+ * والمبادرات التي لم يبدأ تنفيذها لا تظهر: مسودة أو تخطيط قد يتغيّر، وفريق
+ * يراه الشريك في بوابته وعدٌ لم يُقطع بعد.
+ */
+export async function loadFieldTeams(context: AuthContext) {
+  const partnerId = scopedPartnerId(context)
+
+  const count = (condition: ReturnType<typeof sql>) =>
+    sql<number>`(
+      select count(*)::int from ${fieldGroupMembers}
+       where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
+         ${condition}
+    )`
+
+  const rows = await db
+    .select({
+      groupId: fieldGroups.id,
+      groupNameAr: fieldGroups.nameAr,
+      initiativeNameAr: initiatives.nameAr,
+      initiativeStatus: initiatives.status,
+      siteNameAr: initiativeSites.nameAr,
+      areaNameAr: areas.nameAr,
+      meetsAt: fieldGroups.meetsAt,
+      memberCount: count(sql``),
+      comingCount: count(sql`and ${fieldGroupMembers.rsvp} = 'COMING'`),
+      attendedCount: sql<number>`(
+        select count(distinct ${attendance.participantId})::int
+          from ${attendance}
+         where ${attendance.groupId} = ${fieldGroups.id}
+           and ${attendance.undoneAt} is null
+      )`,
+      attendanceDays: sql<number>`(
+        select count(*)::int from ${attendance}
+         where ${attendance.groupId} = ${fieldGroups.id}
+           and ${attendance.undoneAt} is null
+      )`,
+      lastAttendedOn: sql<string | null>`(
+        select max(${attendance.attendedOn})::text from ${attendance}
+         where ${attendance.groupId} = ${fieldGroups.id}
+           and ${attendance.undoneAt} is null
+      )`,
+    })
+    .from(fieldGroups)
+    .innerJoin(initiatives, eq(fieldGroups.initiativeId, initiatives.id))
+    .innerJoin(initiativeSites, eq(fieldGroups.siteId, initiativeSites.id))
+    .leftJoin(areas, eq(initiativeSites.areaId, areas.id))
+    .where(
+      and(
+        eq(fieldGroups.partnerId, partnerId),
+        inArray(initiatives.status, ['ACTIVE', 'COMPLETED']),
+      ),
+    )
+    // الأحدث موعدًا أولًا؛ DESC في Postgres يضع NULL أولًا، فيُنزَّل صراحةً.
+    .orderBy(sql`${fieldGroups.meetsAt} desc nulls last`, fieldGroups.nameAr)
+
+  return rows.map((row) => ({
+    ...row,
+    meetsAt: row.meetsAt?.toISOString() ?? null,
+  }))
 }
 
 export async function updateSelf(

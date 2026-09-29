@@ -11,11 +11,13 @@ import { ApiError } from "@/lib/api/client";
 import {
   createFieldGroup,
   listLeadCandidates,
+  listPartnerOptions,
   updateFieldGroup,
   type FieldGroup,
   type InitiativeField,
 } from "@/lib/api/field";
 import type { InitiativeDetail } from "@/lib/api/initiatives";
+import { ORGANIZATION_KIND_LABELS } from "@/lib/api/partners";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -47,6 +49,7 @@ const schema = z.object({
   siteId: z.string().min(1, "اختر الموقع."),
   nameAr: z.string().trim().min(2, "اسم المجموعة مطلوب.").max(160, "الاسم طويل جدًا."),
   leadUserId: z.string(),
+  partnerId: z.string(),
   contactPhone: z
     .string()
     .trim()
@@ -65,6 +68,7 @@ const EMPTY: Values = {
   siteId: "",
   nameAr: "",
   leadUserId: "",
+  partnerId: "",
   contactPhone: "",
   meetsAt: "",
   meetingPointAr: "",
@@ -86,6 +90,13 @@ export function GroupDialog({
   const candidates = useQuery({
     queryKey: ["field-lead-candidates"],
     queryFn: () => listLeadCandidates(initiative.id),
+    enabled: props.open,
+    staleTime: 60_000,
+  });
+
+  const partners = useQuery({
+    queryKey: ["field-partner-options"],
+    queryFn: () => listPartnerOptions(initiative.id),
     enabled: props.open,
     staleTime: 60_000,
   });
@@ -122,6 +133,7 @@ export function GroupDialog({
               siteId: group.siteId,
               nameAr: group.nameAr,
               leadUserId: group.leadUserId ?? "",
+              partnerId: group.partnerId ?? "",
               contactPhone: group.contactPhone ?? "",
               meetsAt: toLocalInput(group.meetsAt),
               meetingPointAr: group.meetingPointAr ?? "",
@@ -135,6 +147,7 @@ export function GroupDialog({
           siteId: values.siteId,
           nameAr: values.nameAr,
           leadUserId: values.leadUserId || null,
+          partnerId: values.partnerId || null,
           contactPhone: values.contactPhone || null,
           meetsAt: fromLocalInput(values.meetsAt),
           meetingPointAr: values.meetingPointAr || null,
@@ -147,13 +160,17 @@ export function GroupDialog({
       }}
       successMessage={group ? "حُفظت المجموعة." : "أُضيفت المجموعة."}
       onSuccess={apply}
-      // 409 هنا تعارض اسم، و422 عن القائد تخصّ حقله.
+      // 409 هنا تعارض اسم، و422 عن القائد أو الجهة تخصّ حقلها.
       fieldForError={(error: ApiError) =>
         error.status === 409
           ? "nameAr"
-          : error.status === 422 && error.message.includes("قيادة")
-            ? "leadUserId"
-            : null
+          : error.status !== 422
+            ? null
+            : error.message.includes("قيادة")
+              ? "leadUserId"
+              : error.message.includes("الجهة")
+                ? "partnerId"
+                : null
       }
     >
       <SelectField
@@ -186,6 +203,28 @@ export function GroupDialog({
         selectedOption={
           group?.leadUserId
             ? { value: group.leadUserId, label: group.leadNameAr ?? "القائد الحالي" }
+            : undefined
+        }
+      />
+      <SelectField
+        control={form.control}
+        name="partnerId"
+        label="الجهة الشريكة (اختيارية)"
+        hint="لفريق تأتي به جهة شريكة: شركة بموظفيها، أو جمعية بمتطوعيها. يظهر في بوابة الجهة بأعداد حضوره، بلا أسماء."
+        clearable
+        placeholder="ليست فريق جهة"
+        options={(partners.data ?? []).map((partner) => ({
+          value: partner.id,
+          label: partner.displayNameAr,
+          description:
+            ORGANIZATION_KIND_LABELS[
+              partner.organizationKind as keyof typeof ORGANIZATION_KIND_LABELS
+            ] ?? undefined,
+        }))}
+        loading={partners.isPending && props.open}
+        selectedOption={
+          group?.partnerId
+            ? { value: group.partnerId, label: group.partnerNameAr ?? "الجهة الحالية" }
             : undefined
         }
       />

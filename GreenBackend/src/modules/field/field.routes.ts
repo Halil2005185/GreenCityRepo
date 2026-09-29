@@ -188,6 +188,12 @@ fieldAdminRouter.get(
   controller.getLeadCandidates,
 )
 
+fieldAdminRouter.get(
+  '/partner-options',
+  validate({ params: initiative }),
+  controller.getPartnerOptions,
+)
+
 fieldAdminRouter.post(
   '/groups',
   validate({ params: initiative, body: adminSchemas.createGroupBodySchema }),

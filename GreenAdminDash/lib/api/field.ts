@@ -4,6 +4,7 @@ import type { components } from "./types.gen";
 export type InitiativeField = components["schemas"]["InitiativeField"];
 export type FieldGroup = components["schemas"]["FieldGroup"];
 export type FieldLeadCandidate = components["schemas"]["FieldLeadCandidate"];
+export type FieldPartnerOption = components["schemas"]["FieldPartnerOption"];
 export type FieldGroupMember = components["schemas"]["FieldGroupMember"];
 export type FieldGroupMembers = components["schemas"]["FieldGroupMembers"];
 export type FieldAddMembersResult = components["schemas"]["FieldAddMembersResult"];
@@ -83,10 +84,21 @@ export function listLeadCandidates(initiativeId: string) {
   ).then((response) => response.data);
 }
 
+/**
+ * الجهات النشطة التي تُنسب إليها مجموعة. مسار خاص كمسار القادة: المنسّق
+ * يختار من أسمائها، ولا يقرأ سجل الشركاء.
+ */
+export function listPartnerOptions(initiativeId: string) {
+  return apiFetch<{ data: FieldPartnerOption[] }>(
+    `${base(initiativeId)}/partner-options`,
+  ).then((response) => response.data);
+}
+
 export type FieldGroupInput = {
   siteId: string;
   nameAr: string;
   leadUserId: string | null;
+  partnerId: string | null;
   contactPhone: string | null;
   meetsAt: string | null;
   meetingPointAr: string | null;

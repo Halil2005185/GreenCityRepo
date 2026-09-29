@@ -4556,6 +4556,77 @@
           "acknowledgements"
         ]
       },
+      "PartnerFieldTeam": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupNameAr": {
+            "type": "string"
+          },
+          "initiativeNameAr": {
+            "type": "string"
+          },
+          "initiativeStatus": {
+            "type": "string"
+          },
+          "siteNameAr": {
+            "type": "string"
+          },
+          "areaNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meetsAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "memberCount": {
+            "type": "integer"
+          },
+          "comingCount": {
+            "type": "integer",
+            "description": "من أكّدوا حضورهم من بطاقاتهم."
+          },
+          "attendedCount": {
+            "type": "integer",
+            "description": "من حضر من الفريق يومًا واحدًا على الأقل."
+          },
+          "attendanceDays": {
+            "type": "integer",
+            "description": "مجموع أيام الحضور: شخص حضر يومين يُعدّ يومين."
+          },
+          "lastAttendedOn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          }
+        },
+        "required": [
+          "groupId",
+          "groupNameAr",
+          "initiativeNameAr",
+          "initiativeStatus",
+          "siteNameAr",
+          "areaNameAr",
+          "meetsAt",
+          "memberCount",
+          "comingCount",
+          "attendedCount",
+          "attendanceDays",
+          "lastAttendedOn"
+        ],
+        "description": "فريق ميداني منسوب إلى الجهة، بأعداده وحدها. لا أسماء ولا وسائل تواصل: المتطوعون أعطوا بياناتهم للمشروع لا للجهة."
+      },
       "PartnerSummary": {
         "type": "object",
         "properties": {
@@ -6708,6 +6779,20 @@
               "null"
             ]
           },
+          "partnerId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "الجهة الشريكة التي تُنسب إليها المجموعة، فتظهر في بوابتها بأعدادها."
+          },
+          "partnerNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
           "contactPhone": {
             "type": [
               "string",
@@ -6769,6 +6854,8 @@
           "nameAr",
           "leadUserId",
           "leadNameAr",
+          "partnerId",
+          "partnerNameAr",
           "contactPhone",
           "meetsAt",
           "meetingPointAr",
@@ -6860,6 +6947,27 @@
           "officeNameAr"
         ],
         "description": "عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم."
+      },
+      "FieldPartnerOption": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayNameAr": {
+            "type": "string"
+          },
+          "organizationKind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayNameAr",
+          "organizationKind"
+        ],
+        "description": "جهة شريكة نشطة تُنسب إليها مجموعة. اسمها ونوعها وحدهما: سجل الشركاء لمن يحمل صلاحيته."
       },
       "FieldGroupMember": {
         "type": "object",
@@ -15380,6 +15488,53 @@
         }
       }
     },
+    "/api/partner/me/field-teams": {
+      "get": {
+        "tags": [
+          "Partner Portal"
+        ],
+        "summary": "فرق جهتي في الميدان",
+        "description": "المجموعات الميدانية المنسوبة إلى الجهة في المبادرات التي بدأ تنفيذها، بأعداد الحضور. النطاق من الجلسة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الفرق، الأحدث موعدًا أولًا",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PartnerFieldTeam"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "الحساب لا يمثل جهة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/partners": {
       "get": {
         "tags": [
@@ -19382,6 +19537,54 @@
         }
       }
     },
+    "/api/admin/initiatives/{id}/field/partner-options": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "الجهات التي تُنسب إليها مجموعة",
+        "description": "الجهات النشطة غير المعلّقة. مسار خاص لأن المنسّق لا يحمل بالضرورة `partners.view`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الجهات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldPartnerOption"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/initiatives/{id}/field/groups": {
       "post": {
         "tags": [
@@ -19425,6 +19628,14 @@
                       "null"
                     ],
                     "format": "uuid"
+                  },
+                  "partnerId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "description": "جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة."
                   },
                   "contactPhone": {
                     "type": [
@@ -19490,7 +19701,7 @@
             }
           },
           "422": {
-            "description": "الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء",
+            "description": "الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو الجهة ليست شريكًا نشطًا، أو المبادرة نقطة خضراء",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -19555,6 +19766,14 @@
                       "null"
                     ],
                     "format": "uuid"
+                  },
+                  "partnerId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid",
+                    "description": "جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة."
                   },
                   "contactPhone": {
                     "type": [
