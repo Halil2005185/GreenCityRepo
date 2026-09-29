@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Award,
   CalendarCheck,
   Camera,
   IdCard,
@@ -31,16 +32,18 @@ const LEAD_TABS = [
   { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
 ] as const;
 
-/** المتطوع يقرأ ولا يسجّل: بطاقته، وما يخصّه على هذا الجهاز. */
+/** المتطوع يقرأ ولا يسجّل: بطاقته، وسجلّه، وما يخصّه على هذا الجهاز. */
 const VOLUNTEER_TABS = [
   { href: FIELD_ROUTES.home, label: "بطاقتي", icon: IdCard },
+  { href: FIELD_ROUTES.record, label: "سجلّي", icon: Award },
   { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
 ] as const;
 
-/** مساعد القائد متطوع يسجّل حضور مجموعته: بطاقته، والحضور، وما يخصّه. */
+/** مساعد القائد متطوع يسجّل حضور مجموعته: تبويبات المتطوع، ومعها الحضور. */
 const ASSISTANT_TABS = [
   { href: FIELD_ROUTES.home, label: "بطاقتي", icon: IdCard },
   { href: FIELD_ROUTES.attendance, label: "الحضور", icon: Users },
+  { href: FIELD_ROUTES.record, label: "سجلّي", icon: Award },
   { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
 ] as const;
 
@@ -56,6 +59,8 @@ const TITLES: Record<string, string> = {
   [FIELD_ROUTES.me]: "أنا",
   [FIELD_ROUTES.link]: "بطاقتي",
   [FIELD_ROUTES.checkin]: "تسجيل الحضور",
+  [FIELD_ROUTES.record]: "سجلّي",
+  [FIELD_ROUTES.certificate]: "شهادتي",
   [FIELD_ROUTES.login]: "تسجيل الدخول",
   [FIELD_ROUTES.offline]: "بلا اتصال",
 };
@@ -95,21 +100,29 @@ export function FieldChrome({ children }: { children: React.ReactNode }) {
         : VOLUNTEER_TABS;
 
   return (
-    <div data-field-app className="flex min-h-dvh flex-col bg-background">
-      <BrowserHeader pathname={pathname} tabs={showTabs ? tabs : null} />
-      <AppHeader
-        pathname={pathname}
-        signedOut={status === "anonymous"}
-        volunteer={kind === "PARTICIPANT"}
-      />
+    <div
+      data-field-app
+      className="flex min-h-dvh flex-col bg-background print:block print:min-h-0 print:bg-white"
+    >
+      {/* ما حول الصفحة لا يُطبع: الشهادة ورقة، لا لقطة من التطبيق. */}
+      <div className="contents print:hidden">
+        <BrowserHeader pathname={pathname} tabs={showTabs ? tabs : null} />
+        <AppHeader
+          pathname={pathname}
+          signedOut={status === "anonymous"}
+          volunteer={kind === "PARTICIPANT"}
+        />
 
-      <InstallBanner />
+        <InstallBanner />
+      </div>
 
       <main
         id="main"
         className={cn(
           COLUMN,
-          "flex-1 py-6",
+          // `!` لأن حشوة وضع التطبيق أدناه تساويها أولويةً وتغلبها بترتيبها،
+          // فتبقى تحت الشهادة وتدفع إلى الطابعة صفحة ثانية فارغة.
+          "flex-1 py-6 print:max-w-none print:p-0!",
           // يُفسح لشريط التبويب الثابت وما تحته من حافة الجهاز.
           showTabs && "app:pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
         )}
@@ -117,13 +130,25 @@ export function FieldChrome({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {showTabs ? <TabBar pathname={pathname} tabs={tabs} /> : null}
+      {showTabs ? (
+        <div className="contents print:hidden">
+          <TabBar pathname={pathname} tabs={tabs} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-const isActive = (pathname: string, href: string) =>
-  pathname === href || pathname.startsWith(`${href}/`);
+/** صفحات تُفتح من تبويب وليست تبويبًا: يبقى تبويبها مضاءً وهي مفتوحة. */
+const PARENT_TAB: Record<string, string> = {
+  [FIELD_ROUTES.certificate]: FIELD_ROUTES.record,
+};
+
+const isActive = (pathname: string, href: string) => {
+  const current = PARENT_TAB[pathname] ?? pathname;
+
+  return current === href || current.startsWith(`${href}/`);
+};
 
 function BrowserHeader({
   pathname,

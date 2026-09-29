@@ -6652,6 +6652,27 @@
             ],
             "description": "استمارة التقييم على الموقع العام، إن اختارها المنسّق وكانت تستقبل."
           },
+          "certificate": {
+            "type": "object",
+            "properties": {
+              "enabled": {
+                "type": "boolean",
+                "description": "هل فعّل المنسّق الشهادات لهذه المبادرة."
+              },
+              "code": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "رمز شهادته إن صدرت."
+              }
+            },
+            "required": [
+              "enabled",
+              "code"
+            ],
+            "description": "شهادة المشاركة في هذه المبادرة. تصدر لمن له يوم حضور قائم فيها."
+          },
           "generatedAt": {
             "type": "string",
             "format": "date-time"
@@ -6666,9 +6687,333 @@
           "announcements",
           "memberships",
           "feedback",
+          "certificate",
           "generatedAt"
         ],
         "description": "بطاقة المتطوع في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم."
+      },
+      "FieldRecord": {
+        "type": "object",
+        "properties": {
+          "participant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullNameAr": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "fullNameAr"
+            ]
+          },
+          "totals": {
+            "type": "object",
+            "properties": {
+              "initiatives": {
+                "type": "integer"
+              },
+              "days": {
+                "type": "integer"
+              },
+              "hours": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "initiatives",
+              "days",
+              "hours"
+            ]
+          },
+          "participations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "initiativeId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "initiativeNameAr": {
+                  "type": "string"
+                },
+                "initiativeStatus": {
+                  "type": "string",
+                  "enum": [
+                    "DRAFT",
+                    "PLANNING",
+                    "ACTIVE",
+                    "COMPLETED",
+                    "CANCELLED"
+                  ]
+                },
+                "programNameAr": {
+                  "type": "string"
+                },
+                "days": {
+                  "type": "integer",
+                  "description": "أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين."
+                },
+                "hours": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها."
+                },
+                "firstDay": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                },
+                "lastDay": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date"
+                },
+                "sites": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "certificate": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "canIssue": {
+                      "type": "boolean",
+                      "description": "تُصدَر الآن بهذا الرابط: مبادرة الرابط نفسها، والشهادات مفعّلة فيها."
+                    }
+                  },
+                  "required": [
+                    "code",
+                    "canIssue"
+                  ]
+                }
+              },
+              "required": [
+                "initiativeId",
+                "initiativeNameAr",
+                "initiativeStatus",
+                "programNameAr",
+                "days",
+                "hours",
+                "firstDay",
+                "lastDay",
+                "sites",
+                "certificate"
+              ]
+            }
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "participant",
+          "totals",
+          "participations",
+          "generatedAt"
+        ],
+        "description": "سجل المشارك عبر الحملات: ما حضره بأيامه وساعاته، الأحدث أولًا. عضوية بلا حضور ليست فيه."
+      },
+      "FieldCertificate": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "initiativeNameAr": {
+            "type": "string"
+          },
+          "programNameAr": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer",
+            "description": "أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين."
+          },
+          "hours": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها."
+          },
+          "firstDay": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "lastDay": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "signer": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "nameAr": {
+                "type": "string"
+              },
+              "titleAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "nameAr",
+              "titleAr"
+            ]
+          },
+          "verifyUrl": {
+            "type": "string",
+            "description": "صفحة التحقق من الشهادة على الموقع العام."
+          }
+        },
+        "required": [
+          "code",
+          "issuedAt",
+          "fullNameAr",
+          "initiativeNameAr",
+          "programNameAr",
+          "days",
+          "hours",
+          "firstDay",
+          "lastDay",
+          "sites",
+          "signer",
+          "verifyUrl"
+        ],
+        "description": "شهادة المشاركة كما تُطبع. الأيام والساعات من الحضور ساعة القراءة، لا نسخة يوم الإصدار."
+      },
+      "VerifiedCertificate": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "issuedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "initiativeNameAr": {
+            "type": "string"
+          },
+          "programNameAr": {
+            "type": "string"
+          },
+          "days": {
+            "type": "integer",
+            "description": "أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين."
+          },
+          "hours": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها."
+          },
+          "firstDay": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "lastDay": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "sites": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "signer": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "nameAr": {
+                "type": "string"
+              },
+              "titleAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "nameAr",
+              "titleAr"
+            ]
+          }
+        },
+        "required": [
+          "code",
+          "issuedAt",
+          "fullNameAr",
+          "initiativeNameAr",
+          "programNameAr",
+          "days",
+          "hours",
+          "firstDay",
+          "lastDay",
+          "sites",
+          "signer"
+        ],
+        "description": "ما تقوله الشهادة لمن يتحقق منها: الاسم والحملة والأيام والساعات. لا وسيلة تواصل ولا معرّف."
       },
       "FieldRedeemedLink": {
         "type": "object",
@@ -6800,6 +7145,13 @@
             ],
             "description": "وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق."
           },
+          "hoursPerDay": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله وشهادته."
+          },
           "meetsAt": {
             "type": [
               "string",
@@ -6857,6 +7209,7 @@
           "partnerId",
           "partnerNameAr",
           "contactPhone",
+          "hoursPerDay",
           "meetsAt",
           "meetingPointAr",
           "instructionsAr",
@@ -6891,12 +7244,36 @@
               "null"
             ],
             "description": "رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل."
+          },
+          "certificatesEnabled": {
+            "type": "boolean",
+            "description": "هل تصدر شهادات مشاركة لمتطوعي هذه المبادرة من بطاقاتهم."
+          },
+          "certificateSignerNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "certificateSignerTitleAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "certificateCount": {
+            "type": "integer",
+            "description": "الشهادات التي صدرت في هذه المبادرة."
           }
         },
         "required": [
           "feedbackFormId",
           "feedbackFormNameAr",
-          "feedbackFormUrl"
+          "feedbackFormUrl",
+          "certificatesEnabled",
+          "certificateSignerNameAr",
+          "certificateSignerTitleAr",
+          "certificateCount"
         ]
       },
       "InitiativeField": {
@@ -18046,6 +18423,148 @@
         }
       }
     },
+    "/api/field/me/record": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "سجلّي عبر الحملات",
+        "description": "لحامل الرابط الشخصي.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "السجل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldRecord"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "المسار لحامل رابط شخصي",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/me/certificate": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "شهادة مشاركتي",
+        "description": "لحامل الرابط الشخصي، في مبادرة رابطه. تصدر عند أول طلب وتعود هي نفسها بعده برمزها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الشهادة",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldCertificate"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "المسار لحامل رابط شخصي",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الشهادات غير مفعّلة، أو لا حضور مسجَّلًا له بعد",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/public/certificates/{code}": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "التحقق من شهادة مشاركة",
+        "description": "بلا مصادقة، محدود المعدل. غير الموجودة وما لم يبقَ لصاحبها يوم حضور جواب واحد.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[2-9A-HJ-NP-Z]{10}$"
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الشهادة صحيحة",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/VerifiedCertificate"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "لا شهادة بهذا الرمز",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "محاولات كثيرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/field/me": {
       "get": {
         "tags": [
@@ -19644,6 +20163,15 @@
                     ],
                     "pattern": "^[+]?[\\d\\s()-]{6,32}$"
                   },
+                  "hoursPerDay": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0.5,
+                    "maximum": 24,
+                    "description": "بأنصاف الساعات. `null` يمحوها."
+                  },
                   "meetsAt": {
                     "type": [
                       "string",
@@ -19781,6 +20309,15 @@
                       "null"
                     ],
                     "pattern": "^[+]?[\\d\\s()-]{6,32}$"
+                  },
+                  "hoursPerDay": {
+                    "type": [
+                      "number",
+                      "null"
+                    ],
+                    "minimum": 0.5,
+                    "maximum": 24,
+                    "description": "بأنصاف الساعات. `null` يمحوها."
                   },
                   "meetsAt": {
                     "type": [
@@ -20517,11 +21054,29 @@
                       "null"
                     ],
                     "format": "uuid"
+                  },
+                  "certificatesEnabled": {
+                    "type": "boolean"
+                  },
+                  "certificateSignerNameAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 160
+                  },
+                  "certificateSignerTitleAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 160
                   }
                 },
                 "required": [
                   "feedbackFormId"
-                ]
+                ],
+                "description": "حقول الشهادة اختيارية في الطلب: ما لم يُرسَل يبقى على حاله."
               }
             }
           }
@@ -20548,7 +21103,7 @@
             }
           },
           "422": {
-            "description": "الاستمارة غير موجودة",
+            "description": "الاستمارة غير موجودة، أو فُعّلت الشهادات بلا اسم من يوقّعها",
             "content": {
               "application/problem+json": {
                 "schema": {

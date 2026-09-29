@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  Award,
   CalendarClock,
   ChevronLeft,
   CircleCheck,
@@ -41,7 +42,11 @@ import { formatAge, formatDay, formatTime } from "@/lib/field/labels";
 import { mapsUrl, staticMapUrl } from "@/lib/field/map";
 import { enqueue, useOutbox } from "@/lib/field/outbox";
 import { overlayCard } from "@/lib/field/overlay";
-import { fieldKeys, useFieldCard } from "@/lib/field/queries";
+import {
+  attendanceChanged,
+  fieldKeys,
+  useFieldCard,
+} from "@/lib/field/queries";
 import { submitSelfCheckin } from "@/lib/field/self-checkin";
 import { useFieldSession, useOnline } from "@/lib/field/session";
 import { dialable, latinDigits } from "@/lib/field/text";
@@ -121,6 +126,29 @@ export function VolunteerCard() {
           />
         ))
       )}
+
+      {/*
+        الحضور هنا مما وصل الخادم لا مما ينتظر في الطابور: الشهادة تصدر بما
+        في سجله، وحضور لم يُرسَل بعد لا يفتحها.
+      */}
+      {card.certificate.enabled &&
+      query.data?.memberships.some(
+        (membership) => membership.attendedOn.length > 0,
+      ) ? (
+        <Card title="شهادة مشاركتك">
+          <p className="text-sm leading-relaxed text-foreground">
+            حضورك مسجَّل، وشهادتك تُطبع أو تُحفظ على هاتفك.
+          </p>
+          <Link
+            href={FIELD_ROUTES.certificate}
+            className={cn(buttonVariants({ size: "lg" }), "mt-3 w-full")}
+          >
+            <Award aria-hidden />
+            {card.certificate.code ? "شهادتي" : "أصدر شهادتي"}
+            <ChevronLeft aria-hidden />
+          </Link>
+        </Card>
+      ) : null}
 
       {card.feedback ? (
         <Card title="رأيك يهمّنا">
@@ -572,6 +600,7 @@ function SelfCheckin({
 
       if (outcome.state === "recorded") {
         queryClient.setQueryData(fieldKeys.card, outcome.card);
+        attendanceChanged(queryClient);
       }
 
       setCode("");

@@ -1,9 +1,9 @@
 "use client";
 
 import { ShieldAlert } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
-import { encode } from "uqr";
+import { useEffect, useState } from "react";
 
+import { QrImage } from "@/components/field/qr-image";
 import {
   type CheckinSettings,
   canComputeCodes,
@@ -86,7 +86,13 @@ export function CheckinCode({
         // الرمز يُمسح بكاميرا: أسود على أبيض أيًّا كان وضع التطبيق.
         aria-hidden
       >
-        {code ? <QrImage text={checkinUrl(groupId, code)} /> : null}
+        {code ? (
+          <QrImage
+            text={checkinUrl(groupId, code)}
+            label="رمز مربّع لتسجيل الحضور"
+            className="size-full"
+          />
+        ) : null}
       </div>
 
       <div>
@@ -114,36 +120,5 @@ export function CheckinCode({
         />
       </div>
     </div>
-  );
-}
-
-/**
- * الرمز المربّع مسارًا واحدًا في SVG: يُرسم من مصفوفته، فلا صورة تُجلب ولا
- * HTML يُحقن.
- */
-function QrImage({ text }: { text: string }) {
-  const { size, path } = useMemo(() => {
-    const qr = encode(text, { ecc: "M", border: 2 });
-    const cells: string[] = [];
-
-    qr.data.forEach((row, y) => {
-      row.forEach((dark, x) => {
-        if (dark) cells.push(`M${x} ${y}h1v1h-1z`);
-      });
-    });
-
-    return { size: qr.size, path: cells.join("") };
-  }, [text]);
-
-  return (
-    <svg
-      viewBox={`0 0 ${size} ${size}`}
-      className="size-full"
-      shapeRendering="crispEdges"
-      role="img"
-      aria-label="رمز مربّع لتسجيل الحضور"
-    >
-      <path d={path} fill="#000" />
-    </svg>
   );
 }

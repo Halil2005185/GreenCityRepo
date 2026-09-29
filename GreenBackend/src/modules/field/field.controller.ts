@@ -15,6 +15,7 @@ import * as card from './field-card.service.js'
 import * as checkin from './field-checkin.service.js'
 import * as links from './field-links.service.js'
 import * as push from './field-push.service.js'
+import * as record from './field-record.service.js'
 import * as service from './field.service.js'
 import type * as dto from './field.schemas.js'
 
@@ -98,6 +99,31 @@ export const postPushUnsubscribe: RequestHandler = async (
   )
 
   response.status(200).json(state)
+}
+
+export const getRecord: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json(await record.loadRecord(participantPrincipal(request)))
+}
+
+export const postCertificate: RequestHandler = async (request, response) => {
+  const certificate = await record.issueCertificate(
+    participantPrincipal(request),
+    requestTrace(request),
+  )
+
+  response.status(200).json(certificate)
+}
+
+export const getVerifiedCertificate: RequestHandler = async (
+  request,
+  response,
+) => {
+  const { code } = request.validatedParams as dto.CertificateCodeParams
+
+  // مغلَّف بـ`data` كبقية السطح العام: الموقع يقرؤه بالقارئ نفسه.
+  response.status(200).json({ data: await record.verifyCertificate(code) })
 }
 
 export const postSelfCheckin: RequestHandler = async (request, response) => {

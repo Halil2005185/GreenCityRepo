@@ -15,6 +15,8 @@ export type FieldCardMembership = components["schemas"]["FieldCardMembership"];
 export type FieldRedeemedLink = components["schemas"]["FieldRedeemedLink"];
 export type FieldAnnouncement = components["schemas"]["FieldAnnouncement"];
 export type FieldPushKey = components["schemas"]["FieldPushKey"];
+export type FieldRecord = components["schemas"]["FieldRecord"];
+export type FieldCertificate = components["schemas"]["FieldCertificate"];
 
 /** من يُنادى باسمه: عضو فريق بجلسته، أو متطوع برابطه الشخصي. */
 export type SessionKind = "STAFF" | "PARTICIPANT";
@@ -386,6 +388,23 @@ export function getFieldHome(signal?: AbortSignal) {
 
 export function getFieldCard(signal?: AbortSignal) {
   return getMe("PARTICIPANT", signal);
+}
+
+export function getFieldRecord(signal?: AbortSignal) {
+  return fieldFetch<FieldRecord>("/field/me/record", {
+    ...(signal ? { signal } : {}),
+  });
+}
+
+/**
+ * شهادة المتطوع في حملة رابطه. طلب كتابة يُقرأ به: الخادم يصدرها عند أول
+ * طلب ويعيدها هي نفسها بعده، فتكراره لا يغيّر شيئًا.
+ */
+export function issueFieldCertificate(signal?: AbortSignal) {
+  return fieldFetch<FieldCertificate>("/field/me/certificate", {
+    method: "POST",
+    ...(signal ? { signal } : {}),
+  });
 }
 
 export function getFieldSheet(groupId: string, signal?: AbortSignal) {

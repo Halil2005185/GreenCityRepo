@@ -26,6 +26,7 @@ import {
   fieldGroupMembers,
   fieldGroups,
   fieldSettings,
+  participantCertificates,
   participantLinks,
   participants,
 } from '../../db/schema/field.js'
@@ -64,6 +65,7 @@ const groupColumns = {
   partnerId: fieldGroups.partnerId,
   partnerNameAr: partners.displayNameAr,
   contactPhone: fieldGroups.contactPhone,
+  hoursPerDay: fieldGroups.hoursPerDay,
   meetsAt: fieldGroups.meetsAt,
   meetingPointAr: fieldGroups.meetingPointAr,
   instructionsAr: fieldGroups.instructionsAr,
@@ -114,6 +116,8 @@ type GroupRow = Awaited<ReturnType<typeof groupQuery>>[number]
 function serializeGroup(row: GroupRow) {
   return {
     ...row,
+    // `numeric` يعود نصًّا من القاعدة.
+    hoursPerDay: row.hoursPerDay === null ? null : Number(row.hoursPerDay),
     meetsAt: row.meetsAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   }
@@ -143,9 +147,13 @@ async function loadSettings(initiativeId: string) {
       slug: forms.slug,
       isAccepting: forms.isAccepting,
       publishedVersionId: formVersions.id,
+      certificatesEnabled: fieldSettings.certificatesEnabled,
+      certificateSignerNameAr: fieldSettings.certificateSignerNameAr,
+      certificateSignerTitleAr: fieldSettings.certificateSignerTitleAr,
     })
     .from(fieldSettings)
-    .innerJoin(forms, eq(fieldSettings.feedbackFormId, forms.id))
+    // وصلة يسرى: إعدادات الشهادة قائمة ولو لم تُختر استمارة تقييم.
+    .leftJoin(forms, eq(fieldSettings.feedbackFormId, forms.id))
     .leftJoin(
       formVersions,
       and(
@@ -156,11 +164,22 @@ async function loadSettings(initiativeId: string) {
     .where(eq(fieldSettings.initiativeId, initiativeId))
     .limit(1)
 
+  const [issued] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(participantCertificates)
+    .where(eq(participantCertificates.initiativeId, initiativeId))
+
+  const certificateCount = issued?.count ?? 0
+
   if (!row) {
     return {
       feedbackFormId: null,
       feedbackFormNameAr: null,
       feedbackFormUrl: null,
+      certificatesEnabled: false,
+      certificateSignerNameAr: null,
+      certificateSignerTitleAr: null,
+      certificateCount,
     }
   }
 
@@ -171,6 +190,10 @@ async function loadSettings(initiativeId: string) {
       row.isAccepting && row.publishedVersionId
         ? `${env.PUBLIC_SITE_URL}/join/${row.slug}`
         : null,
+    certificatesEnabled: row.certificatesEnabled,
+    certificateSignerNameAr: row.certificateSignerNameAr,
+    certificateSignerTitleAr: row.certificateSignerTitleAr,
+    certificateCount,
   }
 }
 
@@ -231,18 +254,46 @@ export async function updateSettings(
     if (!form) throw errors.unprocessable('الاستمارة المختارة غير موجودة.')
   }
 
+  const current = await loadSettings(initiativeId)
+
+  const certificate = {
+    certificatesEnabled:
+      input.certificatesEnabled ?? current.certificatesEnabled,
+    certificateSignerNameAr:
+      input.certificateSignerNameAr === undefined
+        ? current.certificateSignerNameAr
+        : input.certificateSignerNameAr || null,
+    certificateSignerTitleAr:
+      input.certificateSignerTitleAr === undefined
+        ? current.certificateSignerTitleAr
+        : input.certificateSignerTitleAr || null,
+  }
+
+  // ورقة تحمل اسم المشروع بلا من يوقّعها ليست شهادة.
+  if (certificate.certificatesEnabled && !certificate.certificateSignerNameAr) {
+    throw errors.unprocessable('سمِّ من يوقّع الشهادة قبل تفعيلها.', [
+      {
+        path: 'certificateSignerNameAr',
+        in: 'body',
+        message: 'اكتب اسم من يوقّع الشهادة.',
+      },
+    ])
+  }
+
   await db.transaction(async (tx) => {
     await tx
       .insert(fieldSettings)
       .values({
         initiativeId,
         feedbackFormId: input.feedbackFormId,
+        ...certificate,
         updatedById: actor.userId,
       })
       .onConflictDoUpdate({
         target: fieldSettings.initiativeId,
         set: {
           feedbackFormId: input.feedbackFormId,
+          ...certificate,
           updatedById: actor.userId,
           updatedAt: new Date(),
         },
@@ -256,7 +307,10 @@ export async function updateSettings(
         entityId: initiativeId,
         entityLabel: initiative.nameAr,
         summaryAr: 'تعديل إعدادات الميدان',
-        metadata: { feedbackFormId: input.feedbackFormId },
+        metadata: {
+          feedbackFormId: input.feedbackFormId,
+          certificatesEnabled: certificate.certificatesEnabled,
+        },
         ...trace,
       },
       tx,
@@ -496,6 +550,8 @@ export async function createGroup(
           leadUserId: leader?.userId ?? null,
           partnerId: partner?.id ?? null,
           contactPhone: input.contactPhone?.trim() || null,
+          hoursPerDay:
+            input.hoursPerDay == null ? null : String(input.hoursPerDay),
           meetsAt: input.meetsAt ? new Date(input.meetsAt) : null,
           meetingPointAr: input.meetingPointAr
             ? normalizeText(input.meetingPointAr)
@@ -568,6 +624,12 @@ export async function updateGroup(
     ...(leadChanged ? { leadUserId: input.leadUserId ?? null } : {}),
     ...(input.contactPhone !== undefined
       ? { contactPhone: input.contactPhone?.trim() || null }
+      : {}),
+    ...(input.hoursPerDay !== undefined
+      ? {
+          hoursPerDay:
+            input.hoursPerDay === null ? null : String(input.hoursPerDay),
+        }
       : {}),
     ...(input.meetsAt !== undefined
       ? { meetsAt: input.meetsAt ? new Date(input.meetsAt) : null }

@@ -17,7 +17,11 @@ import { FieldNotice, FieldSkeleton } from "@/components/field/states";
 import { readCheckinFragment } from "@/lib/field/checkin";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import { useOutbox } from "@/lib/field/outbox";
-import { fieldKeys, useFieldCard } from "@/lib/field/queries";
+import {
+  attendanceChanged,
+  fieldKeys,
+  useFieldCard,
+} from "@/lib/field/queries";
 import {
   type SelfCheckinOutcome,
   submitSelfCheckin,
@@ -94,6 +98,7 @@ export function CheckinScreen() {
       .then((result) => {
         if (result.state === "recorded") {
           queryClient.setQueryData(fieldKeys.card, result.card);
+          attendanceChanged(queryClient);
         }
 
         setOutcome(result);

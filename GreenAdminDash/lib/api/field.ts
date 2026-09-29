@@ -100,6 +100,7 @@ export type FieldGroupInput = {
   leadUserId: string | null;
   partnerId: string | null;
   contactPhone: string | null;
+  hoursPerDay: number | null;
   meetsAt: string | null;
   meetingPointAr: string | null;
   instructionsAr: string | null;
@@ -256,9 +257,16 @@ export function listFeedbackForms(initiativeId: string) {
   ).then((response) => response.data);
 }
 
+export type FieldSettingsInput = {
+  feedbackFormId: string | null;
+  certificatesEnabled: boolean;
+  certificateSignerNameAr: string | null;
+  certificateSignerTitleAr: string | null;
+};
+
 export function updateFieldSettings(
   initiativeId: string,
-  body: { feedbackFormId: string | null },
+  body: FieldSettingsInput,
 ) {
   return apiFetch<InitiativeField>(`${base(initiativeId)}/settings`, {
     method: "PUT",

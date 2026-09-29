@@ -348,6 +348,19 @@ export const fieldCardSchema = registry.register(
           description:
             'استمارة التقييم على الموقع العام، إن اختارها المنسّق وكانت تستقبل.',
         }),
+      certificate: z
+        .object({
+          enabled: z.boolean().openapi({
+            description: 'هل فعّل المنسّق الشهادات لهذه المبادرة.',
+          }),
+          code: z.string().nullable().openapi({
+            description: 'رمز شهادته إن صدرت.',
+          }),
+        })
+        .openapi({
+          description:
+            'شهادة المشاركة في هذه المبادرة. تصدر لمن له يوم حضور قائم فيها.',
+        }),
       generatedAt: z.iso.datetime(),
     })
     .openapi({
@@ -355,6 +368,144 @@ export const fieldCardSchema = registry.register(
         'بطاقة المتطوع في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم.',
     }),
 )
+
+// ── السجل والشهادة ─────────────────────────────────────────────────────
+
+const participationSummary = {
+  days: z.number().int().openapi({
+    description: 'أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين.',
+  }),
+  hours: z.number().nullable().openapi({
+    description:
+      'مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها.',
+  }),
+  firstDay: z.iso.date().nullable(),
+  lastDay: z.iso.date().nullable(),
+  sites: z.array(z.string()),
+}
+
+export const fieldRecordSchema = registry.register(
+  'FieldRecord',
+  z
+    .object({
+      participant: z.object({ id: z.uuid(), fullNameAr: z.string() }),
+      totals: z.object({
+        initiatives: z.number().int(),
+        days: z.number().int(),
+        hours: z.number().nullable(),
+      }),
+      participations: z.array(
+        z.object({
+          initiativeId: z.uuid(),
+          initiativeNameAr: z.string(),
+          initiativeStatus: initiativeStatusEnum,
+          programNameAr: z.string(),
+          ...participationSummary,
+          certificate: z.object({
+            code: z.string().nullable(),
+            canIssue: z.boolean().openapi({
+              description:
+                'تُصدَر الآن بهذا الرابط: مبادرة الرابط نفسها، والشهادات مفعّلة فيها.',
+            }),
+          }),
+        }),
+      ),
+      generatedAt: z.iso.datetime(),
+    })
+    .openapi({
+      description:
+        'سجل المشارك عبر الحملات: ما حضره بأيامه وساعاته، الأحدث أولًا. عضوية بلا حضور ليست فيه.',
+    }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/me/record'),
+  tags: ['Field'],
+  summary: 'سجلّي عبر الحملات',
+  description: 'لحامل الرابط الشخصي.',
+  security,
+  responses: {
+    200: { description: 'السجل', ...json(fieldRecordSchema) },
+    403: problemResponse('المسار لحامل رابط شخصي'),
+  },
+})
+
+const certificateFields = {
+  code: z.string(),
+  issuedAt: z.iso.datetime(),
+  fullNameAr: z.string(),
+  initiativeNameAr: z.string(),
+  programNameAr: z.string(),
+  ...participationSummary,
+  signer: z
+    .object({ nameAr: z.string(), titleAr: z.string().nullable() })
+    .nullable(),
+}
+
+export const fieldCertificateSchema = registry.register(
+  'FieldCertificate',
+  z
+    .object({
+      ...certificateFields,
+      verifyUrl: z.string().openapi({
+        description: 'صفحة التحقق من الشهادة على الموقع العام.',
+      }),
+    })
+    .openapi({
+      description:
+        'شهادة المشاركة كما تُطبع. الأيام والساعات من الحضور ساعة القراءة، لا نسخة يوم الإصدار.',
+    }),
+)
+
+registry.registerPath({
+  method: 'post',
+  path: path('/me/certificate'),
+  tags: ['Field'],
+  summary: 'شهادة مشاركتي',
+  description:
+    'لحامل الرابط الشخصي، في مبادرة رابطه. تصدر عند أول طلب وتعود هي نفسها بعده برمزها.',
+  security,
+  responses: {
+    200: { description: 'الشهادة', ...json(fieldCertificateSchema) },
+    403: problemResponse('المسار لحامل رابط شخصي'),
+    409: problemResponse('الشهادات غير مفعّلة، أو لا حضور مسجَّلًا له بعد'),
+  },
+})
+
+export const certificateCodeParamsSchema = z.object({
+  code: z
+    .string()
+    .trim()
+    .toUpperCase()
+    .regex(/^[2-9A-HJ-NP-Z]{10}$/),
+})
+
+export const verifiedCertificateSchema = registry.register(
+  'VerifiedCertificate',
+  z.object(certificateFields).openapi({
+    description:
+      'ما تقوله الشهادة لمن يتحقق منها: الاسم والحملة والأيام والساعات. لا وسيلة تواصل ولا معرّف.',
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: `${env.API_PREFIX}/public/certificates/{code}`,
+  tags: ['Field'],
+  summary: 'التحقق من شهادة مشاركة',
+  description:
+    'بلا مصادقة، محدود المعدل. غير الموجودة وما لم يبقَ لصاحبها يوم حضور جواب واحد.',
+  request: { params: certificateCodeParamsSchema },
+  responses: {
+    200: {
+      description: 'الشهادة صحيحة',
+      ...json(z.object({ data: verifiedCertificateSchema })),
+    },
+    404: problemResponse('لا شهادة بهذا الرمز'),
+    429: problemResponse('محاولات كثيرة'),
+  },
+})
 
 // ── القراءة ────────────────────────────────────────────────────────────
 
@@ -818,6 +969,7 @@ registry.registerPath({
 export type RedeemLinkBody = z.infer<typeof redeemLinkBodySchema>
 export type RsvpBody = z.infer<typeof rsvpBodySchema>
 export type SelfCheckinBody = z.infer<typeof selfCheckinBodySchema>
+export type CertificateCodeParams = z.infer<typeof certificateCodeParamsSchema>
 export type PushSubscribeBody = z.infer<typeof pushSubscribeBodySchema>
 export type PushUnsubscribeBody = z.infer<typeof pushUnsubscribeBodySchema>
 export type AttendanceBody = z.infer<typeof attendanceBodySchema>

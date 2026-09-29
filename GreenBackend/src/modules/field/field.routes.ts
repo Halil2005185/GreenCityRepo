@@ -7,6 +7,7 @@ import {
   requireStaff,
 } from '../../common/middleware/authorize.js'
 import {
+  certificateVerifyRateLimit,
   fieldWriteRateLimit,
   linkRedeemRateLimit,
   selfCheckinRateLimit,
@@ -63,6 +64,15 @@ fieldRouter.post(
   selfCheckinRateLimit,
   validate({ body: schemas.selfCheckinBodySchema }),
   controller.postSelfCheckin,
+)
+
+fieldRouter.get('/me/record', requireFieldParticipant, controller.getRecord)
+
+fieldRouter.post(
+  '/me/certificate',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  controller.postCertificate,
 )
 
 // الإشعارات للمبدأين: القائد يشترك بحسابه، والمتطوع برابطه.
@@ -153,6 +163,20 @@ fieldRouter.post(
   fieldWriteRateLimit,
   validate({ params: task, body: schemas.fieldTaskCommentBodySchema }),
   controller.postTaskComment,
+)
+
+/**
+ * السطح العام للميدان — `/api/public`. بلا مصادقة، محدود المعدل.
+ *
+ * التحقق من شهادة: من يحمل الورقة يعرف ما فيها، فالجواب لا يزيد عليها.
+ */
+export const fieldPublicRouter = Router()
+
+fieldPublicRouter.get(
+  '/certificates/:code',
+  certificateVerifyRateLimit,
+  validate({ params: schemas.certificateCodeParamsSchema }),
+  controller.getVerifiedCertificate,
 )
 
 /**

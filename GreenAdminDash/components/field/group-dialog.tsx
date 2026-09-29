@@ -57,6 +57,17 @@ const schema = z.object({
       (value) => value === "" || /^[+]?[0-9\s()-]{6,32}$/.test(value),
       "اكتب الرقم بأرقامه، مثل 0944123456.",
     ),
+  // نصٌّ لا رقم: الحقل الفارغ «لم تُحدَّد»، وليس صفرًا.
+  hoursPerDay: z
+    .string()
+    .trim()
+    .refine((value) => {
+      if (value === "") return true;
+
+      const hours = Number(value);
+
+      return hours >= 0.5 && hours <= 24 && Number.isInteger(hours * 2);
+    }, "اكتب الساعات بأنصافها، بين نصف ساعة و24: مثل 4 أو 5.5."),
   meetsAt: z.string(),
   meetingPointAr: z.string().trim().max(300, "وصف نقطة اللقاء طويل جدًا."),
   instructionsAr: z.string().trim().max(4000, "التعليمات طويلة جدًا."),
@@ -70,6 +81,7 @@ const EMPTY: Values = {
   leadUserId: "",
   partnerId: "",
   contactPhone: "",
+  hoursPerDay: "",
   meetsAt: "",
   meetingPointAr: "",
   instructionsAr: "",
@@ -135,6 +147,8 @@ export function GroupDialog({
               leadUserId: group.leadUserId ?? "",
               partnerId: group.partnerId ?? "",
               contactPhone: group.contactPhone ?? "",
+              hoursPerDay:
+                group.hoursPerDay === null ? "" : String(group.hoursPerDay),
               meetsAt: toLocalInput(group.meetsAt),
               meetingPointAr: group.meetingPointAr ?? "",
               instructionsAr: group.instructionsAr ?? "",
@@ -149,6 +163,7 @@ export function GroupDialog({
           leadUserId: values.leadUserId || null,
           partnerId: values.partnerId || null,
           contactPhone: values.contactPhone || null,
+          hoursPerDay: values.hoursPerDay ? Number(values.hoursPerDay) : null,
           meetsAt: fromLocalInput(values.meetsAt),
           meetingPointAr: values.meetingPointAr || null,
           instructionsAr: values.instructionsAr || null,
@@ -255,6 +270,19 @@ export function GroupDialog({
           maxLength={300}
         />
       </div>
+      <TextField
+        control={form.control}
+        name="hoursPerDay"
+        label="ساعات العمل في اليوم (اختيارية)"
+        hint="منها تُحسب ساعات التطوع في سجل المتطوع وشهادته: يوم حضور بساعاته. بلا ساعات تذكر الشهادة الأيام وحدها."
+        type="number"
+        inputMode="decimal"
+        min={0.5}
+        max={24}
+        step={0.5}
+        dir="ltr"
+        className="text-end"
+      />
       <TextareaField
         control={form.control}
         name="instructionsAr"

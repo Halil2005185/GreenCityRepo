@@ -18,7 +18,7 @@ export function FieldToaster() {
     <div
       role="status"
       aria-live="polite"
-      className="pointer-events-none fixed inset-x-0 bottom-4 z-50 mx-auto flex w-full max-w-[30rem] flex-col gap-2 px-4 app:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]"
+      className="pointer-events-none fixed inset-x-0 bottom-4 z-50 print:hidden mx-auto flex w-full max-w-[30rem] flex-col gap-2 px-4 app:bottom-[calc(5.5rem+env(safe-area-inset-bottom))]"
     >
       {toasts.map((toast) => (
         <div

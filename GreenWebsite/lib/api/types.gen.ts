@@ -7035,6 +7035,172 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/field/me/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * سجلّي عبر الحملات
+         * @description لحامل الرابط الشخصي.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description السجل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldRecord"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * شهادة مشاركتي
+         * @description لحامل الرابط الشخصي، في مبادرة رابطه. تصدر عند أول طلب وتعود هي نفسها بعده برمزها.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الشهادة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCertificate"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الشهادات غير مفعّلة، أو لا حضور مسجَّلًا له بعد */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/certificates/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * التحقق من شهادة مشاركة
+         * @description بلا مصادقة، محدود المعدل. غير الموجودة وما لم يبقَ لصاحبها يوم حضور جواب واحد.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الشهادة صحيحة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["VerifiedCertificate"];
+                        };
+                    };
+                };
+                /** @description لا شهادة بهذا الرمز */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description محاولات كثيرة */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/field/me": {
         parameters: {
             query?: never;
@@ -8395,6 +8561,8 @@ export interface paths {
                          */
                         partnerId?: string | null;
                         contactPhone?: string | null;
+                        /** @description بأنصاف الساعات. `null` يمحوها. */
+                        hoursPerDay?: number | null;
                         /** Format: date-time */
                         meetsAt?: string | null;
                         meetingPointAr?: string | null;
@@ -8524,6 +8692,8 @@ export interface paths {
                          */
                         partnerId?: string | null;
                         contactPhone?: string | null;
+                        /** @description بأنصاف الساعات. `null` يمحوها. */
+                        hoursPerDay?: number | null;
                         /** Format: date-time */
                         meetsAt?: string | null;
                         meetingPointAr?: string | null;
@@ -8982,6 +9152,9 @@ export interface paths {
                     "application/json": {
                         /** Format: uuid */
                         feedbackFormId: string | null;
+                        certificatesEnabled?: boolean;
+                        certificateSignerNameAr?: string | null;
+                        certificateSignerTitleAr?: string | null;
                     };
                 };
             };
@@ -9004,7 +9177,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description الاستمارة غير موجودة */
+                /** @description الاستمارة غير موجودة، أو فُعّلت الشهادات بلا اسم من يوقّعها */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -11150,8 +11323,98 @@ export interface components {
                 nameAr: string;
                 url: string;
             } | null;
+            /** @description شهادة المشاركة في هذه المبادرة. تصدر لمن له يوم حضور قائم فيها. */
+            certificate: {
+                /** @description هل فعّل المنسّق الشهادات لهذه المبادرة. */
+                enabled: boolean;
+                /** @description رمز شهادته إن صدرت. */
+                code: string | null;
+            };
             /** Format: date-time */
             generatedAt: string;
+        };
+        /** @description سجل المشارك عبر الحملات: ما حضره بأيامه وساعاته، الأحدث أولًا. عضوية بلا حضور ليست فيه. */
+        FieldRecord: {
+            participant: {
+                /** Format: uuid */
+                id: string;
+                fullNameAr: string;
+            };
+            totals: {
+                initiatives: number;
+                days: number;
+                hours: number | null;
+            };
+            participations: {
+                /** Format: uuid */
+                initiativeId: string;
+                initiativeNameAr: string;
+                /** @enum {string} */
+                initiativeStatus: "DRAFT" | "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+                programNameAr: string;
+                /** @description أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين. */
+                days: number;
+                /** @description مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها. */
+                hours: number | null;
+                /** Format: date */
+                firstDay: string | null;
+                /** Format: date */
+                lastDay: string | null;
+                sites: string[];
+                certificate: {
+                    code: string | null;
+                    /** @description تُصدَر الآن بهذا الرابط: مبادرة الرابط نفسها، والشهادات مفعّلة فيها. */
+                    canIssue: boolean;
+                };
+            }[];
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        /** @description شهادة المشاركة كما تُطبع. الأيام والساعات من الحضور ساعة القراءة، لا نسخة يوم الإصدار. */
+        FieldCertificate: {
+            code: string;
+            /** Format: date-time */
+            issuedAt: string;
+            fullNameAr: string;
+            initiativeNameAr: string;
+            programNameAr: string;
+            /** @description أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين. */
+            days: number;
+            /** @description مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها. */
+            hours: number | null;
+            /** Format: date */
+            firstDay: string | null;
+            /** Format: date */
+            lastDay: string | null;
+            sites: string[];
+            signer: {
+                nameAr: string;
+                titleAr: string | null;
+            } | null;
+            /** @description صفحة التحقق من الشهادة على الموقع العام. */
+            verifyUrl: string;
+        };
+        /** @description ما تقوله الشهادة لمن يتحقق منها: الاسم والحملة والأيام والساعات. لا وسيلة تواصل ولا معرّف. */
+        VerifiedCertificate: {
+            code: string;
+            /** Format: date-time */
+            issuedAt: string;
+            fullNameAr: string;
+            initiativeNameAr: string;
+            programNameAr: string;
+            /** @description أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين. */
+            days: number;
+            /** @description مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها. */
+            hours: number | null;
+            /** Format: date */
+            firstDay: string | null;
+            /** Format: date */
+            lastDay: string | null;
+            sites: string[];
+            signer: {
+                nameAr: string;
+                titleAr: string | null;
+            } | null;
         };
         FieldRedeemedLink: {
             participant: {
@@ -11195,6 +11458,8 @@ export interface components {
             partnerNameAr: string | null;
             /** @description وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق. */
             contactPhone: string | null;
+            /** @description ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله وشهادته. */
+            hoursPerDay: number | null;
             /** Format: date-time */
             meetsAt: string | null;
             meetingPointAr: string | null;
@@ -11217,6 +11482,12 @@ export interface components {
             feedbackFormNameAr: string | null;
             /** @description رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل. */
             feedbackFormUrl: string | null;
+            /** @description هل تصدر شهادات مشاركة لمتطوعي هذه المبادرة من بطاقاتهم. */
+            certificatesEnabled: boolean;
+            certificateSignerNameAr: string | null;
+            certificateSignerTitleAr: string | null;
+            /** @description الشهادات التي صدرت في هذه المبادرة. */
+            certificateCount: number;
         };
         /** @description ميدان المبادرة كاملًا. كل مسار كتابة على المجموعات يعيده، فتتحدّث لوحة المنسّق بنداء واحد. */
         InitiativeField: {

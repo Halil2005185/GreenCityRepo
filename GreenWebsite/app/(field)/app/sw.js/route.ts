@@ -16,6 +16,8 @@ const SHELLS = [
   FIELD_ROUTES.me,
   FIELD_ROUTES.link,
   FIELD_ROUTES.checkin,
+  FIELD_ROUTES.record,
+  FIELD_ROUTES.certificate,
   FIELD_ROUTES.login,
   FIELD_ROUTES.offline,
 ];

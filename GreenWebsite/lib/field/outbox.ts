@@ -20,7 +20,7 @@ import {
   isCardItem,
 } from "./outbox-types";
 import { applyCardItem, applyItem, forDay, isCurrentShape } from "./overlay";
-import { fieldKeys } from "./queries";
+import { attendanceChanged, fieldKeys } from "./queries";
 
 export type OutboxState = {
   /** ما ينتظر وما رُفض، الأقدم أولًا. */
@@ -489,6 +489,7 @@ async function drain(current: NonNullable<typeof engine>) {
 
     if (cardTouched) {
       void current.queryClient.invalidateQueries({ queryKey: fieldKeys.card });
+      attendanceChanged(current.queryClient);
     }
   }
 }

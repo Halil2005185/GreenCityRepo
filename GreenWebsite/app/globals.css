@@ -211,6 +211,23 @@
     mask: url("/brand/logomark.png") center / contain no-repeat;
   }
 
+  /**
+   * شهادة المشاركة ورقةً تُطبع. المتصفح لا يطبع الخلفيات افتراضًا، ورمز
+   * الهوية قناعٌ فوق لون خلفية: بلا `print-color-adjust` تخرج الشهادة بلا
+   * شعارها.
+   *
+   * `page` يطلب ورقة عرضية حيث يدعم المتصفح تسمية الصفحات؛ وحيث لا يدعمها
+   * تُطبع على ورقته الافتراضية وتبقى مقروءة — تخطيطها يتبع عرض الصفحة.
+   */
+  .certificate-sheet {
+    --logo: var(--brand-deep-green);
+
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+    page: certificate;
+    break-inside: avoid;
+  }
+
   [data-reveal-visible] .reveal {
     opacity: 0;
     transform: translateY(1.25rem);
@@ -284,5 +301,25 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+/**
+ * ورقة الشهادة: A4 عرضية بحاشية تسع طابعات المكاتب. مسمّاة، فلا تغيّر طباعة
+ * أي صفحة أخرى من الموقع.
+ */
+@page certificate {
+  size: A4 landscape;
+  margin: 10mm;
+}
+
+@media print {
+  /*
+   * تملأ الورقة العرضية: 210mm ناقص الحاشيتين، وميليمتران لتقريب الطابعة.
+   * وبلا هامش: ما يفصلها عن أزرار الشاشة يدفع آخرها إلى صفحة ثانية فارغة.
+   */
+  .certificate-sheet {
+    height: 188mm;
+    margin: 0;
   }
 }

@@ -7,7 +7,11 @@ import {
   charterPublicRouter,
 } from '../modules/charter/charter.routes.js'
 import { dashboardRouter } from '../modules/dashboard/dashboard.routes.js'
-import { fieldAdminRouter, fieldRouter } from '../modules/field/field.routes.js'
+import {
+  fieldAdminRouter,
+  fieldPublicRouter,
+  fieldRouter,
+} from '../modules/field/field.routes.js'
 import { formsRouter } from '../modules/forms/forms.routes.js'
 import { publicFormsRouter } from '../modules/forms/public.routes.js'
 import { geoRouter } from '../modules/geo/geo.routes.js'
@@ -38,6 +42,7 @@ apiRouter.use('/charter', charterPublicRouter)
  * السطح العام — بلا مصادقة، محدود المعدل، ولا يكشف وجود ما لم يُنشر.
  */
 apiRouter.use('/public', publicFormsRouter)
+apiRouter.use('/public', fieldPublicRouter)
 
 // مسارات الفريق.
 apiRouter.use('/admin', orgRouter)

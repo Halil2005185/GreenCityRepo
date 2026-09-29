@@ -131,6 +131,14 @@ export const fieldGroups = pgTable(
     displayOrder: integer('display_order').default(0).notNull(),
 
     /**
+     * ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله
+     * وشهادته: يوم حضور في المجموعة يساوي هذه الساعات. الحضور يُسجَّل عند
+     * الوصول وحده ولا وقت انصراف له، فالساعات ما قرره المنسّق ليوم العمل
+     * لا ما قاسته ساعة.
+     */
+    hoursPerDay: numeric('hours_per_day', { precision: 3, scale: 1 }),
+
+    /**
      * سرّ رمز الحضور الذاتي: منه يحسب هاتف القائد رمزًا يتبدّل كل دقيقة،
      * بلا شبكة، ويتحقق الخادم منه حين يكتبه المتطوع. يُولَّد عند أول فتح
      * لورقة المجموعة، ولا يخرج إلا إلى قائدها ومساعديه.
@@ -145,6 +153,11 @@ export const fieldGroups = pgTable(
     index('field_groups_initiative_idx').on(table.initiativeId),
     index('field_groups_lead_idx').on(table.leadUserId),
     index('field_groups_partner_idx').on(table.partnerId),
+    check(
+      'field_groups_hours_range',
+      sql`${table.hoursPerDay} is null
+          or (${table.hoursPerDay} > 0 and ${table.hoursPerDay} <= 24)`,
+    ),
   ],
 )
 
@@ -248,11 +261,62 @@ export const fieldSettings = pgTable('field_settings', {
   feedbackFormId: uuidColumn('feedback_form_id').references(() => forms.id, {
     onDelete: 'set null',
   }),
+
+  /**
+   * الشهادة قرار المبادرة لا افتراض النظام: ورقة تحمل اسم المشروع وتوقيع
+   * مسؤول فيه، فلا تصدر حتى يفعّلها المنسّق ويسمّي من يوقّعها.
+   */
+  certificatesEnabled: boolean('certificates_enabled').default(false).notNull(),
+  certificateSignerNameAr: varchar('certificate_signer_name_ar', {
+    length: 160,
+  }),
+  certificateSignerTitleAr: varchar('certificate_signer_title_ar', {
+    length: 160,
+  }),
+
   updatedById: uuidColumn('updated_by_id').references(() => users.id, {
     onDelete: 'set null',
   }),
   ...timestamps,
 })
+
+/**
+ * شهادة مشاركة — رمزها وحده. ما تقوله الشهادة (الأيام والساعات) يُحسب من
+ * الحضور ساعة تُقرأ، لا يُنسخ هنا: حضور تُرجع عنه بعد الإصدار يُرى في صفحة
+ * التحقق، فلا تبقى ورقة تشهد بما لم يعد في السجل.
+ *
+ * شهادة واحدة للمشارك في المبادرة، ورمزها ثابت: من طبعها ثم حضر يومًا آخر
+ * يطبعها من جديد بالرمز نفسه.
+ */
+export const participantCertificates = pgTable(
+  'participant_certificates',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    participantId: uuidColumn('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    initiativeId: uuidColumn('initiative_id')
+      .notNull()
+      .references(() => initiatives.id, { onDelete: 'cascade' }),
+
+    /** عشرة محارف بلا ما يلتبس (0 وO، 1 وI): تُقرأ من ورقة وتُكتب باليد. */
+    code: varchar('code', { length: 16 }).notNull(),
+    issuedAt: tsColumn('issued_at').defaultNow().notNull(),
+
+    ...createdAtOnly,
+  },
+  (table) => [
+    uniqueIndex('participant_certificates_code_unique').on(table.code),
+    uniqueIndex('participant_certificates_holder_unique').on(
+      table.participantId,
+      table.initiativeId,
+    ),
+    check(
+      'participant_certificates_code_format',
+      sql`${table.code} ~ '^[2-9A-HJ-NP-Z]{10}$'`,
+    ),
+  ],
+)
 
 /**
  * الحضور — من جاء فعلًا، في أي يوم.
@@ -430,6 +494,7 @@ export type FieldGroup = typeof fieldGroups.$inferSelect
 export type NewFieldGroup = typeof fieldGroups.$inferInsert
 export type FieldGroupMember = typeof fieldGroupMembers.$inferSelect
 export type ParticipantLink = typeof participantLinks.$inferSelect
+export type ParticipantCertificate = typeof participantCertificates.$inferSelect
 export type Attendance = typeof attendance.$inferSelect
 export type Attachment = typeof attachments.$inferSelect
 export type NewAttachment = typeof attachments.$inferInsert

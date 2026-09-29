@@ -9,6 +9,7 @@ import {
   fieldGroupMembers,
   fieldGroups,
   fieldSettings,
+  participantCertificates,
 } from '../../db/schema/field.js'
 import { formVersions, forms } from '../../db/schema/forms.js'
 import { areas } from '../../db/schema/geo.js'
@@ -94,6 +95,29 @@ async function loadSitePhotos(siteId: string) {
   }))
 }
 
+/** هل فُعّلت الشهادات لمبادرته، وما رمز شهادته إن صدرت. */
+async function loadCertificate(principal: ParticipantPrincipal) {
+  const [[settings], [issued]] = await Promise.all([
+    db
+      .select({ enabled: fieldSettings.certificatesEnabled })
+      .from(fieldSettings)
+      .where(eq(fieldSettings.initiativeId, principal.initiativeId))
+      .limit(1),
+    db
+      .select({ code: participantCertificates.code })
+      .from(participantCertificates)
+      .where(
+        and(
+          eq(participantCertificates.participantId, principal.participantId),
+          eq(participantCertificates.initiativeId, principal.initiativeId),
+        ),
+      )
+      .limit(1),
+  ])
+
+  return { enabled: settings?.enabled ?? false, code: issued?.code ?? null }
+}
+
 /**
  * بطاقة المشارك في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم.
  *
@@ -155,7 +179,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
   const groupIds = rows.map((row) => row.group.id)
   const siteIds = [...new Set(rows.map((row) => row.site.id))]
 
-  const [attended, feedback, impact, photos, announcements] = await Promise.all([
+  const [attended, feedback, impact, photos, announcements, certificate] = await Promise.all([
     groupIds.length > 0
       ? db
           .select({
@@ -184,6 +208,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
       groupIds,
       reader: 'VOLUNTEERS',
     }),
+    loadCertificate(principal),
   ])
 
   const impactBySite = new Map(impact)
@@ -225,6 +250,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
       photos: photosBySite.get(row.site.id) ?? [],
     })),
     feedback,
+    certificate,
     generatedAt: new Date().toISOString(),
   }
 }

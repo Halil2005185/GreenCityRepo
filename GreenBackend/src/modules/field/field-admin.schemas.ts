@@ -43,6 +43,10 @@ export const fieldGroupSchema = registry.register(
       description:
         'وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق.',
     }),
+    hoursPerDay: z.number().nullable().openapi({
+      description:
+        'ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله وشهادته.',
+    }),
     meetsAt: z.iso.datetime().nullable(),
     meetingPointAr: z.string().nullable(),
     instructionsAr: z.string().nullable(),
@@ -70,6 +74,15 @@ export const fieldSettingsSchema = registry.register(
     feedbackFormUrl: z.string().nullable().openapi({
       description:
         'رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل.',
+    }),
+    certificatesEnabled: z.boolean().openapi({
+      description:
+        'هل تصدر شهادات مشاركة لمتطوعي هذه المبادرة من بطاقاتهم.',
+    }),
+    certificateSignerNameAr: z.string().nullable(),
+    certificateSignerTitleAr: z.string().nullable(),
+    certificateCount: z.number().int().openapi({
+      description: 'الشهادات التي صدرت في هذه المبادرة.',
     }),
   }),
 )
@@ -183,6 +196,14 @@ const meetingFields = {
     .regex(PHONE_PATTERN, 'صيغة رقم الهاتف غير صحيحة.')
     .nullable()
     .optional(),
+  hoursPerDay: z
+    .number()
+    .min(0.5)
+    .max(24)
+    .multipleOf(0.5)
+    .nullable()
+    .optional()
+    .openapi({ description: 'بأنصاف الساعات. `null` يمحوها.' }),
   meetsAt: z.iso.datetime().nullable().optional(),
   meetingPointAr: z.string().max(300).nullable().optional(),
   instructionsAr: z.string().max(4000).nullable().optional(),
@@ -533,9 +554,17 @@ registry.registerPath({
   },
 })
 
-export const updateSettingsBodySchema = z.object({
-  feedbackFormId: z.uuid().nullable(),
-})
+export const updateSettingsBodySchema = z
+  .object({
+    feedbackFormId: z.uuid().nullable(),
+    certificatesEnabled: z.boolean().optional(),
+    certificateSignerNameAr: z.string().trim().max(160).nullable().optional(),
+    certificateSignerTitleAr: z.string().trim().max(160).nullable().optional(),
+  })
+  .openapi({
+    description:
+      'حقول الشهادة اختيارية في الطلب: ما لم يُرسَل يبقى على حاله.',
+  })
 
 registry.registerPath({
   method: 'put',
@@ -550,7 +579,9 @@ registry.registerPath({
   responses: {
     200: { description: 'حُفظت', ...json(initiativeFieldSchema) },
     404: problemResponse('المبادرة غير موجودة'),
-    422: problemResponse('الاستمارة غير موجودة'),
+    422: problemResponse(
+      'الاستمارة غير موجودة، أو فُعّلت الشهادات بلا اسم من يوقّعها',
+    ),
   },
 })
 
