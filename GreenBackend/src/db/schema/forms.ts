@@ -275,9 +275,26 @@ export const formSubmissions = pgTable(
     sourceIpHash: varchar('source_ip_hash', { length: 64 }),
 
     submittedAt: tsColumn('submitted_at').defaultNow().notNull(),
+
+    /**
+     * مُحيت بياناته بطلب صاحبه (طلب حذف بيانات المشارك). الصف يبقى عددًا
+     * في استمارته وحالُه كما قُرّرت؛ وما كُتب فيه لا يبقى.
+     */
+    redactedAt: tsColumn('redacted_at'),
+
     ...timestamps,
   },
   (table) => [
+    check(
+      'form_submissions_redacted_is_empty',
+      sql`${table.redactedAt} is null or (
+        ${table.answers} = '{}'::jsonb
+        and ${table.applicantNameAr} is null
+        and ${table.applicantEmail} is null
+        and ${table.applicantPhone} is null
+        and ${table.sourceIpHash} is null
+      )`,
+    ),
     index('form_submissions_version_idx').on(table.formVersionId),
     index('form_submissions_status_idx').on(table.status),
     index('form_submissions_email_idx').on(table.applicantEmail),

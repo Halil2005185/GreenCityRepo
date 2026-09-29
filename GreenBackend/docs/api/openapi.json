@@ -1995,6 +1995,14 @@
           "submittedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "redactedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "مُحيت بياناته بطلب صاحبه حذفَ بياناته: لا اسم ولا وسيلة تواصل ولا إجابات. الطلب يبقى عددًا في استمارته."
           }
         },
         "required": [
@@ -2005,7 +2013,8 @@
           "applicantPhone",
           "formVersion",
           "answers",
-          "submittedAt"
+          "submittedAt",
+          "redactedAt"
         ]
       },
       "FormSubmissionDetail": {
@@ -6673,6 +6682,46 @@
             ],
             "description": "شهادة المشاركة في هذه المبادرة. تصدر لمن له يوم حضور قائم فيها."
           },
+          "deletionRequest": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PENDING",
+                  "REJECTED"
+                ]
+              },
+              "requestedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "decidedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "noteAr": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "ما كتبه المنسّق لصاحب الطلب حين رفضه."
+              }
+            },
+            "required": [
+              "status",
+              "requestedAt",
+              "decidedAt",
+              "noteAr"
+            ],
+            "description": "طلبه حذف بياناته: القائم، أو آخر ما رُفض. على الشخص لا على الحملة، فيظهر في كل بطاقاته."
+          },
           "generatedAt": {
             "type": "string",
             "format": "date-time"
@@ -6688,6 +6737,7 @@
           "memberships",
           "feedback",
           "certificate",
+          "deletionRequest",
           "generatedAt"
         ],
         "description": "بطاقة المتطوع في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم."
@@ -8103,6 +8153,141 @@
           "initiativeId",
           "pushEnabled",
           "announcements"
+        ]
+      },
+      "FieldDeletionRequest": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "DONE",
+              "REJECTED"
+            ]
+          },
+          "requestedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "decidedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "decidedByNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "decisionNoteAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "participant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "anonymized": {
+                "type": "boolean",
+                "description": "نُفّذ الحذف: الاسم بعده «مشارك محذوف»، ولا وسيلة تواصل."
+              }
+            },
+            "required": [
+              "id",
+              "anonymized"
+            ]
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupNamesAr": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "مجموعاته في هذه المبادرة."
+          },
+          "attendedDays": {
+            "type": "integer",
+            "description": "أيام حضوره القائمة في الحملات كلها. تبقى بعد التنفيذ بلا اسم."
+          },
+          "initiativeCount": {
+            "type": "integer",
+            "description": "المبادرات التي هو عضو في مجموعاتها: التنفيذ يخرجه منها كلها."
+          },
+          "certificateCount": {
+            "type": "integer"
+          },
+          "submissionCount": {
+            "type": "integer",
+            "description": "طلبات الاستمارات التي تعود له — الطلب الذي جاء منه، وما طابقه اسمًا مع هاتفه أو بريده. التنفيذ يمحو ما كُتب فيها. يُحسب لما ينتظر قرارًا وحده."
+          }
+        },
+        "required": [
+          "id",
+          "status",
+          "requestedAt",
+          "decidedAt",
+          "decidedByNameAr",
+          "decisionNoteAr",
+          "participant",
+          "fullNameAr",
+          "phone",
+          "email",
+          "groupNamesAr",
+          "attendedDays",
+          "initiativeCount",
+          "certificateCount",
+          "submissionCount"
+        ],
+        "description": "طلب متطوع حذف بياناته، وما يمسّه تنفيذه. الحذف على الشخص كله لا على حملة."
+      },
+      "FieldDeletionRequests": {
+        "type": "object",
+        "properties": {
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pendingCount": {
+            "type": "integer"
+          },
+          "requests": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldDeletionRequest"
+            }
+          }
+        },
+        "required": [
+          "initiativeId",
+          "pendingCount",
+          "requests"
         ]
       }
     },
@@ -18656,7 +18841,7 @@
             }
           },
           "401": {
-            "description": "الرابط منتهٍ أو مُبطَل أو غير موجود",
+            "description": "الرابط منتهٍ أو مُبطَل أو غير موجود — جواب واحد. ورابط من حُذفت بياناته بطلبه عنوانه `PARTICIPANT_DELETED`",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -18746,6 +18931,76 @@
           },
           "409": {
             "description": "انتهت الحملة أو أُلغي الموقع",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/me/deletion-request": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "طلب حذف بياناتي",
+        "description": "لحامل الرابط الشخصي. الطلب لا يحذف شيئًا: يراجعه المنسّق وينفّذه من اللوحة. طلب قائم واحد للشخص، فتكراره يعيد القائم.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الطلب قائم",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldCard"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "المسار لحامل رابط شخصي",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "التراجع عن طلب حذف بياناتي",
+        "description": "ما لم يُقرَّر بعد. غياب الطلب نجاح.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "لا طلب قائمًا",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldCard"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "المسار لحامل رابط شخصي",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -21807,6 +22062,204 @@
           },
           "404": {
             "description": "الإعلان غير موجود في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/deletion-requests": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "طلبات حذف البيانات",
+        "description": "ما وصل من روابط هذه المبادرة، القائم أولًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الطلبات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDeletionRequests"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/deletion-requests/{requestId}/approve": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تنفيذ طلب حذف البيانات",
+        "description": "يمحو اسم المشارك ووسيلة التواصل وطلب استمارته وعضوياته وروابطه واشتراكات إشعاره وشهاداته، واسمه في سجل التدقيق. يبقى حضوره عددًا بلا اسم. لا يُتراجع عنه.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "requestId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "نُفّذ",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDeletionRequests"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الطلب غير موجود في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "سبق أن قُرّر هذا الطلب",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/deletion-requests/{requestId}/reject": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "رفض طلب حذف البيانات",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "requestId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "noteAr": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500,
+                    "description": "يقرؤها صاحب الطلب في بطاقته: ما الذي يلزمه، أو بمن يتصل."
+                  }
+                },
+                "required": [
+                  "noteAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "رُفض",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldDeletionRequests"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الطلب غير موجود في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "سبق أن قُرّر هذا الطلب",
             "content": {
               "application/problem+json": {
                 "schema": {

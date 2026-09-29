@@ -110,6 +110,16 @@ export function VolunteerCard() {
 
       <Announcements items={card.announcements} />
 
+      {card.deletionRequest?.status === "PENDING" ? (
+        <p
+          role="status"
+          className="rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm leading-relaxed text-foreground"
+        >
+          طلبت حذف بياناتك، وطلبك ينتظر مراجعة منسّق الحملة. تتراجع عنه من
+          تبويب «أنا».
+        </p>
+      ) : null}
+
       {card.memberships.length === 0 ? (
         <FieldNotice
           icon={Users}

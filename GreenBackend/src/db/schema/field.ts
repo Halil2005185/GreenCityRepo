@@ -13,7 +13,12 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { createdAtOnly, timestamps, tsColumn, uuidColumn } from './columns.js'
-import { attendanceMethod, fieldMemberRole, fieldRsvp } from './enums.js'
+import {
+  attendanceMethod,
+  deletionRequestStatus,
+  fieldMemberRole,
+  fieldRsvp,
+} from './enums.js'
 import { formSubmissions, forms } from './forms.js'
 import { users } from './identity.js'
 import { impactEntries } from './metrics.js'
@@ -59,9 +64,26 @@ export const participants = pgTable(
       onDelete: 'set null',
     }),
 
+    /**
+     * حُذفت بياناته بطلبه. الصف يبقى بلا اسم ولا وسيلة تواصل: حضوره يُعدّ
+     * في أرقام أُعلنت، وحذف الصف يمحوه معها.
+     */
+    anonymizedAt: tsColumn('anonymized_at'),
+
     ...timestamps,
   },
   (table) => [
+    // من حُذفت بياناته لا يعود إليه ما يعرّف به، ولو بتعديل لاحق.
+    check(
+      'participants_anonymized_is_empty',
+      sql`${table.anonymizedAt} is null or (
+        ${table.phone} is null
+        and ${table.phoneKey} is null
+        and ${table.email} is null
+        and ${table.notesAr} is null
+        and ${table.sourceSubmissionId} is null
+      )`,
+    ),
     // طلب واحد يصير مشاركًا واحدًا، مهما أُعيد تحويله.
     uniqueIndex('participants_submission_unique')
       .on(table.sourceSubmissionId)
@@ -314,6 +336,58 @@ export const participantCertificates = pgTable(
     check(
       'participant_certificates_code_format',
       sql`${table.code} ~ '^[2-9A-HJ-NP-Z]{10}$'`,
+    ),
+  ],
+)
+
+/**
+ * طلب حذف البيانات — يطلبه المتطوع من بطاقته، وينفّذه المنسّق من اللوحة.
+ *
+ * على الشخص لا على الحملة: التنفيذ يمحو اسمه حيث كان. و`initiativeId`
+ * مبادرة الرابط الذي جاء منه الطلب، وبها يُعرف من يراجعه.
+ *
+ * الصف يبقى بعد القرار: «طُلب ونُفّذ، ومن نفّذه» معلومة، ولا اسم فيها.
+ */
+export const participantDeletionRequests = pgTable(
+  'participant_deletion_requests',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    participantId: uuidColumn('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    initiativeId: uuidColumn('initiative_id')
+      .notNull()
+      .references(() => initiatives.id, { onDelete: 'cascade' }),
+
+    status: deletionRequestStatus('status').default('PENDING').notNull(),
+    requestedAt: tsColumn('requested_at').defaultNow().notNull(),
+
+    decidedAt: tsColumn('decided_at'),
+    decidedById: uuidColumn('decided_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** ما يقرؤه صاحب الطلب في بطاقته حين يُرفض. */
+    decisionNoteAr: text('decision_note_ar'),
+
+    ...timestamps,
+  },
+  (table) => [
+    // طلب قائم واحد للشخص: تكراره من هاتفين لا يفتح طلبين.
+    uniqueIndex('participant_deletion_requests_pending_unique')
+      .on(table.participantId)
+      .where(sql`${table.status} = 'PENDING'`),
+    index('participant_deletion_requests_initiative_idx').on(
+      table.initiativeId,
+      table.status,
+    ),
+    check(
+      'participant_deletion_requests_decision_consistency',
+      sql`(${table.status} = 'PENDING') = (${table.decidedAt} is null)`,
+    ),
+    // رفضٌ بلا سبب بابٌ مغلق لا يعرف صاحبه لماذا.
+    check(
+      'participant_deletion_requests_rejection_has_note',
+      sql`${table.status} <> 'REJECTED' or ${table.decisionNoteAr} is not null`,
     ),
   ],
 )

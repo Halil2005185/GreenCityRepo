@@ -1,6 +1,6 @@
 import { and, asc, eq, inArray, isNull } from 'drizzle-orm'
 
-import { errors } from '../../common/errors/app-error.js'
+import { AppError, errors } from '../../common/errors/app-error.js'
 import { isLocalUrl, whatsappNumber } from '../../common/utils/text.js'
 import { env } from '../../config/env.js'
 import { db } from '../../db/client.js'
@@ -29,6 +29,12 @@ export const LINK_TOKEN_PREFIX = 'plk_'
 const INVALID_LINK =
   'هذا الرابط لم يعد صالحًا. اطلب رابطًا جديدًا من منسّق الحملة.'
 
+/**
+ * ما يُجاب به رابطُ من حُذفت بياناته بطلبه. صاحبه طلب الحذف وينتظر خبره،
+ * و«اطلب رابطًا جديدًا» تقول له غير ما وقع.
+ */
+export const PARTICIPANT_DELETED = 'PARTICIPANT_DELETED'
+
 /** `lastUsedAt` يُحدَّث على فترات: كتابة مع كل طلب ثمنٌ بلا فائدة. */
 const TOUCH_EVERY_MS = 10 * 60_000
 
@@ -51,6 +57,9 @@ function newLinkToken() {
 /**
  * من صاحب هذا الرمز؟ الملغى والمنتهي وغير الموجود جواب واحد: من يجرّب
  * رموزًا لا يعرف منها أيّها كان رابطًا يومًا.
+ *
+ * إلا رابط من حُذفت بياناته بطلبه: جوابه يقول ذلك. من يحمل رمزًا من 256
+ * بتًّا هو صاحبه، وما يعرفه من الجواب أن طلبه نُفّذ.
  */
 export async function resolveLink(token: string): Promise<ParticipantPrincipal> {
   const [row] = await db
@@ -63,6 +72,7 @@ export async function resolveLink(token: string): Promise<ParticipantPrincipal> 
       firstUsedAt: participantLinks.firstUsedAt,
       lastUsedAt: participantLinks.lastUsedAt,
       fullNameAr: participants.fullNameAr,
+      anonymizedAt: participants.anonymizedAt,
     })
     .from(participantLinks)
     .innerJoin(participants, eq(participantLinks.participantId, participants.id))
@@ -70,6 +80,14 @@ export async function resolveLink(token: string): Promise<ParticipantPrincipal> 
     .limit(1)
 
   const now = new Date()
+
+  if (row?.anonymizedAt) {
+    throw new AppError(
+      'حُذفت بيانات صاحب هذا الرابط بطلبه، فلم يعد يفتح بطاقة.',
+      401,
+      PARTICIPANT_DELETED,
+    )
+  }
 
   if (!row || row.revokedAt || row.expiresAt.getTime() <= now.getTime()) {
     throw errors.unauthorized(INVALID_LINK)

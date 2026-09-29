@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Button } from "@/components/field/button";
 import { FieldNotice, FieldSkeleton } from "@/components/field/states";
 import { FieldApiError, OfflineError } from "@/lib/field/api";
-import { FIELD_ROUTES } from "@/lib/field/config";
+import { FIELD_ROUTES, PARTICIPANT_DELETED } from "@/lib/field/config";
 import { useFieldSession } from "@/lib/field/session";
 
 type Phase =
@@ -55,7 +55,9 @@ export function LinkScreen() {
       setPhase({
         step: "refused",
         message:
-          error instanceof FieldApiError && error.status !== 401
+          // ما يقوله الخادم صريحًا يُعرض كما قاله؛ و401 غيره جوابها واحد.
+          error instanceof FieldApiError &&
+          (error.status !== 401 || error.code === PARTICIPANT_DELETED)
             ? error.message
             : "هذا الرابط لم يعد صالحًا: انتهت مدته أو استُبدل بغيره. اطلب رابطًا جديدًا من منسّق الحملة.",
       });

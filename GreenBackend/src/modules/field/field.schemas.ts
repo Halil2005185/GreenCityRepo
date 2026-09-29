@@ -361,6 +361,20 @@ export const fieldCardSchema = registry.register(
           description:
             'شهادة المشاركة في هذه المبادرة. تصدر لمن له يوم حضور قائم فيها.',
         }),
+      deletionRequest: z
+        .object({
+          status: z.enum(['PENDING', 'REJECTED']),
+          requestedAt: z.iso.datetime(),
+          decidedAt: z.iso.datetime().nullable(),
+          noteAr: z.string().nullable().openapi({
+            description: 'ما كتبه المنسّق لصاحب الطلب حين رفضه.',
+          }),
+        })
+        .nullable()
+        .openapi({
+          description:
+            'طلبه حذف بياناته: القائم، أو آخر ما رُفض. على الشخص لا على الحملة، فيظهر في كل بطاقاته.',
+        }),
       generatedAt: z.iso.datetime(),
     })
     .openapi({
@@ -557,7 +571,9 @@ registry.registerPath({
   request: { body: json(redeemLinkBodySchema) },
   responses: {
     200: { description: 'الرابط صالح', ...json(redeemedLinkSchema) },
-    401: problemResponse('الرابط منتهٍ أو مُبطَل أو غير موجود'),
+    401: problemResponse(
+      'الرابط منتهٍ أو مُبطَل أو غير موجود — جواب واحد. ورابط من حُذفت بياناته بطلبه عنوانه `PARTICIPANT_DELETED`',
+    ),
     429: problemResponse('محاولات كثيرة'),
   },
 })
@@ -582,6 +598,33 @@ registry.registerPath({
     403: problemResponse('المسار لحامل رابط شخصي'),
     404: problemResponse('العضوية ليست له'),
     409: problemResponse('انتهت الحملة أو أُلغي الموقع'),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/me/deletion-request'),
+  tags: ['Field'],
+  summary: 'طلب حذف بياناتي',
+  description:
+    'لحامل الرابط الشخصي. الطلب لا يحذف شيئًا: يراجعه المنسّق وينفّذه من اللوحة. طلب قائم واحد للشخص، فتكراره يعيد القائم.',
+  security,
+  responses: {
+    200: { description: 'الطلب قائم', ...json(fieldCardSchema) },
+    403: problemResponse('المسار لحامل رابط شخصي'),
+  },
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: path('/me/deletion-request'),
+  tags: ['Field'],
+  summary: 'التراجع عن طلب حذف بياناتي',
+  description: 'ما لم يُقرَّر بعد. غياب الطلب نجاح.',
+  security,
+  responses: {
+    200: { description: 'لا طلب قائمًا', ...json(fieldCardSchema) },
+    403: problemResponse('المسار لحامل رابط شخصي'),
   },
 })
 

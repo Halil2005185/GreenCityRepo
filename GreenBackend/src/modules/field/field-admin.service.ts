@@ -903,7 +903,13 @@ export async function addGroupMembers(
       ? await db
           .select({ id: participants.id })
           .from(participants)
-          .where(inArray(participants.id, input.participantIds))
+          .where(
+            and(
+              inArray(participants.id, input.participantIds),
+              // من حُذفت بياناته بطلبه لا يعود إلى مجموعة.
+              isNull(participants.anonymizedAt),
+            ),
+          )
       : []
 
   if (known.length !== new Set(input.participantIds).size) {
@@ -1219,9 +1225,14 @@ export async function searchParticipants(
     })
     .from(participants)
     .where(
-      or(
-        sql`${participants.nameKey} like ${`%${name}%`}`,
-        phone ? sql`${participants.phoneKey} like ${`%${phone}%`}` : undefined,
+      and(
+        isNull(participants.anonymizedAt),
+        or(
+          sql`${participants.nameKey} like ${`%${name}%`}`,
+          phone
+            ? sql`${participants.phoneKey} like ${`%${phone}%`}`
+            : undefined,
+        ),
       ),
     )
     .orderBy(asc(participants.nameKey))

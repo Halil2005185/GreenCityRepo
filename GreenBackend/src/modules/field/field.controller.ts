@@ -13,6 +13,7 @@ import {
 import * as capture from './field-capture.service.js'
 import * as card from './field-card.service.js'
 import * as checkin from './field-checkin.service.js'
+import * as deletion from './field-deletion.service.js'
 import * as links from './field-links.service.js'
 import * as push from './field-push.service.js'
 import * as record from './field-record.service.js'
@@ -68,6 +69,26 @@ export const postRsvp: RequestHandler = async (request, response) => {
   )
 
   response.status(200).json(updated)
+}
+
+/** الطلب والتراجع عنه يعيدان البطاقة: حال الطلب تُقرأ منها. */
+export const postDeletionRequest: RequestHandler = async (request, response) => {
+  const principal = participantPrincipal(request)
+
+  await deletion.requestDeletion(principal, requestTrace(request))
+
+  response.status(200).json(await card.loadCard(principal))
+}
+
+export const deleteDeletionRequest: RequestHandler = async (
+  request,
+  response,
+) => {
+  const principal = participantPrincipal(request)
+
+  await deletion.withdrawDeletion(principal, requestTrace(request))
+
+  response.status(200).json(await card.loadCard(principal))
 }
 
 // ── الإشعارات ──────────────────────────────────────────────────────────
@@ -389,6 +410,37 @@ export const deleteAnnouncement: RequestHandler = async (request, response) => {
   const list = await announcements.deleteAnnouncement(
     readId(request),
     readId(request, 'announcementId'),
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(list)
+}
+
+// ── المنسّق: طلبات حذف البيانات ────────────────────────────────────────
+
+export const getDeletionRequests: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json(await deletion.listDeletionRequests(readId(request)))
+}
+
+export const postDeletionApprove: RequestHandler = async (request, response) => {
+  const list = await deletion.approveDeletion(
+    readId(request),
+    readId(request, 'requestId'),
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(list)
+}
+
+export const postDeletionReject: RequestHandler = async (request, response) => {
+  const list = await deletion.rejectDeletion(
+    readId(request),
+    readId(request, 'requestId'),
+    request.body as adminDto.RejectDeletionBody,
     request.auth!,
     requestTrace(request),
   )

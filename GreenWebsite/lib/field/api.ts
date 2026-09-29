@@ -1,6 +1,6 @@
 import type { components } from "@/lib/api/types.gen";
 
-import { FIELD_API_ORIGIN } from "./config";
+import { FIELD_API_ORIGIN, PARTICIPANT_DELETED } from "./config";
 
 export type Problem = components["schemas"]["Problem"];
 export type SessionResponse = components["schemas"]["SessionResponse"];
@@ -20,6 +20,12 @@ export type FieldCertificate = components["schemas"]["FieldCertificate"];
 
 /** من يُنادى باسمه: عضو فريق بجلسته، أو متطوع برابطه الشخصي. */
 export type SessionKind = "STAFF" | "PARTICIPANT";
+
+/**
+ * لماذا انتهت الجلسة. `deleted`: حُذفت بيانات صاحب الرابط بطلبه — يقوله
+ * الخادم صريحًا، فلا يُقال له «اطلب رابطًا جديدًا».
+ */
+export type SessionLostReason = "ended" | "deleted";
 
 /**
  * رفضٌ من الخادم، بجسمه كما أرسله (`application/problem+json`). الواجهة
@@ -170,12 +176,16 @@ async function toApiError(response: Response) {
  * انتهت مدتها، أو أُبطلت من اللوحة، أو دوّرها تبويب آخر. بلا هذا البلاغ يبقى
  * التطبيق يعرض صاحبه داخلًا وطابوره واقفًا بلا سبب يُقرأ.
  */
-const sessionLostListeners = new Set<(kind: SessionKind) => void>();
+const sessionLostListeners = new Set<
+  (kind: SessionKind, reason: SessionLostReason) => void
+>();
 
 /** طلبات متزامنة تكتشف الخروج معًا؛ يُبلَّغ به مرة حتى الدخول التالي. */
 let sessionKnownLost = false;
 
-export function onSessionLost(listener: (kind: SessionKind) => void) {
+export function onSessionLost(
+  listener: (kind: SessionKind, reason: SessionLostReason) => void,
+) {
   sessionLostListeners.add(listener);
 
   return () => {
@@ -250,11 +260,14 @@ export async function logout() {
 
 type RequestOptions = Pick<SendOptions, "method" | "body" | "signal">;
 
-function announceSessionLost(kind: SessionKind) {
+function announceSessionLost(
+  kind: SessionKind,
+  reason: SessionLostReason = "ended",
+) {
   if (sessionKnownLost) return;
 
   sessionKnownLost = true;
-  for (const listener of sessionLostListeners) listener(kind);
+  for (const listener of sessionLostListeners) listener(kind, reason);
 }
 
 async function finish<T>(response: Response): Promise<T> {
@@ -273,7 +286,16 @@ export async function fieldFetch<T>(
   if (linkToken) {
     const response = await send(path, { ...options, token: linkToken });
 
-    if (response.status === 401) announceSessionLost("PARTICIPANT");
+    if (response.status === 401) {
+      const refusal = await toApiError(response);
+
+      announceSessionLost(
+        "PARTICIPANT",
+        refusal.code === PARTICIPANT_DELETED ? "deleted" : "ended",
+      );
+
+      throw refusal;
+    }
 
     return finish<T>(response);
   }
@@ -404,6 +426,22 @@ export function issueFieldCertificate(signal?: AbortSignal) {
   return fieldFetch<FieldCertificate>("/field/me/certificate", {
     method: "POST",
     ...(signal ? { signal } : {}),
+  });
+}
+
+/**
+ * طلب حذف البيانات والتراجع عنه. كلاهما يعيد البطاقة: حال الطلب تُقرأ منها.
+ * لا يمرّان بالطابور — طلبٌ كهذا يُرسَل وصاحبه يراه يُرسَل.
+ */
+export function requestFieldDeletion() {
+  return fieldFetch<FieldCard>("/field/me/deletion-request", {
+    method: "POST",
+  });
+}
+
+export function withdrawFieldDeletion() {
+  return fieldFetch<FieldCard>("/field/me/deletion-request", {
+    method: "DELETE",
   });
 }
 

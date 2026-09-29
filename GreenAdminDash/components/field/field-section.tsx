@@ -9,6 +9,7 @@ import { AttendanceSection } from "@/components/field/attendance-section";
 import { GroupDialog, fieldKey, useFieldCache } from "@/components/field/group-dialog";
 import { MembersDialog } from "@/components/field/members-dialog";
 import { PhotosSection } from "@/components/field/photos-section";
+import { DeletionRequestsSection } from "@/components/field/deletion-requests-section";
 import { SettingsDialog } from "@/components/field/settings-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -54,6 +55,8 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
         error={field.error}
         onRetry={() => void field.refetch()}
       />
+      {/* بعد المجموعات لا في آخر الصفحة: طلب ينتظر قرارًا لا يُدفن تحت الصور. */}
+      <DeletionRequestsSection initiative={initiative} />
       <AnnouncementsSection
         initiative={initiative}
         groups={field.data?.groups ?? NO_GROUPS}

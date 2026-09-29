@@ -6,6 +6,7 @@ import {
   ilike,
   inArray,
   isNotNull,
+  isNull,
   lt,
   or,
   sql,
@@ -159,6 +160,7 @@ export async function listSubmissions(
       formVersion: formVersions.version,
       answers: formSubmissions.answers,
       submittedAt: formSubmissions.submittedAt,
+      redactedAt: formSubmissions.redactedAt,
     })
     .from(formSubmissions)
     .innerJoin(formVersions, eq(formSubmissions.formVersionId, formVersions.id))
@@ -184,6 +186,7 @@ export async function listSubmissions(
     data: filled.map(({ formVersionId: _versionId, ...row }) => ({
       ...row,
       submittedAt: row.submittedAt.toISOString(),
+      redactedAt: row.redactedAt?.toISOString() ?? null,
     })),
     // `null` يعني نهاية القائمة، فتعرف الواجهة متى تتوقف عن الطلب.
     nextBefore:
@@ -223,6 +226,8 @@ export async function listAcceptedApplicants(
       and(
         eq(formVersions.formId, formId),
         eq(formSubmissions.status, 'ACCEPTED'),
+        // ما مُحيت بياناته بطلب صاحبه لا اسم فيه يُوزَّع.
+        isNull(formSubmissions.redactedAt),
         options.ids ? inArray(formSubmissions.id, [...options.ids]) : undefined,
         term
           ? or(
@@ -254,6 +259,7 @@ async function requireSubmission(formId: string, submissionId: string) {
       formVersion: formVersions.version,
       formNameAr: forms.nameAr,
       submittedAt: formSubmissions.submittedAt,
+      redactedAt: formSubmissions.redactedAt,
     })
     .from(formSubmissions)
     .innerJoin(formVersions, eq(formSubmissions.formVersionId, formVersions.id))
@@ -311,6 +317,7 @@ export async function getSubmission(formId: string, submissionId: string) {
     applicantEmail: contact!.applicantEmail,
     applicantPhone: contact!.applicantPhone,
     submittedAt: submission.submittedAt.toISOString(),
+    redactedAt: submission.redactedAt?.toISOString() ?? null,
     answers: readableAnswers(
       fields.map((field) =>
         isRefType(field.type) ? { ...field, options: catalogs[field.type] } : field,

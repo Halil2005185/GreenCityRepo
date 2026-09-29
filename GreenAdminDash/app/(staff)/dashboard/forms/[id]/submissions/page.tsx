@@ -23,6 +23,7 @@ import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FilterChips, SearchInput, Toolbar, type ChipOption } from "@/components/ui/toolbar";
 import {
+  REDACTED_SUBMISSION_LABEL,
   REF_TYPES,
   SELECT_TYPES,
   getForm,
@@ -165,17 +166,24 @@ export default function SubmissionsPage() {
         cell: (info) => {
           const submission = info.row.original;
           // بلا اسم مستخرَج: إجابة أول سؤال اختاره الفارز، فلا يبقى صفّ بلا هوية.
-          const title =
-            submission.applicantNameAr ??
-            shownFields.map((field) => readAnswer(field, submission.answers)).find(Boolean) ??
-            "بلا اسم";
+          const title = submission.redactedAt
+            ? REDACTED_SUBMISSION_LABEL
+            : (submission.applicantNameAr ??
+              shownFields.map((field) => readAnswer(field, submission.answers)).find(Boolean) ??
+              "بلا اسم");
           const contact = [submission.applicantEmail, submission.applicantPhone].filter(Boolean).join(" · ");
 
           return (
             <PrimaryCell
               label={title}
               onClick={() => open(submission)}
-              description={contact ? <span dir="ltr">{contact}</span> : null}
+              description={
+                submission.redactedAt ? (
+                  "بطلب صاحبه حذفَ بياناته"
+                ) : contact ? (
+                  <span dir="ltr">{contact}</span>
+                ) : null
+              }
             />
           );
         },

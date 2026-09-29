@@ -17,6 +17,7 @@ import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import { loadScopeProgress } from '../impact/impact.service.js'
 import { loadAnnouncements } from './field-announcements.service.js'
 import type { ParticipantPrincipal } from './field-auth.js'
+import { loadDeletionRequest } from './field-deletion.service.js'
 import type * as dto from './field.schemas.js'
 import { damascusDay, groupLead } from './field.shared.js'
 
@@ -179,7 +180,15 @@ export async function loadCard(principal: ParticipantPrincipal) {
   const groupIds = rows.map((row) => row.group.id)
   const siteIds = [...new Set(rows.map((row) => row.site.id))]
 
-  const [attended, feedback, impact, photos, announcements, certificate] = await Promise.all([
+  const [
+    attended,
+    feedback,
+    impact,
+    photos,
+    announcements,
+    certificate,
+    deletionRequest,
+  ] = await Promise.all([
     groupIds.length > 0
       ? db
           .select({
@@ -209,6 +218,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
       reader: 'VOLUNTEERS',
     }),
     loadCertificate(principal),
+    loadDeletionRequest(principal.participantId),
   ])
 
   const impactBySite = new Map(impact)
@@ -251,6 +261,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
     })),
     feedback,
     certificate,
+    deletionRequest,
     generatedAt: new Date().toISOString(),
   }
 }

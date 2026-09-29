@@ -69,6 +69,20 @@ fieldRouter.post(
 fieldRouter.get('/me/record', requireFieldParticipant, controller.getRecord)
 
 fieldRouter.post(
+  '/me/deletion-request',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  controller.postDeletionRequest,
+)
+
+fieldRouter.delete(
+  '/me/deletion-request',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  controller.deleteDeletionRequest,
+)
+
+fieldRouter.post(
   '/me/certificate',
   requireFieldParticipant,
   fieldWriteRateLimit,
@@ -303,6 +317,27 @@ fieldAdminRouter.delete(
   '/announcements/:announcementId',
   validate({ params: adminSchemas.announcementParamsSchema }),
   controller.deleteAnnouncement,
+)
+
+fieldAdminRouter.get(
+  '/deletion-requests',
+  validate({ params: initiative }),
+  controller.getDeletionRequests,
+)
+
+fieldAdminRouter.post(
+  '/deletion-requests/:requestId/approve',
+  validate({ params: adminSchemas.deletionRequestParamsSchema }),
+  controller.postDeletionApprove,
+)
+
+fieldAdminRouter.post(
+  '/deletion-requests/:requestId/reject',
+  validate({
+    params: adminSchemas.deletionRequestParamsSchema,
+    body: adminSchemas.rejectDeletionBodySchema,
+  }),
+  controller.postDeletionReject,
 )
 
 fieldAdminRouter.get(

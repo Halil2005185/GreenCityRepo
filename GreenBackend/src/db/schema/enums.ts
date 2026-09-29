@@ -315,6 +315,16 @@ export const fieldMemberRole = pgEnum('field_member_role', [
   'ASSISTANT',
 ])
 
+/**
+ * طلب حذف البيانات: قائم حتى يقرر المنسّق. التراجع عنه يحذف صفّه، فلا حال
+ * له هنا؛ وما نُفّذ لا يعود.
+ */
+export const deletionRequestStatus = pgEnum('deletion_request_status', [
+  'PENDING',
+  'DONE',
+  'REJECTED',
+])
+
 /** تأكيد الحضور المسبق. `UNKNOWN` لم يُجب بعد — وهو غير «لن يحضر». */
 export const fieldRsvp = pgEnum('field_rsvp', [
   'UNKNOWN',

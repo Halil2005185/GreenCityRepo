@@ -22,6 +22,9 @@ export type FieldAnnouncements = components["schemas"]["FieldAnnouncements"];
 export type FieldManagedAnnouncement =
   components["schemas"]["FieldManagedAnnouncement"];
 export type AnnouncementAudience = FieldManagedAnnouncement["audience"];
+export type FieldDeletionRequest = components["schemas"]["FieldDeletionRequest"];
+export type FieldDeletionRequests =
+  components["schemas"]["FieldDeletionRequests"];
 
 export type FieldMemberRole = FieldGroupMember["role"];
 
@@ -303,6 +306,37 @@ export function deleteAnnouncement(initiativeId: string, announcementId: string)
   return apiFetch<FieldAnnouncements>(
     `${base(initiativeId)}/announcements/${announcementId}`,
     { method: "DELETE" },
+  );
+}
+
+// ── طلبات حذف البيانات ─────────────────────────────────────────────────
+
+const deletionRequests = (initiativeId: string) =>
+  `${base(initiativeId)}/deletion-requests`;
+
+export function listDeletionRequests(initiativeId: string) {
+  return apiFetch<FieldDeletionRequests>(deletionRequests(initiativeId));
+}
+
+/**
+ * يمحو بيانات المشارك حيث كانت ويبقي حضوره عددًا. لا يُتراجع عنه: الخادم لا
+ * يحفظ نسخة قبل المحو.
+ */
+export function approveDeletionRequest(initiativeId: string, requestId: string) {
+  return apiFetch<FieldDeletionRequests>(
+    `${deletionRequests(initiativeId)}/${requestId}/approve`,
+    { method: "POST" },
+  );
+}
+
+export function rejectDeletionRequest(
+  initiativeId: string,
+  requestId: string,
+  body: { noteAr: string },
+) {
+  return apiFetch<FieldDeletionRequests>(
+    `${deletionRequests(initiativeId)}/${requestId}/reject`,
+    { method: "POST", body },
   );
 }
 

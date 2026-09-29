@@ -198,6 +198,12 @@ export type SubmissionSummary = components["schemas"]["FormSubmissionSummary"];
 export type SubmissionDetail = components["schemas"]["FormSubmissionDetail"];
 export type SubmissionStatus = SubmissionSummary["status"];
 
+/**
+ * ما يُعرض مكان اسم المتقدّم حين مُحيت بيانات طلبه (`redactedAt`): صاحبه
+ * طلب حذف بياناته من بطاقته الميدانية ونُفّذ طلبه.
+ */
+export const REDACTED_SUBMISSION_LABEL = "طلب حُذفت بياناته";
+
 /** مرشّح على إجابة سؤال: مفتاح السؤال والقيمة المطلوبة. */
 export type AnswerFilter = { key: string; value: string };
 

@@ -1,6 +1,13 @@
 "use client";
 
-import { CloudOff, LogIn, ShieldAlert, Sprout, Users } from "lucide-react";
+import {
+  CloudOff,
+  LogIn,
+  ShieldAlert,
+  ShieldCheck,
+  Sprout,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
@@ -10,7 +17,7 @@ import {
   FieldSkeleton,
   PageTitle,
 } from "@/components/field/states";
-import { buttonVariants } from "@/components/field/button";
+import { Button, buttonVariants } from "@/components/field/button";
 import {
   FieldApiError,
   type FieldGroupCard,
@@ -18,6 +25,7 @@ import {
   OfflineError,
 } from "@/lib/field/api";
 import { FIELD_APP_NAME, FIELD_ROUTES } from "@/lib/field/config";
+import { markDeletionDone, useDeletionDone } from "@/lib/field/deletion";
 import { useFieldSession, useOnline } from "@/lib/field/session";
 import { fieldActions, useGroupSheet } from "@/lib/field/sheet";
 import { cn } from "@/lib/utils";
@@ -161,7 +169,33 @@ export function SheetGate({
   );
 }
 
+/**
+ * ما يراه من حُذفت بياناته بطلبه حين يُرفض رابطه. يبقى حتى يقرأه: الإشعار
+ * العابر يزول في ثوانٍ، وهذا خبرٌ عن أمر لا يعود.
+ */
+function Farewell() {
+  return (
+    <FieldNotice
+      icon={ShieldCheck}
+      title="حُذفت بياناتك كما طلبت"
+      description="مُحي اسمك ووسيلة تواصلك من سجل المشروع، ومُسح ما حُفظ منها على هذا الهاتف. رابطك لم يعد يفتح بطاقة. شكرًا لمشاركتك."
+    >
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => markDeletionDone(false)}
+      >
+        حسنًا
+      </Button>
+    </FieldNotice>
+  );
+}
+
 function Welcome() {
+  const deleted = useDeletionDone();
+
+  if (deleted) return <Farewell />;
+
   return (
     <FieldNotice
       icon={Sprout}

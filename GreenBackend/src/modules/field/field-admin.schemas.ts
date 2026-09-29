@@ -953,6 +953,116 @@ registry.registerPath({
   },
 })
 
+// ── طلبات حذف البيانات ─────────────────────────────────────────────────
+
+export const deletionRequestSchema = registry.register(
+  'FieldDeletionRequest',
+  z
+    .object({
+      id: z.uuid(),
+      status: z.enum(['PENDING', 'DONE', 'REJECTED']),
+      requestedAt: z.iso.datetime(),
+      decidedAt: z.iso.datetime().nullable(),
+      decidedByNameAr: z.string().nullable(),
+      decisionNoteAr: z.string().nullable(),
+      participant: z.object({
+        id: z.uuid(),
+        anonymized: z.boolean().openapi({
+          description: 'نُفّذ الحذف: الاسم بعده «مشارك محذوف»، ولا وسيلة تواصل.',
+        }),
+      }),
+      fullNameAr: z.string(),
+      phone: z.string().nullable(),
+      email: z.string().nullable(),
+      groupNamesAr: z.array(z.string()).openapi({
+        description: 'مجموعاته في هذه المبادرة.',
+      }),
+      attendedDays: z.number().int().openapi({
+        description: 'أيام حضوره القائمة في الحملات كلها. تبقى بعد التنفيذ بلا اسم.',
+      }),
+      initiativeCount: z.number().int().openapi({
+        description: 'المبادرات التي هو عضو في مجموعاتها: التنفيذ يخرجه منها كلها.',
+      }),
+      certificateCount: z.number().int(),
+      submissionCount: z.number().int().openapi({
+        description:
+          'طلبات الاستمارات التي تعود له — الطلب الذي جاء منه، وما طابقه اسمًا مع هاتفه أو بريده. التنفيذ يمحو ما كُتب فيها. يُحسب لما ينتظر قرارًا وحده.',
+      }),
+    })
+    .openapi({
+      description:
+        'طلب متطوع حذف بياناته، وما يمسّه تنفيذه. الحذف على الشخص كله لا على حملة.',
+    }),
+)
+
+export const deletionRequestsSchema = registry.register(
+  'FieldDeletionRequests',
+  z.object({
+    initiativeId: z.uuid(),
+    pendingCount: z.number().int(),
+    requests: z.array(deletionRequestSchema),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/deletion-requests'),
+  tags: ['Field'],
+  summary: 'طلبات حذف البيانات',
+  description: 'ما وصل من روابط هذه المبادرة، القائم أولًا.',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: { description: 'الطلبات', ...json(deletionRequestsSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+  },
+})
+
+export const deletionRequestParamsSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/deletion-requests/{requestId}/approve'),
+  tags: ['Field'],
+  summary: 'تنفيذ طلب حذف البيانات',
+  description:
+    'يمحو اسم المشارك ووسيلة التواصل وطلب استمارته وعضوياته وروابطه واشتراكات إشعاره وشهاداته، واسمه في سجل التدقيق. يبقى حضوره عددًا بلا اسم. لا يُتراجع عنه.',
+  security,
+  request: { params: deletionRequestParamsSchema },
+  responses: {
+    200: { description: 'نُفّذ', ...json(deletionRequestsSchema) },
+    404: problemResponse('الطلب غير موجود في هذه المبادرة'),
+    409: problemResponse('سبق أن قُرّر هذا الطلب'),
+  },
+})
+
+export const rejectDeletionBodySchema = z.object({
+  noteAr: z.string().trim().min(3).max(500).openapi({
+    description: 'يقرؤها صاحب الطلب في بطاقته: ما الذي يلزمه، أو بمن يتصل.',
+  }),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/deletion-requests/{requestId}/reject'),
+  tags: ['Field'],
+  summary: 'رفض طلب حذف البيانات',
+  security,
+  request: {
+    params: deletionRequestParamsSchema,
+    body: json(rejectDeletionBodySchema),
+  },
+  responses: {
+    200: { description: 'رُفض', ...json(deletionRequestsSchema) },
+    404: problemResponse('الطلب غير موجود في هذه المبادرة'),
+    409: problemResponse('سبق أن قُرّر هذا الطلب'),
+  },
+})
+
+export type RejectDeletionBody = z.infer<typeof rejectDeletionBodySchema>
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>
 export type UpdateGroupBody = z.infer<typeof updateGroupBodySchema>
 export type CreateAnnouncementBody = z.infer<typeof createAnnouncementBodySchema>

@@ -24,6 +24,7 @@ import {
   setLinkToken,
 } from "./api";
 import { clearFieldData } from "./db";
+import { markDeletionDone } from "./deletion";
 import { disablePush } from "./push";
 import { notify } from "./toast";
 
@@ -305,13 +306,26 @@ export function FieldSessionProvider({
    */
   useEffect(
     () =>
-      onSessionLost((kind) => {
+      onSessionLost((kind, reason) => {
         if (kind === "PARTICIPANT") {
           writeJson(LINK_KEY, null);
           setLinkToken(null);
         }
 
         apply(ANONYMOUS);
+
+        /**
+         * الخادم قال إن بيانات صاحب الرابط حُذفت بطلبه. ما حُفظ على الهاتف
+         * من بطاقته وسجلّه يُمسح معها، ولا يُقال له «اطلب رابطًا جديدًا».
+         */
+        if (reason === "deleted") {
+          markDeletionDone(true);
+          void forget(queryClient);
+          notify("حُذفت بياناتك كما طلبت، ومُسح ما حُفظ منها على هذا الهاتف.");
+
+          return;
+        }
+
         notify(
           kind === "PARTICIPANT"
             ? "رابطك لم يعد صالحًا. اطلب رابطًا جديدًا من منسّق الحملة."
@@ -319,7 +333,7 @@ export function FieldSessionProvider({
           "danger",
         );
       }),
-    [apply],
+    [apply, queryClient],
   );
 
   const login = useCallback(
@@ -341,6 +355,8 @@ export function FieldSessionProvider({
       }
 
       flag(SIGNED_OUT_KEY, false);
+      // صاحب جديد للجهاز: رسالة من سبقه ليست له.
+      markDeletionDone(false);
       apply(await adopt(session.user, queryClient));
     },
     [apply, queryClient],
@@ -355,6 +371,8 @@ export function FieldSessionProvider({
       if (previous?.participantId !== opened.participant.id) {
         await forget(queryClient);
       }
+
+      markDeletionDone(false);
 
       const link: StoredLink = {
         token,

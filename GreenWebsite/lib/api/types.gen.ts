@@ -7296,7 +7296,7 @@ export interface paths {
                         "application/json": components["schemas"]["FieldRedeemedLink"];
                     };
                 };
-                /** @description الرابط منتهٍ أو مُبطَل أو غير موجود */
+                /** @description الرابط منتهٍ أو مُبطَل أو غير موجود — جواب واحد. ورابط من حُذفت بياناته بطلبه عنوانه `PARTICIPANT_DELETED` */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -7394,6 +7394,86 @@ export interface paths {
             };
         };
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me/deletion-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * طلب حذف بياناتي
+         * @description لحامل الرابط الشخصي. الطلب لا يحذف شيئًا: يراجعه المنسّق وينفّذه من اللوحة. طلب قائم واحد للشخص، فتكراره يعيد القائم.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلب قائم */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        /**
+         * التراجع عن طلب حذف بياناتي
+         * @description ما لم يُقرَّر بعد. غياب الطلب نجاح.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description لا طلب قائمًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -9744,6 +9824,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/initiatives/{id}/field/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * طلبات حذف البيانات
+         * @description ما وصل من روابط هذه المبادرة، القائم أولًا.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلبات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldDeletionRequests"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/deletion-requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تنفيذ طلب حذف البيانات
+         * @description يمحو اسم المشارك ووسيلة التواصل وطلب استمارته وعضوياته وروابطه واشتراكات إشعاره وشهاداته، واسمه في سجل التدقيق. يبقى حضوره عددًا بلا اسم. لا يُتراجع عنه.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description نُفّذ */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldDeletionRequests"];
+                    };
+                };
+                /** @description الطلب غير موجود في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description سبق أن قُرّر هذا الطلب */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/deletion-requests/{requestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** رفض طلب حذف البيانات */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description يقرؤها صاحب الطلب في بطاقته: ما الذي يلزمه، أو بمن يتصل. */
+                        noteAr: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description رُفض */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldDeletionRequests"];
+                    };
+                };
+                /** @description الطلب غير موجود في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description سبق أن قُرّر هذا الطلب */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10163,6 +10417,11 @@ export interface components {
             };
             /** Format: date-time */
             submittedAt: string;
+            /**
+             * Format: date-time
+             * @description مُحيت بياناته بطلب صاحبه حذفَ بياناته: لا اسم ولا وسيلة تواصل ولا إجابات. الطلب يبقى عددًا في استمارته.
+             */
+            redactedAt: string | null;
         };
         FormSubmissionDetail: components["schemas"]["FormSubmissionSummary"] & {
             answers?: {
@@ -11330,6 +11589,17 @@ export interface components {
                 /** @description رمز شهادته إن صدرت. */
                 code: string | null;
             };
+            /** @description طلبه حذف بياناته: القائم، أو آخر ما رُفض. على الشخص لا على الحملة، فيظهر في كل بطاقاته. */
+            deletionRequest: {
+                /** @enum {string} */
+                status: "PENDING" | "REJECTED";
+                /** Format: date-time */
+                requestedAt: string;
+                /** Format: date-time */
+                decidedAt: string | null;
+                /** @description ما كتبه المنسّق لصاحب الطلب حين رفضه. */
+                noteAr: string | null;
+            } | null;
             /** Format: date-time */
             generatedAt: string;
         };
@@ -11713,6 +11983,43 @@ export interface components {
             /** @description هل هيّأ الخادم مفاتيح الإشعارات. بدونها يظهر الإعلان في التطبيق ولا يُرسَل إشعار. */
             pushEnabled: boolean;
             announcements: components["schemas"]["FieldManagedAnnouncement"][];
+        };
+        /** @description طلب متطوع حذف بياناته، وما يمسّه تنفيذه. الحذف على الشخص كله لا على حملة. */
+        FieldDeletionRequest: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "PENDING" | "DONE" | "REJECTED";
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            decidedByNameAr: string | null;
+            decisionNoteAr: string | null;
+            participant: {
+                /** Format: uuid */
+                id: string;
+                /** @description نُفّذ الحذف: الاسم بعده «مشارك محذوف»، ولا وسيلة تواصل. */
+                anonymized: boolean;
+            };
+            fullNameAr: string;
+            phone: string | null;
+            email: string | null;
+            /** @description مجموعاته في هذه المبادرة. */
+            groupNamesAr: string[];
+            /** @description أيام حضوره القائمة في الحملات كلها. تبقى بعد التنفيذ بلا اسم. */
+            attendedDays: number;
+            /** @description المبادرات التي هو عضو في مجموعاتها: التنفيذ يخرجه منها كلها. */
+            initiativeCount: number;
+            certificateCount: number;
+            /** @description طلبات الاستمارات التي تعود له — الطلب الذي جاء منه، وما طابقه اسمًا مع هاتفه أو بريده. التنفيذ يمحو ما كُتب فيها. يُحسب لما ينتظر قرارًا وحده. */
+            submissionCount: number;
+        };
+        FieldDeletionRequests: {
+            /** Format: uuid */
+            initiativeId: string;
+            pendingCount: number;
+            requests: components["schemas"]["FieldDeletionRequest"][];
         };
     };
     responses: never;
