@@ -151,6 +151,13 @@ export const impactEntries = pgTable(
       { onDelete: 'restrict' },
     ),
 
+    /**
+     * معرّف يولّده المُرسِل قبل الإرسال. الهاتف في الميدان يعيد الطلب حين
+     * تنقطع الشبكة قبل وصول الجواب، ولا يعرف هل وصل الأول؛ بهذا المعرّف
+     * يعود الصف الأصلي بدل أن تُسجَّل الأربعون شجرة مرتين.
+     */
+    clientId: uuidColumn('client_id'),
+
     ...createdAtOnly,
   },
   (table) => [
@@ -166,6 +173,9 @@ export const impactEntries = pgTable(
     uniqueIndex('impact_entries_reversal_unique')
       .on(table.reversalOfId)
       .where(sql`${table.reversalOfId} is not null`),
+    uniqueIndex('impact_entries_client_unique')
+      .on(table.clientId)
+      .where(sql`${table.clientId} is not null`),
     index('impact_entries_metric_idx').on(table.metricId),
     index('impact_entries_initiative_idx').on(table.initiativeId),
     index('impact_entries_site_idx').on(table.siteId),

@@ -43,6 +43,7 @@ cd GreenWebsite && npm install && npm run dev
 - [GreenBackend/README.md](GreenBackend/README.md) — تشغيل الـAPI محليًا والنشر.
 - [GreenAdminDash/README.md](GreenAdminDash/README.md) — نشر اللوحة على Cloudflare Workers.
 - [GreenWebsite/README.md](GreenWebsite/README.md) — الموقع العام وعقد مسارات `/api/public/*` المطلوبة.
+- [docs/field-app-plan.md](docs/field-app-plan.md) — خطة التطبيق الميداني (`/app` في الموقع) وما أُنجز منها.
 - [docs/legacy/](docs/legacy/) — تصاميم مهجورة للاطلاع التاريخي فقط.
 
 ## المبدأ الحاكم

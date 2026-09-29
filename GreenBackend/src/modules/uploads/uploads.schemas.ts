@@ -14,6 +14,7 @@ export const uploadPurposeEnum = z.enum([
   'FORM_COVER',
   'INITIATIVE_COVER',
   'GREEN_POINT_COVER',
+  'FIELD_PHOTO',
 ])
 
 export const signUploadBodySchema = z.object({
@@ -38,7 +39,7 @@ registry.registerPath({
   tags: ['Uploads'],
   summary: 'رابط رفع موقّع',
   description:
-    'يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`.',
+    'يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`، وصورة الميدان `field.manage` — وقائد المجموعة يوقّع صور مجموعته من `/field/groups/{id}/photos/sign`.',
   security,
   request: {
     body: { content: { 'application/json': { schema: signUploadBodySchema } } },

@@ -23,6 +23,13 @@ app.use(helmet())
 app.use(
   cors({
     credentials: true,
+    /**
+     * التطبيق الميداني ينادي من أصل الموقع، فكل طلب يحمل ترويسة تفويض
+     * يسبقه استطلاع `OPTIONS`. بلا عمر للجواب يعيده المتصفح كل خمس ثوانٍ،
+     * وعلى شبكة الميدان ذلك ذهاب وإياب إضافي لكل فعل. المتصفحات تقصّ
+     * القيمة إلى سقفها: ساعتان في Chrome.
+     */
+    maxAge: 7200,
     origin(origin, callback) {
       if (!origin || env.CORS_ORIGINS.includes(origin)) {
         callback(null, true)

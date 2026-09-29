@@ -10,6 +10,8 @@ import { cn } from "@/lib/utils";
 const TONES = {
   primary: "bg-primary text-primary-foreground",
   success: "bg-surface-strong text-success",
+  /** للمتعثّر وما يستوقف: يُستعمل في التطبيق الميداني. */
+  warning: "bg-surface-strong text-warning",
   muted: "bg-surface-strong text-muted-foreground",
   outline: "border border-border bg-background/85 text-foreground backdrop-blur-sm",
 } as const;

@@ -5,6 +5,7 @@ import { Eye, Pencil } from "lucide-react";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
+import { FieldSection } from "@/components/field/field-section";
 import { InitiativeEditDialog } from "@/components/initiatives/initiative-dialogs";
 import {
   AreasSection,
@@ -12,6 +13,7 @@ import {
   TargetsSection,
   WorkPlanSection,
 } from "@/components/initiatives/manage-sections";
+import { PendingEntriesSection } from "@/components/initiatives/pending-entries";
 import {
   rollupLine,
   useInitiativeLifecycle,
@@ -26,6 +28,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { UrlTabs } from "@/components/ui/url-tabs";
 import { ApiError } from "@/lib/api/client";
 import { ROLLUP_SHORT, getInitiative, type InitiativeDetail } from "@/lib/api/initiatives";
+import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { formatDate } from "@/lib/utils";
 
@@ -40,7 +43,7 @@ const POLICY_NOTES: Record<InitiativeDetail["rollup"]["policy"], string> = {
 /**
  * إدارة المبادرة بعمود واحد: الترويسة بأفعال دورة الحياة، وشروط البدء ما
  * دامت المبادرة لم تبدأ، وملخص «مفتاح: قيمة»، ثم تبويبات للمواقع والأهداف
- * وخطة العمل والنطاق. كانت عمودين بسبع بطاقات وأربعة نماذج مفتوحة في
+ * (ومعها ما ينتظر التحقق من قيود الأثر) وخطة العمل والميدان والنطاق. كانت عمودين بسبع بطاقات وأربعة نماذج مفتوحة في
  * الصفحة؛ صارت كل إضافة وتعديل نافذة من زرها.
  */
 export default function InitiativeManagePage() {
@@ -76,6 +79,7 @@ export default function InitiativeManagePage() {
 
 function ManageView({ initiative: data }: { initiative: InitiativeDetail }) {
   const [editOpen, setEditOpen] = useState(false);
+  const { can } = useAuth();
   const lifecycle = useInitiativeLifecycle(data);
   const prelaunch = data.status === "DRAFT" || data.status === "PLANNING";
   const policy = data.rollup.policy;
@@ -177,13 +181,28 @@ function ManageView({ initiative: data }: { initiative: InitiativeDetail }) {
           {
             value: "targets",
             label: "الأهداف والتقدم",
-            content: <TargetsSection initiative={data} />,
+            content: (
+              <div className="space-y-8">
+                <TargetsSection initiative={data} />
+                {/* دفتر القيود يلزمه `impact.view`؛ الأهداف يراها من يدير المبادرة. */}
+                {can(CAPABILITIES.impactView) ? (
+                  <PendingEntriesSection initiative={data} />
+                ) : null}
+              </div>
+            ),
           },
           {
             value: "work",
             label: "خطة العمل",
             count: data.work.workItems.length,
             content: <WorkPlanSection initiative={data} />,
+          },
+          {
+            value: "field",
+            label: "الميدان",
+            content: <FieldSection initiative={data} />,
+            // النقطة الخضراء توثيق لا حملة: لا يوم ميداني فيها ولا مجموعات.
+            hidden: data.kind !== "CAMPAIGN" || !can(CAPABILITIES.fieldManage),
           },
           {
             value: "areas",

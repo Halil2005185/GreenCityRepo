@@ -64,6 +64,10 @@
       "description": "دفتر قيود الأثر والتقدم"
     },
     {
+      "name": "Field",
+      "description": "التطبيق الميداني: المجموعات وورقة اليوم، وتكوينها من اللوحة"
+    },
+    {
       "name": "Map",
       "description": "خريطة سورية: الحملات والنقاط الخضراء"
     },
@@ -2237,7 +2241,8 @@
             "enum": [
               "STAFF_ENTRY",
               "PARTNER_SUBMISSION",
-              "CONTRIBUTION"
+              "CONTRIBUTION",
+              "FIELD_ENTRY"
             ]
           },
           "occurredAt": {
@@ -5502,6 +5507,1331 @@
           "uploadUrl",
           "publicUrl",
           "expiresInSeconds"
+        ]
+      },
+      "FieldGroupCard": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "meetsAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "meetingPointAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initiativeNameAr": {
+            "type": "string"
+          },
+          "initiativeStatus": {
+            "type": "string",
+            "enum": [
+              "DRAFT",
+              "PLANNING",
+              "ACTIVE",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "siteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteNameAr": {
+            "type": "string"
+          },
+          "siteStatus": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "areaNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "taskCount": {
+            "type": "integer"
+          },
+          "openTaskCount": {
+            "type": "integer",
+            "description": "مهام الموقع التي لم تُنجز ولم تُلغَ."
+          },
+          "memberCount": {
+            "type": "integer"
+          },
+          "presentToday": {
+            "type": "integer",
+            "description": "من سُجّل حضورهم اليوم بتوقيت دمشق."
+          }
+        },
+        "required": [
+          "id",
+          "nameAr",
+          "meetsAt",
+          "meetingPointAr",
+          "initiativeId",
+          "initiativeNameAr",
+          "initiativeStatus",
+          "siteId",
+          "siteNameAr",
+          "siteStatus",
+          "areaNameAr",
+          "taskCount",
+          "openTaskCount",
+          "memberCount",
+          "presentToday"
+        ]
+      },
+      "FieldHome": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "STAFF"
+            ]
+          },
+          "user": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullNameAr": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "fullNameAr"
+            ]
+          },
+          "canLead": {
+            "type": "boolean"
+          },
+          "canManage": {
+            "type": "boolean"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldGroupCard"
+            },
+            "description": "المجموعات التي يقودها صاحب الجلسة، الأقرب موعدًا أولًا. مجموعات المبادرات الملغاة والمواقع الملغاة لا تظهر."
+          }
+        },
+        "required": [
+          "kind",
+          "user",
+          "canLead",
+          "canManage",
+          "groups"
+        ]
+      },
+      "FieldTask": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titleAr": {
+            "type": "string"
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "TODO",
+              "IN_PROGRESS",
+              "BLOCKED",
+              "IN_REVIEW",
+              "DONE",
+              "CANCELLED"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH",
+              "URGENT"
+            ]
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "SITE",
+              "INITIATIVE"
+            ],
+            "description": "`SITE` مهمة معلَّقة على موقع المجموعة. `INITIATIVE` مهمة على المبادرة أُسندت إلى قائد المجموعة نفسه."
+          },
+          "milestoneTitleAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dueAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "isOverdue": {
+            "type": "boolean"
+          },
+          "blockedReasonAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "assigneeNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "commentCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "titleAr",
+          "descriptionAr",
+          "status",
+          "priority",
+          "scope",
+          "milestoneTitleAr",
+          "dueAt",
+          "isOverdue",
+          "blockedReasonAr",
+          "assigneeNameAr",
+          "commentCount"
+        ]
+      },
+      "FieldTarget": {
+        "type": "object",
+        "properties": {
+          "metricId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "metricNameAr": {
+            "type": "string"
+          },
+          "unitAr": {
+            "type": "string"
+          },
+          "decimals": {
+            "type": "integer"
+          },
+          "aggregation": {
+            "type": "string",
+            "enum": [
+              "SUM",
+              "MAX",
+              "LATEST"
+            ]
+          },
+          "target": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "actual": {
+            "type": "number",
+            "description": "الموثَّق وحده."
+          },
+          "unverified": {
+            "type": "number",
+            "description": "ما أُدخل وينتظر تحقق المنسّق — ومنه ما يُدخل من الميدان."
+          }
+        },
+        "required": [
+          "metricId",
+          "metricNameAr",
+          "unitAr",
+          "decimals",
+          "aggregation",
+          "target",
+          "actual",
+          "unverified"
+        ],
+        "description": "مؤشر يُعدّ في هذا الموقع: له هدف فيه، أو قيد سُجّل عليه، أو هدف على المبادرة لم يُوزَّع على مواقعها بعد."
+      },
+      "FieldAttendance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "participantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "memberId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "attendedOn": {
+            "type": "string",
+            "format": "date",
+            "description": "يوم الحضور بتوقيت دمشق."
+          },
+          "checkedInAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "method": {
+            "type": "string",
+            "enum": [
+              "LEAD_TAP",
+              "WALK_IN",
+              "SELF"
+            ]
+          },
+          "undoneAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "groupId",
+          "participantId",
+          "memberId",
+          "fullNameAr",
+          "attendedOn",
+          "checkedInAt",
+          "method",
+          "undoneAt"
+        ]
+      },
+      "FieldMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "participantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "يخرج لقائد المجموعة ومنسّقها وحدهما — من يحتاجانه ليسألا من تأخر."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MEMBER",
+              "ASSISTANT"
+            ]
+          },
+          "rsvp": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "COMING",
+              "NOT_COMING"
+            ]
+          },
+          "attendance": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "checkedInAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "LEAD_TAP",
+                  "WALK_IN",
+                  "SELF"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "checkedInAt",
+              "method"
+            ],
+            "description": "حضوره القائم في يوم الورقة، إن حضر."
+          }
+        },
+        "required": [
+          "id",
+          "participantId",
+          "fullNameAr",
+          "phone",
+          "role",
+          "rsvp",
+          "attendance"
+        ]
+      },
+      "FieldPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string"
+          },
+          "workItemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "takenAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "captionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasPeople": {
+            "type": "boolean"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "workItemId",
+          "takenAt",
+          "captionAr",
+          "hasPeople",
+          "createdAt"
+        ]
+      },
+      "FieldSheet": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "meetsAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "meetingPointAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "instructionsAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "leadUserId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "leadNameAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "meetsAt",
+              "meetingPointAr",
+              "instructionsAr",
+              "leadUserId",
+              "leadNameAr"
+            ]
+          },
+          "initiative": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PLANNING",
+                  "ACTIVE",
+                  "COMPLETED",
+                  "CANCELLED"
+                ]
+              },
+              "acceptsEntries": {
+                "type": "boolean",
+                "description": "هل يُقبل تسجيل من الميدان الآن: المبادرة جارية، أو أُغلقت قريبًا فيُقبل ما التُقط قبل إغلاقها ووصل بعده."
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "status",
+              "acceptsEntries"
+            ]
+          },
+          "site": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "descriptionAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PLANNED",
+                  "IN_PROGRESS",
+                  "COMPLETED",
+                  "CANCELLED"
+                ]
+              },
+              "areaNameAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lng": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "descriptionAr",
+              "status",
+              "areaNameAr",
+              "lat",
+              "lng"
+            ]
+          },
+          "day": {
+            "type": "string",
+            "format": "date",
+            "description": "يوم الورقة بتوقيت دمشق؛ حضور الأعضاء فيها حضور هذا اليوم."
+          },
+          "permissions": {
+            "type": "object",
+            "properties": {
+              "canApproveTasks": {
+                "type": "boolean",
+                "description": "من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة."
+              }
+            },
+            "required": [
+              "canApproveTasks"
+            ]
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldTask"
+            }
+          },
+          "targets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldTarget"
+            }
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldMember"
+            }
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldPhoto"
+            },
+            "description": "أحدث ما التقطته المجموعة. المعرض كاملًا في اللوحة."
+          },
+          "photoCount": {
+            "type": "integer"
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "وقت الخادم عند بناء الورقة. التطبيق يحفظها ويعرضها بلا شبكة، وهذا ما يقوله عن عمرها."
+          }
+        },
+        "required": [
+          "group",
+          "initiative",
+          "site",
+          "day",
+          "permissions",
+          "tasks",
+          "targets",
+          "members",
+          "photos",
+          "photoCount",
+          "generatedAt"
+        ],
+        "description": "ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز."
+      },
+      "FieldGroup": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteNameAr": {
+            "type": "string"
+          },
+          "siteStatus": {
+            "type": "string",
+            "enum": [
+              "PLANNED",
+              "IN_PROGRESS",
+              "COMPLETED",
+              "CANCELLED"
+            ]
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "leadUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "leadNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "meetsAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "meetingPointAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "instructionsAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "memberCount": {
+            "type": "integer"
+          },
+          "attendedCount": {
+            "type": "integer",
+            "description": "من حضر من المجموعة يومًا واحدًا على الأقل."
+          },
+          "photoCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "initiativeId",
+          "siteId",
+          "siteNameAr",
+          "siteStatus",
+          "nameAr",
+          "leadUserId",
+          "leadNameAr",
+          "meetsAt",
+          "meetingPointAr",
+          "instructionsAr",
+          "displayOrder",
+          "memberCount",
+          "attendedCount",
+          "photoCount",
+          "createdAt"
+        ]
+      },
+      "InitiativeField": {
+        "type": "object",
+        "properties": {
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldGroup"
+            }
+          }
+        },
+        "required": [
+          "initiativeId",
+          "groups"
+        ],
+        "description": "ميدان المبادرة كاملًا. كل مسار كتابة على المجموعات يعيده، فتتحدّث لوحة المنسّق بنداء واحد."
+      },
+      "FieldLeadCandidate": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "roleNameAr": {
+            "type": "string"
+          },
+          "officeNameAr": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "fullNameAr",
+          "roleNameAr",
+          "officeNameAr"
+        ],
+        "description": "عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم."
+      },
+      "FieldGroupMember": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "participantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MEMBER",
+              "ASSISTANT"
+            ]
+          },
+          "rsvp": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "COMING",
+              "NOT_COMING"
+            ]
+          },
+          "fromForm": {
+            "type": "boolean",
+            "description": "أُضيف من طلب استمارة مقبول، لا بيد المنسّق ولا حضورًا بلا تسجيل."
+          },
+          "attendedDays": {
+            "type": "integer"
+          },
+          "lastAttendedOn": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "attendance": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "checkedInAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "method": {
+                "type": "string",
+                "enum": [
+                  "LEAD_TAP",
+                  "WALK_IN",
+                  "SELF"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "checkedInAt",
+              "method"
+            ],
+            "description": "حضوره القائم في اليوم المطلوب."
+          }
+        },
+        "required": [
+          "id",
+          "participantId",
+          "fullNameAr",
+          "phone",
+          "email",
+          "role",
+          "rsvp",
+          "fromForm",
+          "attendedDays",
+          "lastAttendedOn",
+          "attendance"
+        ]
+      },
+      "FieldGroupMembers": {
+        "type": "object",
+        "properties": {
+          "groupId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "members": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldGroupMember"
+            }
+          }
+        },
+        "required": [
+          "groupId",
+          "day",
+          "members"
+        ]
+      },
+      "FieldAddMembersResult": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FieldGroupMembers"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "summary": {
+                "type": "object",
+                "properties": {
+                  "added": {
+                    "type": "integer"
+                  },
+                  "alreadyMembers": {
+                    "type": "integer"
+                  },
+                  "newParticipants": {
+                    "type": "integer"
+                  },
+                  "skipped": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "submissionId": {
+                          "type": "string",
+                          "format": "uuid"
+                        },
+                        "reasonAr": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "submissionId",
+                        "reasonAr"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "added",
+                  "alreadyMembers",
+                  "newParticipants",
+                  "skipped"
+                ]
+              }
+            },
+            "required": [
+              "summary"
+            ]
+          }
+        ]
+      },
+      "FieldApplicantSource": {
+        "type": "object",
+        "properties": {
+          "formId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "acceptedCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "formId",
+          "nameAr",
+          "acceptedCount"
+        ]
+      },
+      "FieldApplicant": {
+        "type": "object",
+        "properties": {
+          "submissionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "submittedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "participantId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "المشارك الذي صار إليه الطلب، إن حُوّل من قبل."
+          },
+          "groupNamesAr": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "مجموعاته في هذه المبادرة."
+          }
+        },
+        "required": [
+          "submissionId",
+          "fullNameAr",
+          "phone",
+          "email",
+          "submittedAt",
+          "participantId",
+          "groupNamesAr"
+        ],
+        "description": "طلب مقبول بما يلزم لتوزيعه: الاسم ووسيلة التواصل. إجاباته تبقى في صندوق الطلبات."
+      },
+      "FieldParticipant": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "attendedDays": {
+            "type": "integer"
+          },
+          "groupNamesAr": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "مجموعاته في هذه المبادرة."
+          }
+        },
+        "required": [
+          "id",
+          "fullNameAr",
+          "phone",
+          "email",
+          "attendedDays",
+          "groupNamesAr"
+        ]
+      },
+      "FieldAttendanceDay": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "siteId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "siteNameAr": {
+            "type": "string"
+          },
+          "present": {
+            "type": "integer",
+            "description": "أشخاص مختلفون حضروا في الموقع ذلك اليوم، ولو في أكثر من مجموعة."
+          },
+          "groups": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "groupId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "nameAr": {
+                  "type": "string"
+                },
+                "present": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "groupId",
+                "nameAr",
+                "present"
+              ]
+            }
+          }
+        },
+        "required": [
+          "day",
+          "siteId",
+          "siteNameAr",
+          "present",
+          "groups"
+        ]
+      },
+      "FieldAttendanceImpact": {
+        "type": "object",
+        "properties": {
+          "recorded": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImpactEntry"
+            }
+          },
+          "unchanged": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "siteId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "siteNameAr": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "siteId",
+                "siteNameAr",
+                "value"
+              ]
+            }
+          }
+        },
+        "required": [
+          "recorded",
+          "unchanged"
+        ]
+      },
+      "FieldManagedPhoto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "url": {
+            "type": "string"
+          },
+          "siteId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "siteNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workItemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "workItemTitleAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "groupNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uploadedByNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "takenAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "captionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "hasPeople": {
+            "type": "boolean"
+          },
+          "peopleConsent": {
+            "type": "boolean"
+          },
+          "publicUseAllowed": {
+            "type": "boolean"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "url",
+          "siteId",
+          "siteNameAr",
+          "workItemId",
+          "workItemTitleAr",
+          "groupId",
+          "groupNameAr",
+          "uploadedByNameAr",
+          "takenAt",
+          "lat",
+          "lng",
+          "captionAr",
+          "hasPeople",
+          "peopleConsent",
+          "publicUseAllowed",
+          "sizeBytes",
+          "createdAt"
         ]
       }
     },
@@ -8842,6 +10172,20 @@
             "required": false,
             "name": "verified",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "STAFF_ENTRY",
+                "PARTNER_SUBMISSION",
+                "CONTRIBUTION",
+                "FIELD_ENTRY"
+              ]
+            },
+            "required": false,
+            "name": "source",
+            "in": "query"
           }
         ],
         "responses": {
@@ -8921,7 +10265,8 @@
                     "enum": [
                       "STAFF_ENTRY",
                       "PARTNER_SUBMISSION",
-                      "CONTRIBUTION"
+                      "CONTRIBUTION",
+                      "FIELD_ENTRY"
                     ],
                     "default": "STAFF_ENTRY"
                   },
@@ -12745,6 +14090,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -12946,6 +14293,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -14803,6 +16152,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -14856,6 +16207,8 @@
                         "work.approve",
                         "meetings.manage",
                         "geo.manage",
+                        "field.lead",
+                        "field.manage",
                         "contributions.view",
                         "contributions.manage",
                         "contributions.verify",
@@ -15670,7 +17023,7 @@
           "Uploads"
         ],
         "summary": "رابط رفع موقّع",
-        "description": "يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`.",
+        "description": "يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`، وصورة الميدان `field.manage` — وقائد المجموعة يوقّع صور مجموعته من `/field/groups/{id}/photos/sign`.",
         "security": [
           {
             "bearerAuth": []
@@ -15687,7 +17040,8 @@
                     "enum": [
                       "FORM_COVER",
                       "INITIATIVE_COVER",
-                      "GREEN_POINT_COVER"
+                      "GREEN_POINT_COVER",
+                      "FIELD_PHOTO"
                     ]
                   },
                   "contentType": {
@@ -15740,6 +17094,2196 @@
           },
           "422": {
             "description": "نوع أو حجم غير مسموح، أو التخزين غير مهيّأ",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/me": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "هويتي ومجموعاتي",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الهوية والمجموعات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldHome"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "بلا جلسة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "الحساب ليس من الفريق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "ورقة يوم المجموعة",
+        "description": "لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ورقة اليوم",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldSheet"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}/attendance": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تسجيل حضور",
+        "description": "آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية."
+                  },
+                  "participantId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "walkIn": {
+                    "type": "object",
+                    "properties": {
+                      "fullNameAr": {
+                        "type": "string",
+                        "minLength": 2,
+                        "maxLength": 160
+                      },
+                      "phone": {
+                        "type": "string",
+                        "pattern": "^[+]?[\\d\\s()-]{6,32}$"
+                      }
+                    },
+                    "required": [
+                      "fullNameAr"
+                    ],
+                    "description": "من جاء بلا تسجيل مسبق. يُضاف عضوًا في المجموعة ويُسجَّل حضوره معًا."
+                  },
+                  "checkedInAt": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "وقت النقرة على الهاتف. يُقبل ما مضى حتى مهلة الاستقبال، ولا يُقبل المستقبل."
+                  }
+                },
+                "required": [
+                  "clientId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAttendance"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}/attendance/undo": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "التراجع عن حضور",
+        "description": "بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "attendanceId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "attendanceClientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "معرّف المُرسِل الذي سُجّل به الحضور — لمن سجّل وتراجع بلا شبكة، فلا يعرف هاتفه معرّف الخادم."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "أُلغي",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAttendance"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}/impact": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تسجيل رقم من الموقع",
+        "description": "قيد أثر على موقع المجموعة، مصدره `FIELD_ENTRY`، غير موثَّق. يدخل المجاميع حين يتحقق منه المنسّق.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية."
+                  },
+                  "metricId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "value": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "maximum": 999999999999
+                  },
+                  "occurredAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "noteAr": {
+                    "type": "string",
+                    "maxLength": 2000
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "metricId",
+                  "value"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImpactEntry"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}/photos/sign": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "رابط رفع موقّع لصورة",
+        "description": "الصورة تُرفع من الهاتف إلى التخزين مباشرة ولا تمرّ بالخادم، ثم تُسجَّل بـ`/groups/{id}/photos`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 100
+                  },
+                  "size": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  }
+                },
+                "required": [
+                  "contentType",
+                  "size"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "وُقِّع",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/SignedUpload"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}/photos": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تسجيل صورة بعد رفعها",
+        "description": "الرابط يجب أن يكون مما وُقّع لصور الميدان. الصورة داخلية حتى يسمح المنسّق بنشرها من اللوحة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية."
+                  },
+                  "url": {
+                    "type": "string",
+                    "maxLength": 500,
+                    "format": "uri"
+                  },
+                  "contentType": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 100
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0
+                  },
+                  "taskId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "مهمة من ورقة المجموعة صُوّرت الصورة لها — عائق أو إنجاز."
+                  },
+                  "location": {
+                    "type": "object",
+                    "properties": {
+                      "lat": {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      },
+                      "lng": {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      }
+                    },
+                    "required": [
+                      "lat",
+                      "lng"
+                    ],
+                    "description": "يُطلب صراحةً من الهاتف عند الالتقاط، ولا يُرسَل إن رُفض الإذن."
+                  },
+                  "takenAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "captionAr": {
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "hasPeople": {
+                    "type": "boolean"
+                  },
+                  "peopleConsent": {
+                    "type": "boolean",
+                    "description": "أُخذت موافقة من في الصورة، ووليّ الأمر للأطفال. صورة فيها أشخاص بلا هذا تُرفض."
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "url",
+                  "contentType",
+                  "sizeBytes",
+                  "hasPeople",
+                  "peopleConsent"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldPhoto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/tasks/{id}/status": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "نقل مهمة من الميدان",
+        "description": "المهمة يجب أن تكون من ورقة المجموعة. النقل إلى ما هي فيه نجاح بلا أثر.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "groupId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "IN_PROGRESS",
+                      "BLOCKED",
+                      "DONE"
+                    ],
+                    "description": "`DONE` نيّة «أُنجزت»: تصير منجزة عند من يعتمد الإنجاز، و«بانتظار الاعتماد» عند غيره."
+                  },
+                  "blockedReasonAr": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "groupId",
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "نُقلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldTask"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/tasks/{id}/comments": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "ملاحظة ميدانية على مهمة",
+        "description": "داخلية دائمًا: إظهارها للشريك قرار من يدير العمل من اللوحة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "clientId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية."
+                  },
+                  "groupId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "bodyAr": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  }
+                },
+                "required": [
+                  "clientId",
+                  "groupId",
+                  "bodyAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "أُضيفت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldTask"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/groups/{id}/site": {
+      "patch": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "بدء العمل في الموقع أو إغلاقه",
+        "description": "يبدأ القائد العمل ويغلقه ويعيد فتحه. الإلغاء قرار المنسّق من اللوحة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "IN_PROGRESS",
+                      "COMPLETED"
+                    ]
+                  }
+                },
+                "required": [
+                  "status"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "نُقل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "siteId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PLANNED",
+                        "IN_PROGRESS",
+                        "COMPLETED",
+                        "CANCELLED"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "siteId",
+                    "status"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة أو ليست لك",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "بيانات غير صالحة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "ميدان المبادرة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المجموعات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا يملك `field.manage`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/lead-candidates": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "من يصلح قائدًا لمجموعة",
+        "description": "الأعضاء النشطون الحاملون `field.lead` بعد الاستثناءات الفردية. مسار خاص لأن المنسّق لا يحمل بالضرورة `users.view`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المرشحون",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldLeadCandidate"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/groups": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إضافة مجموعة ميدانية",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "siteId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "leadUserId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "meetsAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "meetingPointAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  },
+                  "instructionsAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 4000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999
+                  }
+                },
+                "required": [
+                  "siteId",
+                  "nameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيفت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "في الموقع مجموعة بالاسم نفسه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/groups/{groupId}": {
+      "patch": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تعديل مجموعة أو تسمية قائدها",
+        "description": "`leadUserId: null` يترك المجموعة بلا قائد.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "siteId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "leadUserId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  },
+                  "meetsAt": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "date-time"
+                  },
+                  "meetingPointAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  },
+                  "instructionsAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 4000
+                  },
+                  "displayOrder": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9999
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "في الموقع مجموعة بالاسم نفسه",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "حذف مجموعة",
+        "description": "مجموعة لها سجل حضور لا تُحذف: الحضور أساس الشهادات، وحذفها يمحوه.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "حُذفت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "للمجموعة سجل حضور",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/groups/{groupId}/members": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "أعضاء المجموعة وحضورهم",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "اليوم الذي يُعرض حضوره. الافتراضي اليوم بتوقيت دمشق."
+            },
+            "required": false,
+            "description": "اليوم الذي يُعرض حضوره. الافتراضي اليوم بتوقيت دمشق.",
+            "name": "day",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الأعضاء",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldGroupMembers"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إضافة أعضاء إلى مجموعة",
+        "description": "من طلبات استمارة مقبولة، أو من سجل المشاركين، أو بإدخال يدوي — في طلب واحد. من سبق تسجيله يُعرف باسمه مع هاتفه أو بريده فلا يتكرر، والطلب بلا اسم يُتخطّى ويُذكر.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "formId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "submissionIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  },
+                  "participantIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  },
+                  "people": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "fullNameAr": {
+                          "type": "string",
+                          "minLength": 2,
+                          "maxLength": 160
+                        },
+                        "phone": {
+                          "type": "string",
+                          "pattern": "^[+]?[\\d\\s()-]{6,32}$"
+                        },
+                        "email": {
+                          "type": "string",
+                          "maxLength": 254,
+                          "format": "email"
+                        }
+                      },
+                      "required": [
+                        "fullNameAr"
+                      ]
+                    },
+                    "maxItems": 200,
+                    "default": []
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "أُضيفوا",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAddMembersResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المجموعة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "طلب غير مقبول بعد، أو مشارك غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/groups/{groupId}/members/{memberId}": {
+      "patch": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تعديل دور عضو في مجموعته",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "memberId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "role": {
+                    "type": "string",
+                    "enum": [
+                      "MEMBER",
+                      "ASSISTANT"
+                    ]
+                  }
+                },
+                "required": [
+                  "role"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldGroupMembers"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "العضو غير موجود في هذه المجموعة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إخراج عضو من مجموعة",
+        "description": "يخرج من قائمة المجموعة ويبقى في سجل المشاركين، وحضوره السابق فيها محفوظ.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "groupId",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "memberId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "أُخرج",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldGroupMembers"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "العضو غير موجود في هذه المجموعة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/sources": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "استمارات فيها طلبات مقبولة",
+        "description": "مسار خاص لأن المنسّق لا يحمل بالضرورة `forms.view`: يرى من الاستمارة اسمها وعدد مقبوليها، لا أسئلتها ولا بقية طلباتها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الاستمارات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldApplicantSource"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/applicants": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "الطلبات المقبولة في استمارة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "formId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "required": false,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الطلبات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldApplicant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الاستمارة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/participants": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "بحث في سجل المشاركين",
+        "description": "بالاسم أو بالهاتف، ممن شارك في أي مبادرة سابقة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "minLength": 2,
+              "maxLength": 100
+            },
+            "required": true,
+            "name": "q",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المشاركون",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldParticipant"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/attendance": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "ملخص الحضور بالأيام والمواقع",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الملخص",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldAttendanceDay"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/attendance/impact": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تسجيل حضور يومٍ قيدَ أثر",
+        "description": "قيد لكل موقع بعدد من حضروا فيه ذلك اليوم، على المؤشر المختار، مصدره `FIELD_ENTRY` وغير موثَّق. يوم سُجّل حضوره لا يُسجَّل مرتين: إن تغيّر العدد بعده يُعكس القيد الأول ثم يُعاد.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "metricId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "day": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "metricId",
+                  "day"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAttendanceImpact"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "سُجّل حضور اليوم بعدد آخر — اعكس قيده أولًا",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "لا حضور في ذلك اليوم، أو المؤشر معطّل",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/photos": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "صور الميدان",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "siteId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": false,
+            "name": "groupId",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الصور، الأحدث أولًا",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldManagedPhoto"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/photos/{photoId}": {
+      "patch": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "السماح بنشر صورة أو تعديل وصفها",
+        "description": "الصورة داخلية حتى يُسمح بنشرها هنا. صورة فيها أشخاص بلا موافقتهم لا يُسمح بنشرها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "photoId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "publicUseAllowed": {
+                    "type": "boolean"
+                  },
+                  "captionAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 300
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldManagedPhoto"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الصورة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "فيها أشخاص بلا موافقتهم",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "حذف صورة",
+        "description": "تُمحى من التخزين أيضًا، لا من المعرض وحده.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "photoId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "حُذفت"
+          },
+          "404": {
+            "description": "الصورة غير موجودة في هذه المبادرة",
             "content": {
               "application/problem+json": {
                 "schema": {

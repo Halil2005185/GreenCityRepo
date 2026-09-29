@@ -176,10 +176,16 @@ export const workItemComments = pgTable(
     /** الافتراضي داخلي: ما لا يُعلَن ظاهرًا للشريك يبقى بين الفريق. */
     isInternal: boolean('is_internal').default(true).notNull(),
 
+    /** معرّف المُرسِل: ملاحظة كُتبت بلا شبكة وأُعيد إرسالها لا تتكرر. */
+    clientId: uuidColumn('client_id'),
+
     ...createdAtOnly,
   },
   (table) => [
     index('work_item_comments_item_idx').on(table.workItemId, table.createdAt),
+    uniqueIndex('work_item_comments_client_unique')
+      .on(table.clientId)
+      .where(sql`${table.clientId} is not null`),
   ],
 )
 

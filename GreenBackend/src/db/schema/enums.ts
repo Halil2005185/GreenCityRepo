@@ -269,10 +269,16 @@ export const metricAggregation = pgEnum('metric_aggregation', [
   'LATEST',
 ])
 
+/**
+ * `FIELD_ENTRY` قيد أدخله قائد مجموعة من موقع التنفيذ. مصدر مستقل لا
+ * `STAFF_ENTRY`: رقم يُكتب واقفًا بين الأشجار غير رقم يُكتب من مكتب بعد
+ * مراجعة، والمنسّق الذي يتحقق يحتاج أن يعرف أيهما أمامه.
+ */
 export const impactSource = pgEnum('impact_source', [
   'STAFF_ENTRY',
   'PARTNER_SUBMISSION',
   'CONTRIBUTION',
+  'FIELD_ENTRY',
 ])
 
 export const workItemStatus = pgEnum('work_item_status', [
@@ -300,6 +306,31 @@ export const milestoneStatus = pgEnum('milestone_status', [
 
 /** القالب يولّد مرحلة أو مهمة عند إنشاء مبادرة تحت البرنامج. */
 export const templateKind = pgEnum('template_kind', ['MILESTONE', 'TASK'])
+
+// ── الميدان ────────────────────────────────────────────────────────────
+
+/** المساعد ينوب عن القائد في مجموعته؛ العضو ينفّذ. */
+export const fieldMemberRole = pgEnum('field_member_role', [
+  'MEMBER',
+  'ASSISTANT',
+])
+
+/** تأكيد الحضور المسبق. `UNKNOWN` لم يُجب بعد — وهو غير «لن يحضر». */
+export const fieldRsvp = pgEnum('field_rsvp', [
+  'UNKNOWN',
+  'COMING',
+  'NOT_COMING',
+])
+
+/**
+ * كيف سُجّل الحضور: نقرة القائد على اسم في قائمته، أو شخص جاء بلا تسجيل
+ * فأضافه القائد، أو تسجيل المتطوع نفسه عند نقطة اللقاء.
+ */
+export const attendanceMethod = pgEnum('attendance_method', [
+  'LEAD_TAP',
+  'WALK_IN',
+  'SELF',
+])
 
 /**
  * حالة رسالة الصادر.

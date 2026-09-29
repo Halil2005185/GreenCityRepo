@@ -13,6 +13,7 @@ import {
 import { alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
+import { isUniqueViolation } from '../../common/utils/db-errors.js'
 import { db } from '../../db/client.js'
 import { users } from '../../db/schema/identity.js'
 import { impactEntries, metricTargets, metrics } from '../../db/schema/metrics.js'
@@ -415,6 +416,7 @@ export async function listEntries(filters: dto.ListEntriesQuery) {
       : filters.verified
         ? isNotNull(impactEntries.verifiedAt)
         : isNull(impactEntries.verifiedAt),
+    filters.source ? eq(impactEntries.source, filters.source) : undefined,
   ].filter(Boolean)
 
   const rows = await entryQuery()
@@ -486,29 +488,50 @@ async function insertReversal(
   return created.id
 }
 
-/**
- * Drizzle يغلّف خطأ السائق في `DrizzleQueryError`، فرمز SQLSTATE لا يظهر
- * على الكائن الخارجي بل في سلسلة `cause`. قراءة `code` من المستوى الأعلى
- * وحده تجعل الشرط لا يتحقق أبدًا، فيعود تعارضُ الفهرس خطأَ خادم 500.
- */
-function isUniqueViolation(error: unknown): boolean {
-  for (
-    let current: unknown = error;
-    typeof current === 'object' && current !== null;
-    current = (current as { cause?: unknown }).cause
-  ) {
-    if ('code' in current && (current as { code?: unknown }).code === '23505') {
-      return true
-    }
-  }
+async function findByClientId(clientId: string) {
+  const [row] = await entryQuery()
+    .where(eq(impactEntries.clientId, clientId))
+    .limit(1)
 
-  return false
+  return row ? serializeEntry(row) : null
 }
 
+/**
+ * `clientId` يجعل التسجيل آمن التكرار: الهاتف في الميدان يعيد الطلب حين
+ * تنقطع الشبكة قبل الجواب، فيعود القيد الأول بدل أن يُسجَّل الرقم مرتين.
+ * والفهرس الفريد هو الحَكَم حين يتسابق الطلبان.
+ */
 export async function recordEntry(
   input: dto.CreateEntryBody,
   actor: AuthContext,
   trace: RequestTrace,
+  options: { clientId?: string | undefined } = {},
+) {
+  if (options.clientId) {
+    const existing = await findByClientId(options.clientId)
+
+    if (existing) return existing
+  }
+
+  try {
+    return await insertEntry(input, actor, trace, options.clientId)
+  } catch (error) {
+    const raced =
+      options.clientId && isUniqueViolation(error)
+        ? await findByClientId(options.clientId)
+        : null
+
+    if (raced) return raced
+
+    throw error
+  }
+}
+
+async function insertEntry(
+  input: dto.CreateEntryBody,
+  actor: AuthContext,
+  trace: RequestTrace,
+  clientId: string | undefined,
 ) {
   const scope = resolveScope(input)
 
@@ -544,6 +567,7 @@ export async function recordEntry(
         ...(input.initiativeId ? { initiativeId: input.initiativeId } : {}),
         ...(input.siteId ? { siteId: input.siteId } : {}),
         ...(input.noteAr ? { noteAr: input.noteAr } : {}),
+        ...(clientId ? { clientId } : {}),
       })
       .returning({ id: impactEntries.id })
 

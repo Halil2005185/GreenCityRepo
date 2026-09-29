@@ -49,6 +49,7 @@ export const CAPABILITY_GROUP_LABELS: Record<string, string> = {
   media: "الشبكة الإعلامية",
   charter: "الميثاق",
   operations: "التشغيل",
+  field: "الميدان",
   contributions: "المساهمات",
   impact: "الأثر والمؤشرات",
   documents: "المستندات والملفات",

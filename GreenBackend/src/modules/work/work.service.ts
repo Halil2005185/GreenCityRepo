@@ -15,6 +15,7 @@ import {
 import { alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
+import { isUniqueViolation } from '../../common/utils/db-errors.js'
 import { normalizeText } from '../../common/utils/text.js'
 import { db } from '../../db/client.js'
 import { users } from '../../db/schema/identity.js'
@@ -69,6 +70,39 @@ const STATUS_TRANSITIONS: Record<WorkItemStatus, readonly WorkItemStatus[]> = {
   IN_REVIEW: ['IN_PROGRESS', 'DONE', 'CANCELLED'],
   DONE: ['IN_PROGRESS'],
   CANCELLED: ['TODO'],
+}
+
+/**
+ * أقصر سلسلة انتقالات مسموحة من حالة إلى أخرى، أو `null` إن لم توجد.
+ *
+ * القائد في الميدان ينقر «أُنجزت» على مهمة لم تبدأ، والرسم لا يصل بينهما
+ * بخطوة. السلسلة تُنفَّذ خطوةً خطوةً عبر `changeTaskStatus`، فتمرّ كل
+ * خطوة ببوابتها وتُكتب في التدقيق كما لو نقرها واحدة واحدة.
+ *
+ * الإلغاء خارج السلاسل: ليس محطة يُمرّ بها إلى غيرها.
+ */
+export function transitionPath(
+  from: WorkItemStatus,
+  to: WorkItemStatus,
+): WorkItemStatus[] | null {
+  if (from === to) return []
+
+  const queue: WorkItemStatus[][] = [[from]]
+  const seen = new Set<WorkItemStatus>([from, 'CANCELLED'])
+
+  while (queue.length > 0) {
+    const path = queue.shift()!
+
+    for (const next of STATUS_TRANSITIONS[path.at(-1)!]) {
+      if (next === to) return [...path.slice(1), next]
+      if (seen.has(next)) continue
+
+      seen.add(next)
+      queue.push([...path, next])
+    }
+  }
+
+  return null
 }
 
 const STATUS_LABELS: Record<WorkItemStatus, string> = {
@@ -760,13 +794,29 @@ export async function changeTaskStatus(
   return loadTaskDetail(workItemId)
 }
 
+/**
+ * `clientId` يجعل التعليق آمن التكرار: ملاحظة كُتبت في الميدان بلا شبكة
+ * يعيد الهاتف إرسالها حتى يصله الجواب، ولا تظهر في المهمة إلا مرة.
+ */
 export async function addComment(
   workItemId: string,
   input: dto.CreateCommentBody,
   actor: AuthContext,
   trace: RequestTrace,
+  options: { clientId?: string | undefined } = {},
 ) {
   const existing = await requireTask(workItemId)
+  const clientId = options.clientId
+
+  if (clientId) {
+    const [sent] = await db
+      .select({ id: workItemComments.id })
+      .from(workItemComments)
+      .where(eq(workItemComments.clientId, clientId))
+      .limit(1)
+
+    if (sent) return loadTaskDetail(workItemId)
+  }
 
   /**
    * التعليق مفتوح لكل من يرى المهمة، أما إظهاره للشريك فقناة مخاطبة خارجية
@@ -777,7 +827,7 @@ export async function addComment(
     ? input.isInternal
     : true
 
-  await db.transaction(async (tx) => {
+  const write = db.transaction(async (tx) => {
     await tx.insert(workItemComments).values({
       workItemId,
       authorUserId: actor.userId,
@@ -785,6 +835,7 @@ export async function addComment(
       authorNameAr: actor.fullNameAr,
       bodyAr: input.bodyAr,
       isInternal,
+      ...(clientId ? { clientId } : {}),
     })
 
     await recordAudit(
@@ -803,6 +854,13 @@ export async function addComment(
       tx,
     )
   })
+
+  try {
+    await write
+  } catch (error) {
+    // الطلب نفسه سبق هذا إلى الفهرس: التعليق كُتب، فلا شيء يُصلَح.
+    if (!(clientId && isUniqueViolation(error))) throw error
+  }
 
   return loadTaskDetail(workItemId)
 }

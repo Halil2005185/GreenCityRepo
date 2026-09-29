@@ -10,6 +10,7 @@ export const impactSourceEnum = z.enum([
   'STAFF_ENTRY',
   'PARTNER_SUBMISSION',
   'CONTRIBUTION',
+  'FIELD_ENTRY',
 ])
 
 export const impactScopeEnum = z.enum(['PROGRAM', 'INITIATIVE', 'SITE'])
@@ -90,6 +91,8 @@ export const listEntriesQuerySchema = z.object({
   programId: z.uuid().optional(),
   metricId: z.uuid().optional(),
   verified: z.stringbool().optional(),
+  /** مصدر بعينه — قيود الميدان التي تنتظر التحقق مثلًا. */
+  source: impactSourceEnum.optional(),
 })
 
 registry.registerPath({

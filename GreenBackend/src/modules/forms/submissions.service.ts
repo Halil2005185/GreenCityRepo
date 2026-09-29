@@ -1,4 +1,15 @@
-import { and, asc, desc, eq, ilike, isNotNull, lt, or, sql } from 'drizzle-orm'
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  ilike,
+  inArray,
+  isNotNull,
+  lt,
+  or,
+  sql,
+} from 'drizzle-orm'
 
 import { errors } from '../../common/errors/app-error.js'
 import { db } from '../../db/client.js'
@@ -180,6 +191,54 @@ export async function listSubmissions(
         ? last.submittedAt.toISOString()
         : null,
   }
+}
+
+/**
+ * المقبولون في استمارة بما يلزم للتواصل وحده: الاسم والهاتف والبريد.
+ *
+ * لوحدة الميدان: المنسّق يوزّع المقبولين على مجموعات ولا يفرز طلباتهم،
+ * فلا تخرج له إجاباتهم. والأعمدة الفارغة تُردم من الإجابات كما في القائمة،
+ * فطلب وصل قبل وسم سؤال الاسم لا يُعرض بلا اسم.
+ */
+export async function listAcceptedApplicants(
+  formId: string,
+  options: { q?: string | undefined; ids?: readonly string[] | undefined } = {},
+) {
+  await requireForm(formId)
+
+  const term = options.q?.trim()
+
+  const rows = await db
+    .select({
+      id: formSubmissions.id,
+      applicantNameAr: formSubmissions.applicantNameAr,
+      applicantEmail: formSubmissions.applicantEmail,
+      applicantPhone: formSubmissions.applicantPhone,
+      answers: formSubmissions.answers,
+      submittedAt: formSubmissions.submittedAt,
+    })
+    .from(formSubmissions)
+    .innerJoin(formVersions, eq(formSubmissions.formVersionId, formVersions.id))
+    .where(
+      and(
+        eq(formVersions.formId, formId),
+        eq(formSubmissions.status, 'ACCEPTED'),
+        options.ids ? inArray(formSubmissions.id, [...options.ids]) : undefined,
+        term
+          ? or(
+              ilike(formSubmissions.applicantNameAr, `%${term}%`),
+              ilike(formSubmissions.applicantEmail, `%${term}%`),
+              ilike(formSubmissions.applicantPhone, `%${term}%`),
+            )
+          : undefined,
+      ),
+    )
+    .orderBy(asc(formSubmissions.applicantNameAr), desc(formSubmissions.submittedAt))
+    .limit(500)
+
+  const filled = fillContacts(rows, await contactKeys(formId))
+
+  return filled.map(({ answers: _answers, ...row }) => row)
 }
 
 async function requireSubmission(formId: string, submissionId: string) {

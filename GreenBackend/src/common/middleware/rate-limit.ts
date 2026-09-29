@@ -1,4 +1,5 @@
-import { rateLimit } from 'express-rate-limit'
+import type { Request } from 'express'
+import { ipKeyGenerator, rateLimit } from 'express-rate-limit'
 
 import { env } from '../../config/env.js'
 import { errors } from '../errors/app-error.js'
@@ -10,10 +11,15 @@ import { errors } from '../errors/app-error.js'
  * `TRUST_PROXY` يجب أن يكون مضبوطًا خلف Nginx، وإلا رأى الحدُّ عنوان
  * الوكيل وحده فقيّد كل المستخدمين معًا.
  */
-function buildLimiter(options: { windowMs: number; limit: number }) {
+function buildLimiter(options: {
+  windowMs: number
+  limit: number
+  keyGenerator?: (request: Request) => string
+}) {
   return rateLimit({
     windowMs: options.windowMs,
     limit: options.limit,
+    ...(options.keyGenerator ? { keyGenerator: options.keyGenerator } : {}),
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     /**
@@ -67,4 +73,20 @@ export const publicFormReadRateLimit = buildLimiter({
 export const publicSubmissionRateLimit = buildLimiter({
   windowMs: 60 * 60_000,
   limit: 5,
+})
+
+/**
+ * كتابات التطبيق الميداني — على الحساب لا على العنوان.
+ *
+ * قادة موقع واحد على شبكة جوال واحدة يخرجون من عنوان واحد، فحدٌّ على العنوان
+ * يحاسبهم معًا. والمسارات خلف مصادقة، فصاحب الطلب معروف قبل أن يصل الحدّ.
+ *
+ * السقف سخيّ عمدًا: قائد يسجّل حضور مئة متطوع ثم يعود إلى الشبكة يفرّغ طابوره
+ * دفعة واحدة. القصد إيقاف حلقة معطوبة في هاتف، لا تقنين العمل.
+ */
+export const fieldWriteRateLimit = buildLimiter({
+  windowMs: 15 * 60_000,
+  limit: 900,
+  keyGenerator: (request) =>
+    request.auth?.userId ?? ipKeyGenerator(request.ip ?? ''),
 })

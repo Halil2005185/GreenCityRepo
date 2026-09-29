@@ -7,6 +7,7 @@ import {
   charterPublicRouter,
 } from '../modules/charter/charter.routes.js'
 import { dashboardRouter } from '../modules/dashboard/dashboard.routes.js'
+import { fieldAdminRouter, fieldRouter } from '../modules/field/field.routes.js'
 import { formsRouter } from '../modules/forms/forms.routes.js'
 import { publicFormsRouter } from '../modules/forms/public.routes.js'
 import { geoRouter } from '../modules/geo/geo.routes.js'
@@ -55,6 +56,10 @@ apiRouter.use('/admin/metrics', metricsRouter)
 apiRouter.use('/admin/relations', relationsRouter)
 
 // التشغيل: المبادرات ومواقعها وأهدافها، والعمل، ودفتر الأثر.
+//
+// ميدان المبادرة قبل موجّهها: حارس ذاك على مستوى الموجّه فيسري على كل ما
+// تحت `/admin/initiatives`، والميدان له قدرته.
+apiRouter.use('/admin/initiatives/:id/field', fieldAdminRouter)
 apiRouter.use('/admin/initiatives', initiativesRouter)
 apiRouter.use('/admin/work', workRouter)
 apiRouter.use('/admin/impact', impactRouter)
@@ -67,6 +72,13 @@ apiRouter.use('/admin/dashboard', dashboardRouter)
  * النطاق يأتي من الجلسة، فلا سطح يُطلب منه شريك آخر.
  */
 apiRouter.use('/partner', partnerPortalRouter)
+
+/**
+ * التطبيق الميداني: يناديه الهاتف من الموقع العام لا من اللوحة. بادئة
+ * مستقلة لأن من يدخلها قائد مجموعة لا يرى من `/admin` شيئًا، والمعرّف
+ * الذي يحمله الطلب يُفحص على مجموعته هو.
+ */
+apiRouter.use('/field', fieldRouter)
 
 /**
  * العقد مفتوح بلا مصادقة: الواجهتان تولّدان عميلهما منه وقت البناء،
