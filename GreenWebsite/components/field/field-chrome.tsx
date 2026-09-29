@@ -1,11 +1,11 @@
 "use client";
 
-import { CalendarCheck, UserRound } from "lucide-react";
+import { CalendarCheck, Camera, UserRound, Users } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { ConnectionBadge } from "@/components/field/connection-badge";
 import { InstallBanner } from "@/components/field/install-banner";
+import { SyncBadge } from "@/components/field/sync-badge";
 import { BrandLockup } from "@/components/layout/logo";
 import { FIELD_APP_NAME, FIELD_ROUTES } from "@/lib/field/config";
 import { useCurrentGroup } from "@/lib/field/current-group";
@@ -16,14 +16,25 @@ import { cn } from "@/lib/utils";
 
 const TABS = [
   { href: FIELD_ROUTES.home, label: "اليوم", icon: CalendarCheck },
+  { href: FIELD_ROUTES.attendance, label: "الحضور", icon: Users },
+  { href: FIELD_ROUTES.photos, label: "الصور", icon: Camera },
   { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
 ] as const;
 
 const TITLES: Record<string, string> = {
+  [FIELD_ROUTES.attendance]: "الحضور",
+  [FIELD_ROUTES.photos]: "الصور",
   [FIELD_ROUTES.me]: "أنا",
   [FIELD_ROUTES.login]: "تسجيل الدخول",
   [FIELD_ROUTES.offline]: "بلا اتصال",
 };
+
+/** تبويبات عن المجموعة نفسها: رأسها يقول أي مجموعة. */
+const GROUP_TABS: readonly string[] = [
+  FIELD_ROUTES.home,
+  FIELD_ROUTES.attendance,
+  FIELD_ROUTES.photos,
+];
 
 /** عرض الهاتف حتى على الحاسوب: التطبيق للجوال وحده، ولا تخطيط عريض له. */
 const COLUMN = "mx-auto w-full max-w-[30rem] px-4";
@@ -89,20 +100,28 @@ function BrowserHeader({
           <BrandLockup />
         </Link>
 
-        <span className="rounded-full bg-surface-strong px-3 py-1 text-xs font-medium text-accent-ink">
-          التطبيق الميداني
-        </span>
+        {/* بعد الدخول تقول التبويبات أين أنت، فيأخذ مكانَ الشارة حالُ الإرسال. */}
+        {showTabs ? (
+          <SyncBadge />
+        ) : (
+          <span className="rounded-full bg-surface-strong px-3 py-1 text-xs font-medium text-accent-ink">
+            التطبيق الميداني
+          </span>
+        )}
       </div>
 
       {showTabs ? (
-        <nav aria-label="أقسام التطبيق" className={cn(COLUMN, "flex gap-1 pb-3")}>
+        <nav
+          aria-label="أقسام التطبيق"
+          className={cn(COLUMN, "flex gap-1 overflow-x-auto pb-3")}
+        >
           {TABS.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}
               aria-current={isActive(pathname, tab.href) ? "page" : undefined}
               className={cn(
-                "rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 isActive(pathname, tab.href)
                   ? "bg-accent-ink text-background"
@@ -128,15 +147,23 @@ function AppHeader({ pathname }: { pathname: string }) {
   const home = useFieldHome();
   const { current } = useCurrentGroup(home.data?.groups);
 
-  const onHome = isActive(pathname, FIELD_ROUTES.home);
-  const group = onHome ? current : null;
+  const group = GROUP_TABS.some((href) => isActive(pathname, href))
+    ? current
+    : null;
 
-  const title = group?.nameAr ?? TITLES[pathname] ?? "اليوم";
-  const subtitle = group
-    ? [group.siteNameAr, group.meetsAt ? formatDay(group.meetsAt) : null]
-        .filter(Boolean)
-        .join(" · ")
-    : FIELD_APP_NAME;
+  /**
+   * «اليوم» يحمل اسم المجموعة عنوانًا وموقعَها وموعدها تحته. وبقية تبويباتها
+   * تحمل اسمها هي، والمجموعة تحته: القائد يعرف أين هو ولمن يسجّل.
+   */
+  const onHome = isActive(pathname, FIELD_ROUTES.home);
+  const title = (onHome ? group?.nameAr : TITLES[pathname]) ?? "اليوم";
+  const subtitle = !group
+    ? FIELD_APP_NAME
+    : onHome
+      ? [group.siteNameAr, group.meetsAt ? formatDay(group.meetsAt) : null]
+          .filter(Boolean)
+          .join(" · ")
+      : `${group.nameAr} · ${group.siteNameAr}`;
 
   return (
     <header className="on-painted sticky top-0 z-40 hidden rounded-b-3xl bg-background pt-[env(safe-area-inset-top)] shadow-sm app:block">
@@ -149,7 +176,8 @@ function AppHeader({ pathname }: { pathname: string }) {
           <p className="truncate text-sm text-foreground">{subtitle}</p>
         </div>
 
-        <ConnectionBadge className="mt-1" />
+        {/* قبل الدخول أيضًا: صفحة الدخول بلا شبكة تقول لماذا لا تُدخل. */}
+        <SyncBadge className="mt-1" />
       </div>
     </header>
   );

@@ -1,4 +1,4 @@
-import type { FieldTask } from "./api";
+import type { FieldSheet, FieldTask } from "./api";
 
 /**
  * تسميات حالات المهمة كما تُقرأ في الميدان. الحالات عقد يفحصه الخادم،
@@ -25,7 +25,29 @@ export const TASK_STATUS_TONES: Record<
   CANCELLED: "muted",
 };
 
+export const SITE_STATUS_LABELS: Record<FieldSheet["site"]["status"], string> =
+  {
+    PLANNED: "لم يبدأ العمل",
+    IN_PROGRESS: "العمل جارٍ",
+    COMPLETED: "أُغلق الموقع",
+    CANCELLED: "أُلغي الموقع",
+  };
+
 const TIME_ZONE = "Asia/Damascus";
+
+/**
+ * اليوم بتوقيت دمشق بصيغة `YYYY-MM-DD` — كما يحسبه الخادم ليوم الحضور.
+ * قائد في الميدان بعد منتصف الليل بتوقيت غرينتش ما زال في يومه.
+ */
+export function damascusDay(value: string | number | Date) {
+  // `en-CA` يكتب التاريخ بصيغة ISO، فلا تركيب باليد.
+  return new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: TIME_ZONE,
+  }).format(new Date(value));
+}
 
 /**
  * «الجمعة، 9 تشرين الأول» — اليوم باسمه، فهو ما يُسأل عنه قبل الحملة.
@@ -52,7 +74,7 @@ export function formatTime(value: string | Date) {
 }
 
 /** «قبل 5 دقائق» — عمر ما على الشاشة حين يُقرأ من المحفوظ بلا شبكة. */
-export function formatAge(value: string | Date, now = Date.now()) {
+export function formatAge(value: string | number | Date, now = Date.now()) {
   const seconds = Math.round((new Date(value).getTime() - now) / 1000);
   const relative = new Intl.RelativeTimeFormat("ar-u-nu-latn", {
     numeric: "auto",

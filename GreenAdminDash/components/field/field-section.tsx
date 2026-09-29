@@ -1,10 +1,13 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2 } from "lucide-react";
+import { Pencil, Plus, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AttendanceSection } from "@/components/field/attendance-section";
 import { GroupDialog, fieldKey, useFieldCache } from "@/components/field/group-dialog";
+import { MembersDialog } from "@/components/field/members-dialog";
+import { PhotosSection } from "@/components/field/photos-section";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { DataTable, PrimaryCell, cells, columnHelper } from "@/components/ui/data-table";
@@ -16,30 +19,68 @@ import { CAPABILITIES } from "@/lib/auth/capabilities";
 
 const MANAGE = [CAPABILITIES.fieldManage] as const;
 
+const NO_GROUPS: readonly FieldGroup[] = [];
+
 const groupCol = columnHelper<FieldGroup>();
 
 /**
- * تبويب «الميدان»: مجموعات المبادرة على مواقعها، وقائد كل مجموعة.
+ * تبويب «الميدان»: مجموعات المبادرة وأعضاؤها، ثم ما عاد من الميدان — الحضور
+ * والصور. أقسام متتالية بعمود واحد، كل قسم بجدوله وأفعاله فوقه.
  *
  * ما يُكوَّن هنا هو ما يراه القائد في التطبيق الميداني: تسميته قائدًا تفتح
- * له ورقة يوم المجموعة، وإعفاؤه يغلقها.
+ * له ورقة يوم المجموعة، وأعضاؤها هم قائمة حضوره.
  */
 export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
+  const field = useQuery({
+    queryKey: fieldKey(initiative.id),
+    queryFn: () => getInitiativeField(initiative.id),
+  });
+
+  return (
+    <div className="space-y-8">
+      <GroupsSection
+        initiative={initiative}
+        groups={field.data?.groups}
+        isLoading={field.isPending}
+        error={field.error}
+        onRetry={() => void field.refetch()}
+      />
+      <AttendanceSection initiative={initiative} />
+      <PhotosSection initiative={initiative} groups={field.data?.groups ?? NO_GROUPS} />
+    </div>
+  );
+}
+
+function GroupsSection({
+  initiative,
+  groups,
+  isLoading,
+  error,
+  onRetry,
+}: {
+  initiative: InitiativeDetail;
+  groups: readonly FieldGroup[] | undefined;
+  isLoading: boolean;
+  error: unknown;
+  onRetry: () => void;
+}) {
   const confirm = useConfirm();
   const apply = useFieldCache();
   const [dialog, setDialog] = useState<{ group: FieldGroup | null; open: boolean }>({
     group: null,
     open: false,
   });
-
-  const field = useQuery({
-    queryKey: fieldKey(initiative.id),
-    queryFn: () => getInitiativeField(initiative.id),
+  const [members, setMembers] = useState<{ groupId: string | null; open: boolean }>({
+    groupId: null,
+    open: false,
   });
 
   // المبادرة المغلقة انتهى ميدانها: يبقى سجلًا يُقرأ ولا يُعدَّل.
   const closed = initiative.status === "COMPLETED" || initiative.status === "CANCELLED";
   const hasSite = initiative.sites.some((site) => site.status !== "CANCELLED");
+
+  // المجموعة تُقرأ من الذاكرة لا من لقطة عند الفتح: عدّادها يتغيّر خلف النافذة.
+  const membersGroup = groups?.find((group) => group.id === members.groupId) ?? null;
 
   const columns = useMemo(
     () =>
@@ -49,6 +90,7 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
           cell: (info) => (
             <PrimaryCell
               label={info.getValue()}
+              onClick={() => setMembers({ groupId: info.row.original.id, open: true })}
               description={
                 info.row.original.meetingPointAr
                   ? `اللقاء عند: ${info.row.original.meetingPointAr}`
@@ -82,6 +124,16 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
           sortUndefined: "last",
           cell: (info) => cells.dateTime(info.getValue()),
         }),
+        groupCol.accessor("memberCount", {
+          header: "الأعضاء",
+          meta: { numeric: true },
+          cell: (info) => cells.number(info.getValue()),
+        }),
+        groupCol.accessor("attendedCount", {
+          header: "حضروا",
+          meta: { numeric: true },
+          cell: (info) => cells.number(info.getValue()),
+        }),
       ]),
     [],
   );
@@ -103,18 +155,18 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
       description={
         closed
           ? "المبادرة مغلقة، فميدانها سجلّ يُقرأ ولا يُعدَّل."
-          : "لكل موقع مجموعة أو أكثر. قائد المجموعة يفتح ورقة يومها من التطبيق الميداني."
+          : "لكل موقع مجموعة أو أكثر. قائد المجموعة يفتح ورقة يومها من التطبيق الميداني، وأعضاؤها قائمة حضوره."
       }
       actions={[add]}
     >
       <DataTable
         caption="المجموعات الميدانية"
         columns={columns}
-        data={field.data?.groups}
+        data={groups}
         getRowId={(group) => group.id}
-        isLoading={field.isPending}
-        error={field.error}
-        onRetry={() => void field.refetch()}
+        isLoading={isLoading}
+        error={error}
+        onRetry={onRetry}
         pagination={false}
         empty={{
           title: "لا مجموعات بعد",
@@ -123,38 +175,42 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
             : "المجموعة تُكوَّن لموقع تنفيذ، فأضف موقعًا أولًا.",
           action: add,
         }}
-        rowActions={(group) =>
-          closed
-            ? []
-            : [
-                {
-                  key: "edit",
-                  label: group.leadUserId ? "تعديل المجموعة" : "تسمية قائد وتعديل",
-                  icon: Pencil,
-                  quick: true,
-                  requires: MANAGE,
-                  onSelect: () => setDialog({ group, open: true }),
-                },
-                {
-                  key: "delete",
-                  label: "حذف المجموعة",
-                  icon: Trash2,
-                  destructive: true,
-                  requires: MANAGE,
-                  onSelect: () =>
-                    void confirm({
-                      title: `حذف «${group.nameAr}»؟`,
-                      description:
-                        "تُحذف المجموعة من الميدان، ولا يراها قائدها في التطبيق بعدها.",
-                      confirmLabel: "حذف المجموعة",
-                      destructive: true,
-                      successMessage: "حُذفت المجموعة.",
-                      onConfirm: async () =>
-                        apply(await deleteFieldGroup(initiative.id, group.id)),
-                    }),
-                },
-              ]
-        }
+        rowActions={(group) => [
+          {
+            key: "members",
+            label: "أعضاء المجموعة",
+            icon: Users,
+            quick: true,
+            requires: MANAGE,
+            onSelect: () => setMembers({ groupId: group.id, open: true }),
+          },
+          {
+            key: "edit",
+            label: group.leadUserId ? "تعديل المجموعة" : "تسمية قائد وتعديل",
+            icon: Pencil,
+            requires: MANAGE,
+            hidden: closed,
+            onSelect: () => setDialog({ group, open: true }),
+          },
+          {
+            key: "delete",
+            label: "حذف المجموعة",
+            icon: Trash2,
+            destructive: true,
+            requires: MANAGE,
+            hidden: closed,
+            onSelect: () =>
+              void confirm({
+                title: `حذف «${group.nameAr}»؟`,
+                description:
+                  "تُحذف المجموعة وقائمة أعضائها، ولا يراها قائدها في التطبيق بعدها. مجموعة لها سجل حضور لا تُحذف.",
+                confirmLabel: "حذف المجموعة",
+                destructive: true,
+                successMessage: "حُذفت المجموعة.",
+                onConfirm: async () => apply(await deleteFieldGroup(initiative.id, group.id)),
+              }),
+          },
+        ]}
       />
 
       <GroupDialog
@@ -162,6 +218,14 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
         group={dialog.group}
         open={dialog.open}
         onOpenChange={(open) => setDialog((current) => ({ ...current, open }))}
+      />
+
+      <MembersDialog
+        initiativeId={initiative.id}
+        group={membersGroup}
+        readOnly={closed}
+        open={members.open && membersGroup !== null}
+        onOpenChange={(open) => setMembers((current) => ({ ...current, open }))}
       />
     </Section>
   );

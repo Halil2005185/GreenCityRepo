@@ -7,6 +7,7 @@ export type Area = components["schemas"]["Area"];
 export type InitiativeSummary = components["schemas"]["InitiativeSummary"];
 export type InitiativeDetail = components["schemas"]["InitiativeDetail"];
 export type InitiativeRollup = components["schemas"]["InitiativeRollup"];
+export type ImpactEntry = components["schemas"]["ImpactEntry"];
 
 export type InitiativeStatus = InitiativeSummary["status"];
 export type TargetRollup = Program["defaultTargetRollup"];
@@ -30,6 +31,14 @@ export const ROLLUP_LABELS: Record<TargetRollup, string> = {
   STRICT: "صارمة — تمنع بدء التنفيذ عند اختلاف المجموع",
   ADVISORY: "إرشادية — تنبّه ولا تمنع",
   NONE: "بلا مطابقة",
+};
+
+/** من أين جاء القيد — يقرؤه من يتحقق منه قبل أن يوثّقه. */
+export const IMPACT_SOURCE_LABELS: Record<ImpactEntry["source"], string> = {
+  STAFF_ENTRY: "إدخال الفريق",
+  PARTNER_SUBMISSION: "تقرير شريك",
+  CONTRIBUTION: "مساهمة",
+  FIELD_ENTRY: "من الميدان",
 };
 
 export const ROLLUP_SHORT: Record<TargetRollup, string> = {
@@ -252,7 +261,30 @@ export function recordImpact(body: {
 }
 
 export function verifyImpact(entryId: string) {
-  return apiFetch<{ id: string }>(`/admin/impact/entries/${entryId}/verify`, {
+  return apiFetch<ImpactEntry>(`/admin/impact/entries/${entryId}/verify`, {
     method: "POST",
+  });
+}
+
+/**
+ * قيود المبادرة ومواقعها التي لم تُوثَّق بعد. الترشيح بالمبادرة يشمل قيود
+ * مواقعها، فما سجّله قائد على موقعه يظهر هنا.
+ */
+export function listUnverifiedImpact(initiativeId: string) {
+  const params = new URLSearchParams({ initiativeId, verified: "false" });
+
+  return apiFetch<{ data: ImpactEntry[] }>(
+    `/admin/impact/entries?${params.toString()}`,
+  ).then((response) => response.data);
+}
+
+/**
+ * العكس لا الحذف: صف بقيمة سالبة يُبقي الرقم القديم وتصحيحه ظاهرين معًا،
+ * وسببه مكتوب.
+ */
+export function reverseImpact(entryId: string, noteAr: string) {
+  return apiFetch<ImpactEntry>(`/admin/impact/entries/${entryId}/reverse`, {
+    method: "POST",
+    body: { noteAr },
   });
 }

@@ -35,6 +35,7 @@ import '../modules/work/work.schemas.js'
  * فانقلب ترتيب العقد كله، وصار كل تعديل عليه فرقًا بآلاف الأسطر.
  */
 import '../modules/field/field.schemas.js'
+import '../modules/field/field-admin.schemas.js'
 
 let cachedDocument: Record<string, unknown> | null = null
 

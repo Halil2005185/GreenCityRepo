@@ -13,6 +13,7 @@ import {
   TargetsSection,
   WorkPlanSection,
 } from "@/components/initiatives/manage-sections";
+import { PendingEntriesSection } from "@/components/initiatives/pending-entries";
 import {
   rollupLine,
   useInitiativeLifecycle,
@@ -42,7 +43,7 @@ const POLICY_NOTES: Record<InitiativeDetail["rollup"]["policy"], string> = {
 /**
  * إدارة المبادرة بعمود واحد: الترويسة بأفعال دورة الحياة، وشروط البدء ما
  * دامت المبادرة لم تبدأ، وملخص «مفتاح: قيمة»، ثم تبويبات للمواقع والأهداف
- * وخطة العمل والميدان والنطاق. كانت عمودين بسبع بطاقات وأربعة نماذج مفتوحة في
+ * (ومعها ما ينتظر التحقق من قيود الأثر) وخطة العمل والميدان والنطاق. كانت عمودين بسبع بطاقات وأربعة نماذج مفتوحة في
  * الصفحة؛ صارت كل إضافة وتعديل نافذة من زرها.
  */
 export default function InitiativeManagePage() {
@@ -180,7 +181,15 @@ function ManageView({ initiative: data }: { initiative: InitiativeDetail }) {
           {
             value: "targets",
             label: "الأهداف والتقدم",
-            content: <TargetsSection initiative={data} />,
+            content: (
+              <div className="space-y-8">
+                <TargetsSection initiative={data} />
+                {/* دفتر القيود يلزمه `impact.view`؛ الأهداف يراها من يدير المبادرة. */}
+                {can(CAPABILITIES.impactView) ? (
+                  <PendingEntriesSection initiative={data} />
+                ) : null}
+              </div>
+            ),
           },
           {
             value: "work",

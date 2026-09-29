@@ -4,8 +4,50 @@ import type { components } from "./types.gen";
 export type InitiativeField = components["schemas"]["InitiativeField"];
 export type FieldGroup = components["schemas"]["FieldGroup"];
 export type FieldLeadCandidate = components["schemas"]["FieldLeadCandidate"];
+export type FieldGroupMember = components["schemas"]["FieldGroupMember"];
+export type FieldGroupMembers = components["schemas"]["FieldGroupMembers"];
+export type FieldAddMembersResult = components["schemas"]["FieldAddMembersResult"];
+export type FieldApplicantSource = components["schemas"]["FieldApplicantSource"];
+export type FieldApplicant = components["schemas"]["FieldApplicant"];
+export type FieldParticipant = components["schemas"]["FieldParticipant"];
+export type FieldAttendanceDay = components["schemas"]["FieldAttendanceDay"];
+export type FieldAttendanceImpact = components["schemas"]["FieldAttendanceImpact"];
+export type FieldManagedPhoto = components["schemas"]["FieldManagedPhoto"];
+
+export type FieldMemberRole = FieldGroupMember["role"];
+
+/**
+ * تسميات الدور وطريقة الحضور: قيم مجمّدة ليست حالات، فتعيش مع نوعها كما في
+ * `lib/api/initiatives.ts`؛ الحالات وألوانها في `lib/status.ts`.
+ */
+export const MEMBER_ROLE_LABELS: Record<FieldMemberRole, string> = {
+  MEMBER: "عضو",
+  ASSISTANT: "مساعد القائد",
+};
+
+export const ATTENDANCE_METHOD_LABELS: Record<
+  NonNullable<FieldGroupMember["attendance"]>["method"],
+  string
+> = {
+  LEAD_TAP: "سجّله القائد",
+  WALK_IN: "حضر بلا تسجيل",
+  SELF: "سجّل نفسه",
+};
 
 const base = (initiativeId: string) => `/admin/initiatives/${initiativeId}/field`;
+
+/** معاملات الاستعلام غير الفارغة وحدها: `undefined` لا يُرسَل نصًّا. */
+function query(params: Record<string, string | undefined>) {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value) search.set(key, value);
+  }
+
+  const text = search.toString();
+
+  return text ? `?${text}` : "";
+}
 
 export function getInitiativeField(initiativeId: string) {
   return apiFetch<InitiativeField>(base(initiativeId));
@@ -51,6 +93,147 @@ export function updateFieldGroup(
 
 export function deleteFieldGroup(initiativeId: string, groupId: string) {
   return apiFetch<InitiativeField>(`${base(initiativeId)}/groups/${groupId}`, {
+    method: "DELETE",
+  });
+}
+
+// ── الأعضاء ────────────────────────────────────────────────────────────
+
+const members = (initiativeId: string, groupId: string) =>
+  `${base(initiativeId)}/groups/${groupId}/members`;
+
+export function listGroupMembers(initiativeId: string, groupId: string) {
+  return apiFetch<FieldGroupMembers>(members(initiativeId, groupId));
+}
+
+export type FieldPersonInput = {
+  fullNameAr: string;
+  phone?: string;
+  email?: string;
+};
+
+export type AddMembersInput = {
+  formId?: string;
+  submissionIds?: string[];
+  participantIds?: string[];
+  people?: FieldPersonInput[];
+};
+
+/** المصادر الثلاثة في طلب واحد؛ الجواب قائمة المجموعة وملخص ما جرى. */
+export function addGroupMembers(
+  initiativeId: string,
+  groupId: string,
+  body: AddMembersInput,
+) {
+  return apiFetch<FieldAddMembersResult>(members(initiativeId, groupId), {
+    method: "POST",
+    body,
+  });
+}
+
+export function updateGroupMember(
+  initiativeId: string,
+  groupId: string,
+  memberId: string,
+  body: { role: FieldMemberRole },
+) {
+  return apiFetch<FieldGroupMembers>(
+    `${members(initiativeId, groupId)}/${memberId}`,
+    { method: "PATCH", body },
+  );
+}
+
+export function removeGroupMember(
+  initiativeId: string,
+  groupId: string,
+  memberId: string,
+) {
+  return apiFetch<FieldGroupMembers>(
+    `${members(initiativeId, groupId)}/${memberId}`,
+    { method: "DELETE" },
+  );
+}
+
+/**
+ * الاستمارات التي فيها مقبولون. مسار خاص كمسار القادة: المنسّق يرى اسم
+ * الاستمارة وعدد مقبوليها، لا أسئلتها ولا بقية طلباتها.
+ */
+export function listApplicantSources(initiativeId: string) {
+  return apiFetch<{ data: FieldApplicantSource[] }>(
+    `${base(initiativeId)}/sources`,
+  ).then((response) => response.data);
+}
+
+export function listApplicants(
+  initiativeId: string,
+  formId: string,
+  search?: string,
+  signal?: AbortSignal,
+) {
+  return apiFetch<{ data: FieldApplicant[] }>(
+    `${base(initiativeId)}/applicants${query({ formId, q: search })}`,
+    { ...(signal ? { signal } : {}) },
+  ).then((response) => response.data);
+}
+
+export function searchParticipants(
+  initiativeId: string,
+  search: string,
+  signal?: AbortSignal,
+) {
+  return apiFetch<{ data: FieldParticipant[] }>(
+    `${base(initiativeId)}/participants${query({ q: search })}`,
+    { ...(signal ? { signal } : {}) },
+  ).then((response) => response.data);
+}
+
+// ── الحضور ─────────────────────────────────────────────────────────────
+
+export function getAttendanceSummary(initiativeId: string) {
+  return apiFetch<{ data: FieldAttendanceDay[] }>(
+    `${base(initiativeId)}/attendance`,
+  ).then((response) => response.data);
+}
+
+/**
+ * حضور يومٍ قيدَ أثر على المؤشر المختار — قيد لكل موقع، غير موثَّق. يلزمه
+ * `impact.manage` مع `field.manage`.
+ */
+export function recordAttendanceImpact(
+  initiativeId: string,
+  body: { metricId: string; day: string },
+) {
+  return apiFetch<FieldAttendanceImpact>(
+    `${base(initiativeId)}/attendance/impact`,
+    { method: "POST", body },
+  );
+}
+
+// ── الصور ──────────────────────────────────────────────────────────────
+
+export function listFieldPhotos(
+  initiativeId: string,
+  filters: { siteId?: string; groupId?: string } = {},
+) {
+  return apiFetch<{ data: FieldManagedPhoto[] }>(
+    `${base(initiativeId)}/photos${query(filters)}`,
+  ).then((response) => response.data);
+}
+
+export function updateFieldPhoto(
+  initiativeId: string,
+  photoId: string,
+  body: { publicUseAllowed?: boolean; captionAr?: string | null },
+) {
+  return apiFetch<FieldManagedPhoto>(
+    `${base(initiativeId)}/photos/${photoId}`,
+    { method: "PATCH", body },
+  );
+}
+
+/** تُمحى من التخزين أيضًا، لا من المعرض وحده. */
+export function deleteFieldPhoto(initiativeId: string, photoId: string) {
+  return apiFetch<void>(`${base(initiativeId)}/photos/${photoId}`, {
     method: "DELETE",
   });
 }

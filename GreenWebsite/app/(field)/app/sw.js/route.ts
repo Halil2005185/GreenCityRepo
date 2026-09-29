@@ -11,6 +11,8 @@ export const dynamic = "force-static";
  */
 const SHELLS = [
   FIELD_ROUTES.home,
+  FIELD_ROUTES.attendance,
+  FIELD_ROUTES.photos,
   FIELD_ROUTES.me,
   FIELD_ROUTES.login,
   FIELD_ROUTES.offline,

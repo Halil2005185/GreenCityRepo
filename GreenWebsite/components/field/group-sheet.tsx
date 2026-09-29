@@ -2,24 +2,30 @@
 
 import {
   CalendarClock,
-  CircleAlert,
-  ClipboardList,
+  Camera,
+  ChevronLeft,
   MapPin,
   Navigation,
   RefreshCw,
+  Users,
 } from "lucide-react";
+import Link from "next/link";
 
+import { ClosedNotice } from "@/components/field/closed-notice";
+import { TargetRow } from "@/components/field/count-stepper";
+import type { SheetView } from "@/components/field/sheet-gate";
 import { FieldCard } from "@/components/field/states";
-import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
-import type { FieldSheet, FieldTarget, FieldTask } from "@/lib/field/api";
+import { TaskChecklist } from "@/components/field/task-checklist";
+import { Button, buttonVariants } from "@/components/ui/button";
+import type { FieldSheet } from "@/lib/field/api";
+import { FIELD_ROUTES } from "@/lib/field/config";
 import {
-  TASK_STATUS_LABELS,
-  TASK_STATUS_TONES,
+  SITE_STATUS_LABELS,
   formatAge,
   formatDay,
   formatTime,
 } from "@/lib/field/labels";
+import { attempt } from "@/lib/field/toast";
 import { cn, formatNumber } from "@/lib/utils";
 
 /**
@@ -30,42 +36,24 @@ function mapsUrl(lat: number, lng: number) {
   return `https://www.google.com/maps/search/?api=1&query=${lat}%2C${lng}`;
 }
 
-const WHY_CLOSED: Record<FieldSheet["initiative"]["status"], string> = {
-  DRAFT: "المبادرة ما زالت مسودة، فلا يُسجَّل عليها شيء قبل بدء تنفيذها.",
-  PLANNING: "المبادرة قيد التخطيط، ويبدأ التسجيل حين يبدأ تنفيذها.",
-  ACTIVE: "",
-  COMPLETED: "أُغلقت المبادرة، وانتهت مهلة استقبال ما سُجّل في الميدان.",
-  CANCELLED: "أُلغيت المبادرة.",
-};
-
+/**
+ * ورقة اليوم: أين ومتى، ثم ما يُسجَّل — حال الموقع وأعداده ومهامه. الحضور
+ * والصور تبويبان لهما، وهنا خلاصتهما ورابط إليهما.
+ */
 export function GroupSheet({
   sheet,
+  actions,
+  writable,
   refreshing,
   stale,
-  onRefresh,
-}: {
-  sheet: FieldSheet;
-  refreshing: boolean;
-  /** ما على الشاشة من المحفوظ، وتعذّر تحديثه الآن. */
-  stale: boolean;
-  onRefresh: () => void;
-}) {
-  const { group, site, initiative } = sheet;
+  refresh,
+}: SheetView) {
+  const { group, site } = sheet;
+  const present = sheet.members.filter((member) => member.attendance).length;
 
   return (
     <div className="space-y-4">
-      {!initiative.acceptsEntries ? (
-        <p
-          role="status"
-          className="flex items-start gap-2 rounded-xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm leading-relaxed text-foreground"
-        >
-          <CircleAlert
-            className="mt-0.5 size-4 shrink-0 text-warning"
-            aria-hidden
-          />
-          {WHY_CLOSED[initiative.status]}
-        </p>
-      ) : null}
+      <ClosedNotice sheet={sheet} />
 
       <FieldCard>
         <dl className="space-y-4">
@@ -82,7 +70,10 @@ export function GroupSheet({
                 {group.meetsAt ? (
                   <>
                     {formatDay(group.meetsAt)}،{" "}
-                    <span className="numeric">{formatTime(group.meetsAt)}</span>
+                    {/* `tabular-nums` لا `numeric`: الوقت فيه «ص/م»، وعزله يسارًا يقلب ترتيبه. */}
+                    <span className="tabular-nums">
+                      {formatTime(group.meetsAt)}
+                    </span>
                   </>
                 ) : (
                   "لم يُحدَّد بعد"
@@ -142,11 +133,54 @@ export function GroupSheet({
         ) : null}
       </FieldCard>
 
+      <SiteStatus
+        status={site.status}
+        writable={writable}
+        onChange={(status) => void attempt(() => actions.setSiteStatus(status))}
+      />
+
+      <div className="grid grid-cols-2 gap-3">
+        <SummaryLink
+          href={FIELD_ROUTES.attendance}
+          icon={Users}
+          label="الحضور"
+          // «0 من 0» رقمٌ بلا معنى؛ المجموعة الفارغة تُقال بالكلمات.
+          value={
+            sheet.members.length > 0 ? (
+              <>
+                <span className="numeric">{present}</span> من{" "}
+                <span className="numeric">{sheet.members.length}</span>
+              </>
+            ) : (
+              "لا أعضاء بعد"
+            )
+          }
+        />
+        <SummaryLink
+          href={FIELD_ROUTES.photos}
+          icon={Camera}
+          label="الصور"
+          value={
+            <span className="numeric">{formatNumber(sheet.photoCount)}</span>
+          }
+        />
+      </div>
+
       {sheet.targets.length > 0 ? (
-        <FieldCard title="أهداف الموقع">
-          <ul className="space-y-4">
+        <FieldCard title="أعداد الموقع">
+          <ul className="divide-y divide-border">
             {sheet.targets.map((target) => (
-              <TargetRow key={target.metricId} target={target} />
+              <TargetRow
+                key={target.metricId}
+                target={target}
+                writable={writable}
+                onRecord={(value, noteAr) =>
+                  attempt(
+                    () => actions.recordCount(target, value, noteAr),
+                    `سُجّل ${formatNumber(value, target.decimals)} ${target.unitAr} — ${target.metricNameAr}.`,
+                  )
+                }
+              />
             ))}
           </ul>
         </FieldCard>
@@ -166,25 +200,20 @@ export function GroupSheet({
           ) : null
         }
       >
-        {sheet.tasks.length > 0 ? (
-          <ul className="divide-y divide-border">
-            {sheet.tasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
-            ))}
-          </ul>
-        ) : (
-          // سطران لا بطاقة داخل بطاقة: الفراغ هنا معلومة عابرة لا حالة صفحة.
-          <div className="flex items-start gap-3 text-sm leading-relaxed text-foreground">
-            <ClipboardList
-              className="mt-0.5 size-5 shrink-0 text-accent-ink"
-              aria-hidden
-            />
-            <p>
-              لا مهام على هذا الموقع بعد. ما يضيفه المنسّق للموقع، أو يسنده إليك
-              من مهام الحملة، يظهر هنا.
-            </p>
-          </div>
-        )}
+        <TaskChecklist
+          tasks={sheet.tasks}
+          canApprove={sheet.permissions.canApproveTasks}
+          writable={writable}
+          actions={{
+            move: (task, status, reason) =>
+              attempt(() => actions.moveTask(task, status, reason)),
+            note: (task, bodyAr) =>
+              attempt(
+                () => actions.noteTask(task, bodyAr),
+                "أُضيفت الملاحظة، ويراها المنسّق في اللوحة.",
+              ),
+          }}
+        />
       </FieldCard>
 
       <div className="flex items-center justify-between gap-3 px-1">
@@ -194,7 +223,7 @@ export function GroupSheet({
         </p>
         <button
           type="button"
-          onClick={onRefresh}
+          onClick={refresh}
           disabled={refreshing}
           className={cn(buttonVariants({ variant: "ghost", size: "sm" }))}
         >
@@ -210,109 +239,80 @@ export function GroupSheet({
 }
 
 /**
- * الرقم المعروض ما أُدخل كله — الموثَّق وما ينتظر — لأن القائد يسأل «كم
- * زرعنا؟» لا «كم اعتُمد؟». والتفصيل تحته يبقي الفرق ظاهرًا.
+ * حال الموقع بيد قائده: يبدأ العمل ويغلقه ويعيد فتحه. الإلغاء ليس هنا —
+ * قرار المنسّق من اللوحة.
  */
-function TargetRow({ target }: { target: FieldTarget }) {
-  const entered = target.actual + target.unverified;
-  const hasTarget = target.target !== null && target.target > 0;
-  const percent = hasTarget
-    ? Math.min(100, Math.round((entered / target.target!) * 100))
-    : null;
+function SiteStatus({
+  status,
+  writable,
+  onChange,
+}: {
+  status: FieldSheet["site"]["status"];
+  writable: boolean;
+  onChange: (status: "IN_PROGRESS" | "COMPLETED") => void;
+}) {
+  const next =
+    status === "PLANNED"
+      ? { to: "IN_PROGRESS" as const, label: "ابدأ العمل", primary: true }
+      : status === "IN_PROGRESS"
+        ? { to: "COMPLETED" as const, label: "أغلق الموقع", primary: false }
+        : status === "COMPLETED"
+          ? { to: "IN_PROGRESS" as const, label: "أعد فتحه", primary: false }
+          : null;
 
   return (
-    <li>
-      <div className="flex items-baseline justify-between gap-3">
-        <p className="text-sm font-semibold text-foreground">
-          {target.metricNameAr}
-        </p>
-        <p className="text-sm text-foreground">
-          <span className="numeric text-lg font-bold text-accent-ink">
-            {formatNumber(entered, target.decimals)}
-          </span>
-          {hasTarget ? (
-            <>
-              {" "}
-              من{" "}
-              <span className="numeric font-semibold">
-                {formatNumber(target.target!, target.decimals)}
-              </span>
-            </>
-          ) : null}{" "}
-          {target.unitAr}
-        </p>
-      </div>
-
-      {percent !== null ? (
-        <div
-          className="mt-2 h-2 overflow-hidden rounded-full bg-surface-strong"
-          role="progressbar"
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={percent}
-          aria-label={`ما أُدخل من هدف ${target.metricNameAr}`}
-        >
-          <div
-            className="h-full rounded-full bg-primary"
-            style={{ inlineSize: `${percent}%` }}
-          />
+    <FieldCard>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">حال الموقع</p>
+          <p className="text-base font-semibold text-foreground">
+            {SITE_STATUS_LABELS[status]}
+          </p>
         </div>
-      ) : null}
 
-      {target.unverified > 0 ? (
-        <p className="mt-1.5 text-xs text-muted-foreground">
-          منها{" "}
-          <span className="numeric">
-            {formatNumber(target.unverified, target.decimals)}
-          </span>{" "}
-          بانتظار تحقق المنسّق
-        </p>
-      ) : null}
-    </li>
+        {writable && next ? (
+          <Button
+            variant={next.primary ? "default" : "secondary"}
+            onClick={() => onChange(next.to)}
+            className="shrink-0"
+          >
+            {next.label}
+          </Button>
+        ) : null}
+      </div>
+    </FieldCard>
   );
 }
 
-function TaskRow({ task }: { task: FieldTask }) {
+function SummaryLink({
+  href,
+  icon: Icon,
+  label,
+  value,
+}: {
+  href: string;
+  icon: typeof Users;
+  label: string;
+  value: React.ReactNode;
+}) {
   return (
-    <li className="space-y-1.5 py-3 first:pt-0 last:pb-0">
-      <div className="flex items-start justify-between gap-3">
-        <p
-          className={cn(
-            "text-sm font-semibold leading-relaxed text-foreground",
-            task.status === "DONE" && "line-through decoration-muted-foreground",
-          )}
-        >
-          {task.titleAr}
-        </p>
-        <Badge tone={TASK_STATUS_TONES[task.status]} className="shrink-0">
-          {TASK_STATUS_LABELS[task.status]}
-        </Badge>
-      </div>
-
-      {task.descriptionAr ? (
-        <p className="text-sm leading-relaxed text-foreground">
-          {task.descriptionAr}
-        </p>
-      ) : null}
-
-      {task.status === "BLOCKED" && task.blockedReasonAr ? (
-        <p className="text-sm leading-relaxed text-warning">
-          سبب التعثّر: {task.blockedReasonAr}
-        </p>
-      ) : null}
-
-      {task.dueAt || task.scope === "INITIATIVE" ? (
-        <p className="text-xs text-muted-foreground">
-          {[
-            task.scope === "INITIATIVE" ? "من مهام الحملة" : null,
-            task.dueAt
-              ? `${task.isOverdue ? "تأخرت عن" : "حتى"} ${formatDay(task.dueAt)}`
-              : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")}
-        </p>
-      ) : null}
-    </li>
+    <Link
+      href={href}
+      className="flex items-center gap-3 rounded-xl border border-border bg-card p-4 shadow-sm transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      <span className="inline-flex size-10 shrink-0 items-center justify-center rounded-full bg-accent-ink/10 text-accent-ink">
+        <Icon className="size-5" aria-hidden />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs font-medium text-muted-foreground">
+          {label}
+        </span>
+        <span className="block text-base font-bold text-foreground">
+          {value}
+        </span>
+      </span>
+      {/* السهم يشير إلى اليسار: اتجاه «التالي» في صفحة تُقرأ من اليمين. */}
+      <ChevronLeft className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+    </Link>
   );
 }

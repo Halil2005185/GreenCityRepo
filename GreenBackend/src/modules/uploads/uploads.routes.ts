@@ -24,6 +24,7 @@ const CAPABILITY: Record<UploadPurpose, Capability> = {
   FORM_COVER: 'forms.manage',
   INITIATIVE_COVER: 'initiatives.manage',
   GREEN_POINT_COVER: 'initiatives.manage',
+  FIELD_PHOTO: 'field.manage',
 }
 
 const postSign: RequestHandler = async (request, response) => {

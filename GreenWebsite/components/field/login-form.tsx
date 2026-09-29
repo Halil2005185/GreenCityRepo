@@ -4,19 +4,13 @@ import { Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { INPUT_CLASS } from "@/components/field/form";
 import { FieldCard, PageTitle } from "@/components/field/states";
 import { Button } from "@/components/ui/button";
 import { FieldApiError, OfflineError } from "@/lib/field/api";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import { useFieldSession } from "@/lib/field/session";
 import { cn } from "@/lib/utils";
-
-/**
- * حقل بارتفاع هدف لمس كامل وخط 16px على الأقل: دون ذلك يكبّر Safari على
- * iOS الصفحة كلها عند التركيز، فيضيع الزر خارج الشاشة.
- */
-const FIELD_CLASS =
-  "h-12 w-full rounded-lg border border-input bg-background px-3 text-base text-foreground shadow-sm outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40 aria-[invalid=true]:border-destructive";
 
 function messageFor(error: unknown) {
   if (error instanceof OfflineError) {
@@ -99,7 +93,7 @@ export function LoginForm() {
               required
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              className={FIELD_CLASS}
+              className={INPUT_CLASS}
             />
           </div>
 
@@ -125,7 +119,7 @@ export function LoginForm() {
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
                 // Edge يرسم زر إظهار من عنده داخل الحقل؛ زرّنا يكفي.
-                className={cn(FIELD_CLASS, "[&::-ms-reveal]:hidden")}
+                className={cn(INPUT_CLASS, "[&::-ms-reveal]:hidden")}
               />
               <button
                 type="button"

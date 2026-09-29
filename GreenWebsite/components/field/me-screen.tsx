@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { OutboxList } from "@/components/field/outbox-list";
 import {
   FieldCard,
   FieldNotice,
@@ -14,17 +15,20 @@ import {
 import { Button, buttonVariants } from "@/components/ui/button";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import { useDisplayMode } from "@/lib/field/display-mode";
+import { useOutbox } from "@/lib/field/outbox";
 import { useFieldSession, useOnline } from "@/lib/field/session";
 import { cn } from "@/lib/utils";
 
 /**
- * تبويب «أنا»: من أنا في التطبيق، وكيف يعمل على هذا الجهاز، والخروج.
+ * تبويب «أنا»: من أنا في التطبيق، وما لم يصل مما سجّلته، وكيف يعمل على
+ * هذا الجهاز، والخروج.
  */
 export function MeScreen() {
   const router = useRouter();
   const { status, identity, user, logout } = useFieldSession();
   const mode = useDisplayMode();
   const online = useOnline();
+  const unsent = useOutbox().items.length;
   const [leaving, setLeaving] = useState(false);
 
   if (status === "loading") return <FieldSkeleton cards={2} />;
@@ -100,6 +104,8 @@ export function MeScreen() {
         ) : null}
       </FieldCard>
 
+      <OutboxList />
+
       <FieldCard title="على هذا الجهاز">
         <ul className="space-y-3 text-sm text-foreground">
           <li className="flex items-start gap-3">
@@ -113,8 +119,8 @@ export function MeScreen() {
           </li>
           <li className="text-muted-foreground">
             {online
-              ? "ورقة يومك تُحفظ على الجهاز عند كل فتح، وتبقى مقروءة أسبوعًا بلا شبكة."
-              : "لا اتصال الآن: ما تراه من المحفوظ على الجهاز."}
+              ? "ورقة يومك تُحفظ على الجهاز عند كل فتح، وتبقى مقروءة أسبوعًا بلا شبكة. وما تسجّله بلا شبكة يُرسَل حين تعود."
+              : "لا اتصال الآن: ما تراه من المحفوظ على الجهاز، وما تسجّله يُحفظ عليه حتى تعود الشبكة."}
           </li>
         </ul>
       </FieldCard>
@@ -131,9 +137,17 @@ export function MeScreen() {
             <LogOut aria-hidden />
             {leaving ? "…جارٍ الخروج" : "تسجيل الخروج"}
           </Button>
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            الخروج يمسح ما حُفظ من أوراق اليوم عن هذا الجهاز.
-          </p>
+          {unsent > 0 ? (
+            // الخروج لا يمسح ما لم يُرسَل، لكنه يوقف إرساله حتى يعود صاحبه.
+            <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-foreground">
+              على هذا الهاتف ما لم يُرسَل بعد. إن خرجت الآن بقي محفوظًا باسمك،
+              ولا يُرسَل حتى تعود وتدخل بحسابك من هذا الهاتف نفسه.
+            </p>
+          ) : (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              الخروج يمسح ما حُفظ من أوراق اليوم عن هذا الجهاز.
+            </p>
+          )}
         </div>
       </FieldCard>
 

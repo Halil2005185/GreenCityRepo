@@ -17,6 +17,8 @@ export const FIELD_SCOPE = "/app/";
 
 export const FIELD_ROUTES = {
   home: "/app/home",
+  attendance: "/app/attendance",
+  photos: "/app/photos",
   me: "/app/me",
   login: "/app/login",
   offline: "/app/offline",
@@ -28,8 +30,10 @@ export const FIELD_APP_SHORT_NAME = "الميدان";
 /**
  * يُرفع حين يتغيّر شكل ما يُحفظ على الجهاز، فيُهمَل المحفوظ القديم بدل أن
  * يُقرأ بشكل لم يعد الكود يعرفه.
+ *
+ * 2: ورقة اليوم صارت تحمل الأعضاء والصور ويومها وما يُسمح به.
  */
-export const FIELD_DATA_VERSION = "1";
+export const FIELD_DATA_VERSION = "2";
 
 /** ورقة اليوم تبقى مقروءة بلا شبكة أسبوعًا من آخر جلب. */
 export const FIELD_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

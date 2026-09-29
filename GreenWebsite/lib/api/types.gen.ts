@@ -2188,6 +2188,7 @@ export interface paths {
                     programId?: string;
                     metricId?: string;
                     verified?: string;
+                    source?: "STAFF_ENTRY" | "PARTNER_SUBMISSION" | "CONTRIBUTION" | "FIELD_ENTRY";
                 };
                 header?: never;
                 path?: never;
@@ -2245,7 +2246,7 @@ export interface paths {
                          * @default STAFF_ENTRY
                          * @enum {string}
                          */
-                        source?: "STAFF_ENTRY" | "PARTNER_SUBMISSION" | "CONTRIBUTION";
+                        source?: "STAFF_ENTRY" | "PARTNER_SUBMISSION" | "CONTRIBUTION" | "FIELD_ENTRY";
                         /** Format: date-time */
                         occurredAt?: string;
                         noteAr?: string;
@@ -6927,7 +6928,7 @@ export interface paths {
         put?: never;
         /**
          * رابط رفع موقّع
-         * @description يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`.
+         * @description يوقّع رفعًا مباشرًا من المتصفح إلى التخزين: الملف لا يمرّ بالخادم. التوقيع يقيّد المفتاح ونوع المحتوى وحجمه، والقدرة المطلوبة تتبع الغرض — غلاف الاستمارة يلزمه `forms.manage`، وأغلفة المبادرات والنقاط `initiatives.manage`، وصورة الميدان `field.manage` — وقائد المجموعة يوقّع صور مجموعته من `/field/groups/{id}/photos/sign`.
          */
         post: {
             parameters: {
@@ -6940,7 +6941,7 @@ export interface paths {
                 content: {
                     "application/json": {
                         /** @enum {string} */
-                        purpose: "FORM_COVER" | "INITIATIVE_COVER" | "GREEN_POINT_COVER";
+                        purpose: "FORM_COVER" | "INITIATIVE_COVER" | "GREEN_POINT_COVER" | "FIELD_PHOTO";
                         contentType: string;
                         size: number;
                     };
@@ -7086,6 +7087,677 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل حضور
+         * @description آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية.
+                         */
+                        clientId: string;
+                        /** Format: uuid */
+                        participantId?: string;
+                        /** @description من جاء بلا تسجيل مسبق. يُضاف عضوًا في المجموعة ويُسجَّل حضوره معًا. */
+                        walkIn?: {
+                            fullNameAr: string;
+                            phone?: string;
+                        };
+                        /**
+                         * Format: date-time
+                         * @description وقت النقرة على الهاتف. يُقبل ما مضى حتى مهلة الاستقبال، ولا يُقبل المستقبل.
+                         */
+                        checkedInAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAttendance"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}/attendance/undo": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * التراجع عن حضور
+         * @description بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        attendanceId?: string;
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل الذي سُجّل به الحضور — لمن سجّل وتراجع بلا شبكة، فلا يعرف هاتفه معرّف الخادم.
+                         */
+                        attendanceClientId?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُلغي */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAttendance"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل رقم من الموقع
+         * @description قيد أثر على موقع المجموعة، مصدره `FIELD_ENTRY`، غير موثَّق. يدخل المجاميع حين يتحقق منه المنسّق.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية.
+                         */
+                        clientId: string;
+                        /** Format: uuid */
+                        metricId: string;
+                        value: number;
+                        /** Format: date-time */
+                        occurredAt?: string;
+                        noteAr?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["ImpactEntry"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}/photos/sign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * رابط رفع موقّع لصورة
+         * @description الصورة تُرفع من الهاتف إلى التخزين مباشرة ولا تمرّ بالخادم، ثم تُسجَّل بـ`/groups/{id}/photos`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        contentType: string;
+                        size: number;
+                    };
+                };
+            };
+            responses: {
+                /** @description وُقِّع */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["SignedUpload"];
+                        };
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل صورة بعد رفعها
+         * @description الرابط يجب أن يكون مما وُقّع لصور الميدان. الصورة داخلية حتى يسمح المنسّق بنشرها من اللوحة.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية.
+                         */
+                        clientId: string;
+                        /** Format: uri */
+                        url: string;
+                        contentType: string;
+                        sizeBytes: number;
+                        /**
+                         * Format: uuid
+                         * @description مهمة من ورقة المجموعة صُوّرت الصورة لها — عائق أو إنجاز.
+                         */
+                        taskId?: string;
+                        /** @description يُطلب صراحةً من الهاتف عند الالتقاط، ولا يُرسَل إن رُفض الإذن. */
+                        location?: {
+                            lat: number;
+                            lng: number;
+                        };
+                        /** Format: date-time */
+                        takenAt?: string;
+                        captionAr?: string;
+                        hasPeople: boolean;
+                        /** @description أُخذت موافقة من في الصورة، ووليّ الأمر للأطفال. صورة فيها أشخاص بلا هذا تُرفض. */
+                        peopleConsent: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldPhoto"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/tasks/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * نقل مهمة من الميدان
+         * @description المهمة يجب أن تكون من ورقة المجموعة. النقل إلى ما هي فيه نجاح بلا أثر.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        groupId: string;
+                        /**
+                         * @description `DONE` نيّة «أُنجزت»: تصير منجزة عند من يعتمد الإنجاز، و«بانتظار الاعتماد» عند غيره.
+                         * @enum {string}
+                         */
+                        status: "IN_PROGRESS" | "BLOCKED" | "DONE";
+                        blockedReasonAr?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description نُقلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldTask"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/tasks/{id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * ملاحظة ميدانية على مهمة
+         * @description داخلية دائمًا: إظهارها للشريك قرار من يدير العمل من اللوحة.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية.
+                         */
+                        clientId: string;
+                        /** Format: uuid */
+                        groupId: string;
+                        bodyAr: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيفت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldTask"];
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/groups/{id}/site": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * بدء العمل في الموقع أو إغلاقه
+         * @description يبدأ القائد العمل ويغلقه ويعيد فتحه. الإلغاء قرار المنسّق من اللوحة.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        status: "IN_PROGRESS" | "COMPLETED";
+                    };
+                };
+            };
+            responses: {
+                /** @description نُقل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            siteId: string;
+                            /** @enum {string} */
+                            status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+                        };
+                    };
+                };
+                /** @description المجموعة غير موجودة أو ليست لك */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description بيانات غير صالحة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
         trace?: never;
     };
     "/api/admin/initiatives/{id}/field": {
@@ -7268,7 +7940,10 @@ export interface paths {
         get?: never;
         put?: never;
         post?: never;
-        /** حذف مجموعة */
+        /**
+         * حذف مجموعة
+         * @description مجموعة لها سجل حضور لا تُحذف: الحضور أساس الشهادات، وحذفها يمحوه.
+         */
         delete: {
             parameters: {
                 query?: never;
@@ -7292,6 +7967,15 @@ export interface paths {
                 };
                 /** @description المجموعة غير موجودة في هذه المبادرة */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description للمجموعة سجل حضور */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -7354,6 +8038,602 @@ export interface paths {
                 };
                 /** @description في الموقع مجموعة بالاسم نفسه */
                 409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/groups/{groupId}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** أعضاء المجموعة وحضورهم */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description اليوم الذي يُعرض حضوره. الافتراضي اليوم بتوقيت دمشق. */
+                    day?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الأعضاء */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldGroupMembers"];
+                    };
+                };
+                /** @description المجموعة غير موجودة في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * إضافة أعضاء إلى مجموعة
+         * @description من طلبات استمارة مقبولة، أو من سجل المشاركين، أو بإدخال يدوي — في طلب واحد. من سبق تسجيله يُعرف باسمه مع هاتفه أو بريده فلا يتكرر، والطلب بلا اسم يُتخطّى ويُذكر.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    groupId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        formId?: string;
+                        /** @default [] */
+                        submissionIds?: string[];
+                        /** @default [] */
+                        participantIds?: string[];
+                        /** @default [] */
+                        people?: {
+                            fullNameAr: string;
+                            phone?: string;
+                            /** Format: email */
+                            email?: string;
+                        }[];
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيفوا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAddMembersResult"];
+                    };
+                };
+                /** @description المجموعة غير موجودة في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description طلب غير مقبول بعد، أو مشارك غير موجود */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/groups/{groupId}/members/{memberId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * إخراج عضو من مجموعة
+         * @description يخرج من قائمة المجموعة ويبقى في سجل المشاركين، وحضوره السابق فيها محفوظ.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    groupId: string;
+                    memberId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description أُخرج */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldGroupMembers"];
+                    };
+                };
+                /** @description العضو غير موجود في هذه المجموعة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /** تعديل دور عضو في مجموعته */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    groupId: string;
+                    memberId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @enum {string} */
+                        role: "MEMBER" | "ASSISTANT";
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldGroupMembers"];
+                    };
+                };
+                /** @description العضو غير موجود في هذه المجموعة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * استمارات فيها طلبات مقبولة
+         * @description مسار خاص لأن المنسّق لا يحمل بالضرورة `forms.view`: يرى من الاستمارة اسمها وعدد مقبوليها، لا أسئلتها ولا بقية طلباتها.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الاستمارات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldApplicantSource"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/applicants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** الطلبات المقبولة في استمارة */
+        get: {
+            parameters: {
+                query: {
+                    formId: string;
+                    q?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلبات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldApplicant"][];
+                        };
+                    };
+                };
+                /** @description الاستمارة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/participants": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * بحث في سجل المشاركين
+         * @description بالاسم أو بالهاتف، ممن شارك في أي مبادرة سابقة.
+         */
+        get: {
+            parameters: {
+                query: {
+                    q: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المشاركون */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldParticipant"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/attendance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** ملخص الحضور بالأيام والمواقع */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الملخص */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldAttendanceDay"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/attendance/impact": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل حضور يومٍ قيدَ أثر
+         * @description قيد لكل موقع بعدد من حضروا فيه ذلك اليوم، على المؤشر المختار، مصدره `FIELD_ENTRY` وغير موثَّق. يوم سُجّل حضوره لا يُسجَّل مرتين: إن تغيّر العدد بعده يُعكس القيد الأول ثم يُعاد.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        metricId: string;
+                        /** Format: date */
+                        day: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAttendanceImpact"];
+                    };
+                };
+                /** @description سُجّل حضور اليوم بعدد آخر — اعكس قيده أولًا */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description لا حضور في ذلك اليوم، أو المؤشر معطّل */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/photos": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** صور الميدان */
+        get: {
+            parameters: {
+                query?: {
+                    siteId?: string;
+                    groupId?: string;
+                };
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الصور، الأحدث أولًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldManagedPhoto"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/photos/{photoId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * حذف صورة
+         * @description تُمحى من التخزين أيضًا، لا من المعرض وحده.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    photoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذفت */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description الصورة غير موجودة في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * السماح بنشر صورة أو تعديل وصفها
+         * @description الصورة داخلية حتى يُسمح بنشرها هنا. صورة فيها أشخاص بلا موافقتهم لا يُسمح بنشرها.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    photoId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        publicUseAllowed?: boolean;
+                        captionAr?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldManagedPhoto"];
+                    };
+                };
+                /** @description الصورة غير موجودة في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description فيها أشخاص بلا موافقتهم */
+                422: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -7843,7 +9123,7 @@ export interface components {
             scopeLabelAr: string | null;
             value: number;
             /** @enum {string} */
-            source: "STAFF_ENTRY" | "PARTNER_SUBMISSION" | "CONTRIBUTION";
+            source: "STAFF_ENTRY" | "PARTNER_SUBMISSION" | "CONTRIBUTION" | "FIELD_ENTRY";
             /** Format: date-time */
             occurredAt: string;
             noteAr: string | null;
@@ -8631,42 +9911,6 @@ export interface components {
             publicUrl: string;
             expiresInSeconds: number;
         };
-        FieldGroup: {
-            /** Format: uuid */
-            id: string;
-            /** Format: uuid */
-            initiativeId: string;
-            /** Format: uuid */
-            siteId: string;
-            siteNameAr: string;
-            /** @enum {string} */
-            siteStatus: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
-            nameAr: string;
-            /** Format: uuid */
-            leadUserId: string | null;
-            leadNameAr: string | null;
-            /** Format: date-time */
-            meetsAt: string | null;
-            meetingPointAr: string | null;
-            instructionsAr: string | null;
-            displayOrder: number;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        /** @description ميدان المبادرة كاملًا. كل مسار كتابة يعيده، فتتحدّث لوحة المنسّق بنداء واحد. */
-        InitiativeField: {
-            /** Format: uuid */
-            initiativeId: string;
-            groups: components["schemas"]["FieldGroup"][];
-        };
-        /** @description عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم. */
-        FieldLeadCandidate: {
-            /** Format: uuid */
-            id: string;
-            fullNameAr: string;
-            roleNameAr: string;
-            officeNameAr: string;
-        };
         FieldGroupCard: {
             /** Format: uuid */
             id: string;
@@ -8688,6 +9932,9 @@ export interface components {
             taskCount: number;
             /** @description مهام الموقع التي لم تُنجز ولم تُلغَ. */
             openTaskCount: number;
+            memberCount: number;
+            /** @description من سُجّل حضورهم اليوم بتوقيت دمشق. */
+            presentToday: number;
         };
         FieldHome: {
             /** @enum {string} */
@@ -8724,6 +9971,7 @@ export interface components {
             assigneeNameAr: string | null;
             commentCount: number;
         };
+        /** @description مؤشر يُعدّ في هذا الموقع: له هدف فيه، أو قيد سُجّل عليه، أو هدف على المبادرة لم يُوزَّع على مواقعها بعد. */
         FieldTarget: {
             /** Format: uuid */
             metricId: string;
@@ -8737,6 +9985,63 @@ export interface components {
             actual: number;
             /** @description ما أُدخل وينتظر تحقق المنسّق — ومنه ما يُدخل من الميدان. */
             unverified: number;
+        };
+        FieldAttendance: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            groupId: string;
+            /** Format: uuid */
+            participantId: string;
+            /** Format: uuid */
+            memberId: string | null;
+            fullNameAr: string;
+            /**
+             * Format: date
+             * @description يوم الحضور بتوقيت دمشق.
+             */
+            attendedOn: string;
+            /** Format: date-time */
+            checkedInAt: string;
+            /** @enum {string} */
+            method: "LEAD_TAP" | "WALK_IN" | "SELF";
+            /** Format: date-time */
+            undoneAt: string | null;
+        };
+        FieldMember: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            participantId: string;
+            fullNameAr: string;
+            /** @description يخرج لقائد المجموعة ومنسّقها وحدهما — من يحتاجانه ليسألا من تأخر. */
+            phone: string | null;
+            /** @enum {string} */
+            role: "MEMBER" | "ASSISTANT";
+            /** @enum {string} */
+            rsvp: "UNKNOWN" | "COMING" | "NOT_COMING";
+            /** @description حضوره القائم في يوم الورقة، إن حضر. */
+            attendance: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                checkedInAt: string;
+                /** @enum {string} */
+                method: "LEAD_TAP" | "WALK_IN" | "SELF";
+            } | null;
+        };
+        FieldPhoto: {
+            /** Format: uuid */
+            id: string;
+            url: string;
+            /** Format: uuid */
+            workItemId: string | null;
+            /** Format: date-time */
+            takenAt: string | null;
+            captionAr: string | null;
+            hasPeople: boolean;
+            /** Format: date-time */
+            createdAt: string;
         };
         /** @description ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز. */
         FieldSheet: {
@@ -8772,13 +10077,195 @@ export interface components {
                 lat: number | null;
                 lng: number | null;
             };
+            /**
+             * Format: date
+             * @description يوم الورقة بتوقيت دمشق؛ حضور الأعضاء فيها حضور هذا اليوم.
+             */
+            day: string;
+            permissions: {
+                /** @description من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة. */
+                canApproveTasks: boolean;
+            };
             tasks: components["schemas"]["FieldTask"][];
             targets: components["schemas"]["FieldTarget"][];
+            members: components["schemas"]["FieldMember"][];
+            /** @description أحدث ما التقطته المجموعة. المعرض كاملًا في اللوحة. */
+            photos: components["schemas"]["FieldPhoto"][];
+            photoCount: number;
             /**
              * Format: date-time
              * @description وقت الخادم عند بناء الورقة. التطبيق يحفظها ويعرضها بلا شبكة، وهذا ما يقوله عن عمرها.
              */
             generatedAt: string;
+        };
+        FieldGroup: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            initiativeId: string;
+            /** Format: uuid */
+            siteId: string;
+            siteNameAr: string;
+            /** @enum {string} */
+            siteStatus: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+            nameAr: string;
+            /** Format: uuid */
+            leadUserId: string | null;
+            leadNameAr: string | null;
+            /** Format: date-time */
+            meetsAt: string | null;
+            meetingPointAr: string | null;
+            instructionsAr: string | null;
+            displayOrder: number;
+            memberCount: number;
+            /** @description من حضر من المجموعة يومًا واحدًا على الأقل. */
+            attendedCount: number;
+            photoCount: number;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        /** @description ميدان المبادرة كاملًا. كل مسار كتابة على المجموعات يعيده، فتتحدّث لوحة المنسّق بنداء واحد. */
+        InitiativeField: {
+            /** Format: uuid */
+            initiativeId: string;
+            groups: components["schemas"]["FieldGroup"][];
+        };
+        /** @description عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم. */
+        FieldLeadCandidate: {
+            /** Format: uuid */
+            id: string;
+            fullNameAr: string;
+            roleNameAr: string;
+            officeNameAr: string;
+        };
+        FieldGroupMember: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            participantId: string;
+            fullNameAr: string;
+            phone: string | null;
+            email: string | null;
+            /** @enum {string} */
+            role: "MEMBER" | "ASSISTANT";
+            /** @enum {string} */
+            rsvp: "UNKNOWN" | "COMING" | "NOT_COMING";
+            /** @description أُضيف من طلب استمارة مقبول، لا بيد المنسّق ولا حضورًا بلا تسجيل. */
+            fromForm: boolean;
+            attendedDays: number;
+            /** Format: date */
+            lastAttendedOn: string | null;
+            /** @description حضوره القائم في اليوم المطلوب. */
+            attendance: {
+                /** Format: uuid */
+                id: string;
+                /** Format: date-time */
+                checkedInAt: string;
+                /** @enum {string} */
+                method: "LEAD_TAP" | "WALK_IN" | "SELF";
+            } | null;
+        };
+        FieldGroupMembers: {
+            /** Format: uuid */
+            groupId: string;
+            /** Format: date */
+            day: string;
+            members: components["schemas"]["FieldGroupMember"][];
+        };
+        FieldAddMembersResult: components["schemas"]["FieldGroupMembers"] & {
+            summary: {
+                added: number;
+                alreadyMembers: number;
+                newParticipants: number;
+                skipped: {
+                    /** Format: uuid */
+                    submissionId: string;
+                    reasonAr: string;
+                }[];
+            };
+        };
+        FieldApplicantSource: {
+            /** Format: uuid */
+            formId: string;
+            nameAr: string;
+            acceptedCount: number;
+        };
+        /** @description طلب مقبول بما يلزم لتوزيعه: الاسم ووسيلة التواصل. إجاباته تبقى في صندوق الطلبات. */
+        FieldApplicant: {
+            /** Format: uuid */
+            submissionId: string;
+            fullNameAr: string | null;
+            phone: string | null;
+            email: string | null;
+            /** Format: date-time */
+            submittedAt: string;
+            /**
+             * Format: uuid
+             * @description المشارك الذي صار إليه الطلب، إن حُوّل من قبل.
+             */
+            participantId: string | null;
+            /** @description مجموعاته في هذه المبادرة. */
+            groupNamesAr: string[];
+        };
+        FieldParticipant: {
+            /** Format: uuid */
+            id: string;
+            fullNameAr: string;
+            phone: string | null;
+            email: string | null;
+            attendedDays: number;
+            /** @description مجموعاته في هذه المبادرة. */
+            groupNamesAr: string[];
+        };
+        FieldAttendanceDay: {
+            /** Format: date */
+            day: string;
+            /** Format: uuid */
+            siteId: string;
+            siteNameAr: string;
+            /** @description أشخاص مختلفون حضروا في الموقع ذلك اليوم، ولو في أكثر من مجموعة. */
+            present: number;
+            groups: {
+                /** Format: uuid */
+                groupId: string;
+                nameAr: string;
+                present: number;
+            }[];
+        };
+        FieldAttendanceImpact: {
+            recorded: components["schemas"]["ImpactEntry"][];
+            unchanged: {
+                /** Format: uuid */
+                siteId: string;
+                siteNameAr: string;
+                value: number;
+            }[];
+        };
+        FieldManagedPhoto: {
+            /** Format: uuid */
+            id: string;
+            url: string;
+            /** Format: uuid */
+            siteId: string | null;
+            siteNameAr: string | null;
+            /** Format: uuid */
+            workItemId: string | null;
+            workItemTitleAr: string | null;
+            /** Format: uuid */
+            groupId: string | null;
+            groupNameAr: string | null;
+            uploadedByNameAr: string | null;
+            /** Format: date-time */
+            takenAt: string | null;
+            lat: number | null;
+            lng: number | null;
+            captionAr: string | null;
+            hasPeople: boolean;
+            peopleConsent: boolean;
+            publicUseAllowed: boolean;
+            sizeBytes: number;
+            /** Format: date-time */
+            createdAt: string;
         };
     };
     responses: never;

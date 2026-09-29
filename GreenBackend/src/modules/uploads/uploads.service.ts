@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
+import {
+  DeleteObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
 
 import { errors } from '../../common/errors/app-error.js'
@@ -28,6 +32,7 @@ const PREFIXES: Record<UploadPurpose, string> = {
   FORM_COVER: 'forms/covers',
   INITIATIVE_COVER: 'initiatives/covers',
   GREEN_POINT_COVER: 'green-points/covers',
+  FIELD_PHOTO: 'field/photos',
 }
 
 type Storage = {
@@ -159,4 +164,39 @@ export async function signUpload(input: {
     publicUrl: `${publicBaseUrl}/${key}`,
     expiresInSeconds: env.R2_SIGNED_URL_TTL_SECONDS,
   }
+}
+
+/**
+ * مفتاح الملف إن كان الرابط مما وقّعناه لهذا الغرض، وإلا `null`.
+ *
+ * تسجيل مرفق يأخذ رابطًا من المتصفح، والرابط نص يكتبه من يرسله: بلا هذا
+ * الفحص يُسجَّل في معرض الموقع أي عنوان على الشبكة — صورة من موقع آخر،
+ * أو ملف من مجلّد غرض آخر في السطل نفسه.
+ */
+export function ownedKey(purpose: UploadPurpose, url: string): string | null {
+  const { publicBaseUrl } = requireStorage()
+  const prefix = `${publicBaseUrl}/${PREFIXES[purpose]}/`
+
+  if (!url.startsWith(prefix)) return null
+
+  const name = url.slice(prefix.length)
+
+  // اسم ولّدناه: معرّف وامتداد، بلا مسار ولا استعلام.
+  return /^[0-9a-f-]{36}\.(jpg|png|webp)$/.test(name)
+    ? `${PREFIXES[purpose]}/${name}`
+    : null
+}
+
+/**
+ * يمحو الملف من التخزين. حذف صف المرفق وحده يترك الصورة على رابطها العلني،
+ * ومن حُذفت صورته — طفل بلا موافقة وليّه — لا يكفيه أن تغيب عن المعرض.
+ */
+export async function deleteUpload(purpose: UploadPurpose, url: string) {
+  const key = ownedKey(purpose, url)
+
+  if (!key) return
+
+  const { client, bucket } = requireStorage()
+
+  await client.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }))
 }

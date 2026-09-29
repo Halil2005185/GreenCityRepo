@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import request from 'supertest'
 
 import { app } from '../../src/app.js'
@@ -104,4 +106,129 @@ export function getSheet(token: string, groupId: string) {
 
 export function getHome(token: string) {
   return request(app).get('/api/field/me').set('authorization', bearer(token))
+}
+
+export const adminField = (initiativeId: string, suffix = '') =>
+  `/api/admin/initiatives/${initiativeId}/field${suffix}`
+
+type Member = {
+  id: string
+  participantId: string
+  fullNameAr: string
+  phone: string | null
+  attendance: { id: string } | null
+}
+
+/** يضيف أعضاء بالاسم والهاتف ويعيدهم كما عادوا من الخادم. */
+export async function addPeople(
+  token: string,
+  initiativeId: string,
+  groupId: string,
+  people: Array<{ fullNameAr: string; phone?: string; email?: string }>,
+) {
+  const response = await request(app)
+    .post(adminField(initiativeId, `/groups/${groupId}/members`))
+    .set('authorization', bearer(token))
+    .send({ people })
+    .expect(200)
+
+  return response.body as {
+    members: Member[]
+    summary: { added: number; alreadyMembers: number; newParticipants: number }
+  }
+}
+
+/** كتابة ميدانية بمعرّف مُرسِل جديد، كما يولّده الهاتف لكل فعل. */
+export function fieldPost(
+  token: string,
+  path: string,
+  body: Record<string, unknown>,
+) {
+  return request(app)
+    .post(`/api/field${path}`)
+    .set('authorization', bearer(token))
+    .send(body)
+}
+
+export const newClientId = () => randomUUID()
+
+/**
+ * استمارة منشورة مفتوحة بسؤالَي الاسم والهاتف موسومَين بدوريهما، وطلبات
+ * تُقدَّم من السطح العام ثم تُقبل — كما تصل الطلبات فعلًا.
+ */
+export async function createJoinForm(token: string, slug = 'volunteers') {
+  const created = await request(app)
+    .post('/api/admin/forms')
+    .set('authorization', bearer(token))
+    .send({ slug, nameAr: 'استمارة المتطوعين' })
+    .expect(201)
+
+  const formId = created.body.data.id as string
+
+  const field = (body: Record<string, unknown>) =>
+    request(app)
+      .post(`/api/admin/forms/${formId}/fields`)
+      .set('authorization', bearer(token))
+      .send({ isRequired: false, options: [], ...body })
+      .expect(201)
+
+  await field({
+    key: 'full_name',
+    labelAr: 'الاسم الكامل',
+    type: 'TEXT',
+    isRequired: true,
+    contactRole: 'NAME',
+  })
+  await field({
+    key: 'phone',
+    labelAr: 'الهاتف',
+    type: 'PHONE',
+    contactRole: 'PHONE',
+  })
+
+  await request(app)
+    .post(`/api/admin/forms/${formId}/publish`)
+    .set('authorization', bearer(token))
+    .expect(200)
+
+  await request(app)
+    .patch(`/api/admin/forms/${formId}`)
+    .set('authorization', bearer(token))
+    .send({ isAccepting: true })
+    .expect(200)
+
+  return { formId, slug }
+}
+
+export async function submitAndDecide(
+  token: string,
+  form: { formId: string; slug: string },
+  answers: Record<string, unknown>,
+  status: 'ACCEPTED' | 'REJECTED' | 'NEW' = 'ACCEPTED',
+) {
+  await request(app)
+    .post(`/api/public/forms/${form.slug}/submissions`)
+    .send({ answers })
+    .expect(202)
+
+  const listed = await request(app)
+    .get(`/api/admin/forms/${form.formId}/submissions`)
+    .set('authorization', bearer(token))
+    .expect(200)
+
+  const submission = (
+    listed.body.data as Array<{ id: string; applicantNameAr: string | null }>
+  ).find((row) => row.applicantNameAr === answers['full_name'])
+
+  if (!submission) throw new Error('The submission did not arrive.')
+
+  if (status !== 'NEW') {
+    await request(app)
+      .patch(`/api/admin/forms/${form.formId}/submissions/${submission.id}`)
+      .set('authorization', bearer(token))
+      .send({ status })
+      .expect(200)
+  }
+
+  return submission.id
 }

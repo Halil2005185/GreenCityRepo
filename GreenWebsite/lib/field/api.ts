@@ -236,6 +236,49 @@ export async function fieldFetch<T>(
   return (await response.json()) as T;
 }
 
+/** الصورة أثقل من طلب، وشبكة الميدان أبطأ من أن تُمهَل عشرين ثانية. */
+const UPLOAD_TIMEOUT_MS = 120_000;
+
+/**
+ * يرفع الصورة إلى التخزين مباشرة بالرابط الموقّع؛ لا تمرّ بالخادم.
+ *
+ * فشل الاتصال هنا ليس «بلا شبكة»: طلب التوقيع سبقه بلحظة ونجح. فهو عطل
+ * في الوصول إلى التخزين — رابط انتهى عمره، أو سياسة CORS على السطل لا
+ * تذكر أصل الموقع — ويُعاد، ثم يُعرض على صاحبه إن تكرر.
+ */
+export async function uploadPhoto(
+  uploadUrl: string,
+  blob: Blob,
+  contentType: string,
+) {
+  const timeout = withTimeout(undefined, UPLOAD_TIMEOUT_MS);
+
+  const failed = (status: number) =>
+    new FieldApiError(
+      "تعذّر رفع الصورة إلى التخزين. تُعاد المحاولة.",
+      status,
+      "UPLOAD_FAILED",
+    );
+
+  try {
+    const response = await fetch(uploadUrl, {
+      method: "PUT",
+      headers: { "content-type": contentType },
+      body: blob,
+      signal: timeout.signal,
+    });
+
+    if (!response.ok) throw failed(response.status);
+  } catch (error) {
+    if (error instanceof FieldApiError) throw error;
+    if (!navigator.onLine) throw new OfflineError();
+
+    throw failed(0);
+  } finally {
+    timeout.release();
+  }
+}
+
 export function getFieldHome(signal?: AbortSignal) {
   return fieldFetch<FieldHome>("/field/me", { ...(signal ? { signal } : {}) });
 }
