@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 
 import { INPUT_CLASS } from "@/components/field/form";
 import { FieldCard, PageTitle } from "@/components/field/states";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/field/button";
 import { FieldApiError, OfflineError } from "@/lib/field/api";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import { useFieldSession } from "@/lib/field/session";
@@ -30,17 +30,24 @@ function messageFor(error: unknown) {
 
 export function LoginForm() {
   const router = useRouter();
-  const { status, login } = useFieldSession();
+  const { status, identity, login } = useFieldSession();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [visible, setVisible] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
   const [sending, setSending] = useState(false);
 
-  // من له جلسة لا يرى صفحة الدخول: فتحها من رابط قديم يعيده إلى يومه.
+  /**
+   * عضو الفريق الداخل لا يرى صفحة الدخول: فتحها من رابط قديم يعيده إلى
+   * يومه. وحامل بطاقة متطوع يراها: قد يكون قائدًا فتح رابطًا على هاتفه،
+   * والدخول بحسابه يستبدل البطاقة.
+   */
+  const staff = status === "authenticated" && identity?.kind === "STAFF";
+  const card = identity?.kind === "PARTICIPANT" ? identity : null;
+
   useEffect(() => {
-    if (status === "authenticated") router.replace(FIELD_ROUTES.home);
-  }, [status, router]);
+    if (staff) router.replace(FIELD_ROUTES.home);
+  }, [staff, router]);
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -63,6 +70,16 @@ export function LoginForm() {
         title="تسجيل الدخول"
         description="بحسابك في فريق المدن الخضراء — الحساب نفسه الذي تدخل به لوحة التحكم."
       />
+
+      {card ? (
+        <p
+          role="status"
+          className="mb-4 rounded-xl border border-border bg-surface px-4 py-3 text-sm leading-relaxed text-foreground"
+        >
+          على هذا الجهاز بطاقة المتطوع {card.fullNameAr}. الدخول بحساب الفريق
+          يستبدلها، وتُفتح من جديد برابطها.
+        </p>
+      ) : null}
 
       <FieldCard>
         <form onSubmit={submit} className="space-y-5">

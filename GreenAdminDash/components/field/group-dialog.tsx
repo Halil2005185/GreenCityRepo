@@ -47,6 +47,13 @@ const schema = z.object({
   siteId: z.string().min(1, "اختر الموقع."),
   nameAr: z.string().trim().min(2, "اسم المجموعة مطلوب.").max(160, "الاسم طويل جدًا."),
   leadUserId: z.string(),
+  contactPhone: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === "" || /^[+]?[0-9\s()-]{6,32}$/.test(value),
+      "اكتب الرقم بأرقامه، مثل 0944123456.",
+    ),
   meetsAt: z.string(),
   meetingPointAr: z.string().trim().max(300, "وصف نقطة اللقاء طويل جدًا."),
   instructionsAr: z.string().trim().max(4000, "التعليمات طويلة جدًا."),
@@ -58,6 +65,7 @@ const EMPTY: Values = {
   siteId: "",
   nameAr: "",
   leadUserId: "",
+  contactPhone: "",
   meetsAt: "",
   meetingPointAr: "",
   instructionsAr: "",
@@ -114,6 +122,7 @@ export function GroupDialog({
               siteId: group.siteId,
               nameAr: group.nameAr,
               leadUserId: group.leadUserId ?? "",
+              contactPhone: group.contactPhone ?? "",
               meetsAt: toLocalInput(group.meetsAt),
               meetingPointAr: group.meetingPointAr ?? "",
               instructionsAr: group.instructionsAr ?? "",
@@ -126,6 +135,7 @@ export function GroupDialog({
           siteId: values.siteId,
           nameAr: values.nameAr,
           leadUserId: values.leadUserId || null,
+          contactPhone: values.contactPhone || null,
           meetsAt: fromLocalInput(values.meetsAt),
           meetingPointAr: values.meetingPointAr || null,
           instructionsAr: values.instructionsAr || null,
@@ -178,6 +188,17 @@ export function GroupDialog({
             ? { value: group.leadUserId, label: group.leadNameAr ?? "القائد الحالي" }
             : undefined
         }
+      />
+      <TextField
+        control={form.control}
+        name="contactPhone"
+        label="رقم للتواصل (اختياري)"
+        hint="يظهر للمتطوعين في بطاقاتهم ليتصلوا إن تأخروا أو ضلّوا الطريق: هاتف القائد إن رضي، أو رقم المنسّق."
+        type="tel"
+        inputMode="tel"
+        dir="ltr"
+        className="text-end"
+        maxLength={32}
       />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField

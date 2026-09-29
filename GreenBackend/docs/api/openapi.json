@@ -6188,6 +6188,386 @@
         ],
         "description": "ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز."
       },
+      "FieldCardMembership": {
+        "type": "object",
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "MEMBER",
+              "ASSISTANT"
+            ]
+          },
+          "rsvp": {
+            "type": "string",
+            "enum": [
+              "UNKNOWN",
+              "COMING",
+              "NOT_COMING"
+            ]
+          },
+          "rsvpAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "group": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "meetsAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "meetingPointAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "instructionsAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "leadNameAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contactPhone": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "وسيلة التواصل التي اختارها المنسّق للمجموعة. ليست هاتف القائد من حسابه."
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "meetsAt",
+              "meetingPointAr",
+              "instructionsAr",
+              "leadNameAr",
+              "contactPhone"
+            ]
+          },
+          "site": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "descriptionAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "PLANNED",
+                  "IN_PROGRESS",
+                  "COMPLETED",
+                  "CANCELLED"
+                ]
+              },
+              "areaNameAr": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lng": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "descriptionAr",
+              "status",
+              "areaNameAr",
+              "lat",
+              "lng"
+            ]
+          },
+          "attendedOn": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "date"
+            },
+            "description": "أيام حضوره القائم في هذه المجموعة، بتوقيت دمشق."
+          },
+          "impact": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "metricId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "metricNameAr": {
+                  "type": "string"
+                },
+                "unitAr": {
+                  "type": "string"
+                },
+                "decimals": {
+                  "type": "integer"
+                },
+                "value": {
+                  "type": "number"
+                }
+              },
+              "required": [
+                "metricId",
+                "metricNameAr",
+                "unitAr",
+                "decimals",
+                "value"
+              ]
+            },
+            "description": "ما تحقق في الموقع — الموثَّق وحده."
+          },
+          "photos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "url": {
+                  "type": "string"
+                },
+                "captionAr": {
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "takenAt": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                }
+              },
+              "required": [
+                "id",
+                "url",
+                "captionAr",
+                "takenAt"
+              ]
+            },
+            "description": "صور الموقع التي سمح المنسّق بنشرها."
+          }
+        },
+        "required": [
+          "memberId",
+          "role",
+          "rsvp",
+          "rsvpAt",
+          "group",
+          "site",
+          "attendedOn",
+          "impact",
+          "photos"
+        ]
+      },
+      "FieldCard": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "PARTICIPANT"
+            ]
+          },
+          "participant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullNameAr": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "fullNameAr"
+            ]
+          },
+          "initiative": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "DRAFT",
+                  "PLANNING",
+                  "ACTIVE",
+                  "COMPLETED",
+                  "CANCELLED"
+                ]
+              }
+            },
+            "required": [
+              "id",
+              "nameAr",
+              "status"
+            ]
+          },
+          "link": {
+            "type": "object",
+            "properties": {
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "expiresAt"
+            ]
+          },
+          "day": {
+            "type": "string",
+            "format": "date"
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldCardMembership"
+            }
+          },
+          "feedback": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "nameAr": {
+                "type": "string"
+              },
+              "url": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "nameAr",
+              "url"
+            ],
+            "description": "استمارة التقييم على الموقع العام، إن اختارها المنسّق وكانت تستقبل."
+          },
+          "generatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "kind",
+          "participant",
+          "initiative",
+          "link",
+          "day",
+          "memberships",
+          "feedback",
+          "generatedAt"
+        ],
+        "description": "بطاقة المتطوع في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم."
+      },
+      "FieldRedeemedLink": {
+        "type": "object",
+        "properties": {
+          "participant": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "fullNameAr": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "fullNameAr"
+            ]
+          },
+          "initiative": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "nameAr": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "nameAr"
+            ]
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "participant",
+          "initiative",
+          "expiresAt"
+        ]
+      },
       "FieldGroup": {
         "type": "object",
         "properties": {
@@ -6231,6 +6611,13 @@
               "null"
             ]
           },
+          "contactPhone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق."
+          },
           "meetsAt": {
             "type": [
               "string",
@@ -6256,6 +6643,14 @@
           "memberCount": {
             "type": "integer"
           },
+          "comingCount": {
+            "type": "integer",
+            "description": "من أكّدوا حضورهم من بطاقاتهم."
+          },
+          "linkedCount": {
+            "type": "integer",
+            "description": "أعضاء لهم رابط شخصي قائم لم ينتهِ."
+          },
           "attendedCount": {
             "type": "integer",
             "description": "من حضر من المجموعة يومًا واحدًا على الأقل."
@@ -6277,14 +6672,47 @@
           "nameAr",
           "leadUserId",
           "leadNameAr",
+          "contactPhone",
           "meetsAt",
           "meetingPointAr",
           "instructionsAr",
           "displayOrder",
           "memberCount",
+          "comingCount",
+          "linkedCount",
           "attendedCount",
           "photoCount",
           "createdAt"
+        ]
+      },
+      "FieldSettings": {
+        "type": "object",
+        "properties": {
+          "feedbackFormId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "feedbackFormNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "feedbackFormUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل."
+          }
+        },
+        "required": [
+          "feedbackFormId",
+          "feedbackFormNameAr",
+          "feedbackFormUrl"
         ]
       },
       "InitiativeField": {
@@ -6299,11 +6727,15 @@
             "items": {
               "$ref": "#/components/schemas/FieldGroup"
             }
+          },
+          "settings": {
+            "$ref": "#/components/schemas/FieldSettings"
           }
         },
         "required": [
           "initiativeId",
-          "groups"
+          "groups",
+          "settings"
         ],
         "description": "ميدان المبادرة كاملًا. كل مسار كتابة على المجموعات يعيده، فتتحدّث لوحة المنسّق بنداء واحد."
       },
@@ -6387,6 +6819,54 @@
             ],
             "format": "date"
           },
+          "rsvpAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "link": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "ACTIVE",
+                  "EXPIRED"
+                ]
+              },
+              "expiresAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "lastUsedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time",
+                "description": "آخر فتح للبطاقة بهذا الرابط. `null` إن لم يُفتح بعد."
+              },
+              "emailedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              }
+            },
+            "required": [
+              "status",
+              "expiresAt",
+              "lastUsedAt",
+              "emailedAt"
+            ],
+            "description": "رابطه الشخصي القائم في هذه المبادرة. الرابط نفسه لا يُعرض هنا: يظهر مرة واحدة عند توليده."
+          },
           "attendance": {
             "type": [
               "object",
@@ -6429,6 +6909,8 @@
           "fromForm",
           "attendedDays",
           "lastAttendedOn",
+          "rsvpAt",
+          "link",
           "attendance"
         ]
       },
@@ -6508,6 +6990,106 @@
               "summary"
             ]
           }
+        ]
+      },
+      "FieldIssuedLink": {
+        "type": "object",
+        "properties": {
+          "participantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "fullNameAr": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupNameAr": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "description": "الرابط الشخصي. يظهر في هذا الجواب وحده: الخادم يحفظ بصمته لا نصّه."
+          },
+          "messageAr": {
+            "type": "string",
+            "description": "نص جاهز للصق في واتساب، وفيه الرابط."
+          },
+          "whatsappUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "يفتح محادثة واتساب مع صاحب الرقم والنص مكتوب فيها. `null` حين لا يُعرف الرقم دوليًا."
+          },
+          "emailed": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "participantId",
+          "fullNameAr",
+          "phone",
+          "email",
+          "groupNameAr",
+          "url",
+          "messageAr",
+          "whatsappUrl",
+          "emailed"
+        ]
+      },
+      "FieldIssuedLinks": {
+        "type": "object",
+        "properties": {
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "links": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldIssuedLink"
+            }
+          }
+        },
+        "required": [
+          "initiativeId",
+          "expiresAt",
+          "links"
+        ]
+      },
+      "FieldFeedbackForm": {
+        "type": "object",
+        "properties": {
+          "formId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "formId",
+          "nameAr",
+          "slug"
         ]
       },
       "FieldApplicantSource": {
@@ -17110,7 +17692,8 @@
         "tags": [
           "Field"
         ],
-        "summary": "هويتي ومجموعاتي",
+        "summary": "هويتي ومجموعاتي، أو بطاقتي",
+        "description": "الجواب يتبع من يسأل، ويُعرف بـ`kind`: عضو الفريق يأخذ مجموعاته، وحامل الرابط الشخصي يأخذ بطاقته.",
         "security": [
           {
             "bearerAuth": []
@@ -17118,17 +17701,24 @@
         ],
         "responses": {
           "200": {
-            "description": "الهوية والمجموعات",
+            "description": "الهوية والمجموعات، أو البطاقة",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/FieldHome"
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/FieldHome"
+                    },
+                    {
+                      "$ref": "#/components/schemas/FieldCard"
+                    }
+                  ]
                 }
               }
             }
           },
           "401": {
-            "description": "بلا جلسة",
+            "description": "بلا جلسة، أو رابط لم يعد صالحًا",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -17139,6 +17729,145 @@
           },
           "403": {
             "description": "الحساب ليس من الفريق",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/links/redeem": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "فتح رابط شخصي",
+        "description": "بلا مصادقة: الرمز هو الاعتماد. يتحقق منه ويعيد اسم صاحبه ومبادرته، وبعده يُرسَل الرمز نفسه في ترويسة `Authorization: Bearer`.",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "token": {
+                    "type": "string",
+                    "pattern": "^plk_[A-Za-z0-9_-]{20,100}$",
+                    "description": "الرمز من جزء العنوان (`#`). يُرسَل في الجسم لا في المسار، فلا يُكتب في سجل."
+                  }
+                },
+                "required": [
+                  "token"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "الرابط صالح",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldRedeemedLink"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "الرابط منتهٍ أو مُبطَل أو غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "محاولات كثيرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/me/rsvp": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تأكيد الحضور أو الاعتذار",
+        "description": "لحامل الرابط الشخصي. حالة تُكتب، فإعادة الطلب آمنة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "memberId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "عضويته في المجموعة التي يؤكّد حضورها، كما في البطاقة."
+                  },
+                  "coming": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "memberId",
+                  "coming"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldCard"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "المسار لحامل رابط شخصي",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "العضوية ليست له",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "انتهت الحملة أو أُلغي الموقع",
             "content": {
               "application/problem+json": {
                 "schema": {
@@ -18198,6 +18927,13 @@
                     ],
                     "format": "uuid"
                   },
+                  "contactPhone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[+]?[\\d\\s()-]{6,32}$"
+                  },
                   "meetsAt": {
                     "type": [
                       "string",
@@ -18320,6 +19056,13 @@
                       "null"
                     ],
                     "format": "uuid"
+                  },
+                  "contactPhone": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "pattern": "^[+]?[\\d\\s()-]{6,32}$"
                   },
                   "meetsAt": {
                     "type": [
@@ -18777,6 +19520,317 @@
           },
           "404": {
             "description": "العضو غير موجود في هذه المجموعة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/links": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "توليد روابط شخصية للمتطوعين",
+        "description": "رابط لكل مشارك، يُعرض مرة واحدة. توليد جديد يُبطل رابطه السابق في هذه المبادرة.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "groupId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "كل أعضاء هذه المجموعة."
+                  },
+                  "participantIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "maxItems": 500,
+                    "default": []
+                  },
+                  "ttlDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 365,
+                    "description": "عمر الرابط بالأيام. الافتراضي من إعداد الخادم."
+                  },
+                  "email": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "إرسال الرابط بالبريد لمن له بريد. غيره يُنسخ رابطه."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "وُلّدت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldIssuedLinks"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "المبادرة ملغاة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "مشارك ليس عضوًا في مجموعة من هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/links/revoke": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إبطال روابط شخصية",
+        "description": "البطاقة تُغلق فورًا على كل جهاز فتحها. ما أُبطل سلفًا يبقى كما هو.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "participantIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "participantIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "أُبطلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "initiativeId": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "revoked": {
+                      "type": "integer"
+                    }
+                  },
+                  "required": [
+                    "initiativeId",
+                    "revoked"
+                  ]
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/feedback-forms": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "استمارات تصلح للتقييم",
+        "description": "المنشورة التي تستقبل. مسار خاص كمسار المصادر: المنسّق يرى اسم الاستمارة لا أسئلتها.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الاستمارات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/FieldFeedbackForm"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/settings": {
+      "put": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إعدادات ميدان المبادرة",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "feedbackFormId": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "feedbackFormId"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "حُفظت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InitiativeField"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "الاستمارة غير موجودة",
             "content": {
               "application/problem+json": {
                 "schema": {

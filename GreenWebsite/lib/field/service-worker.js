@@ -27,10 +27,25 @@ const DATA = `gc-field-rsc-${VERSION}`;
  */
 const STATIC = "gc-field-static";
 
+/**
+ * خرائط المواقع الثابتة في بطاقة المتطوع. عنوان الصورة يحمل إحداثياتها، فلا
+ * تتغيّر تحته، ومخزنها يعبر النسخ كملفات البناء. عددها قليل — موقع أو اثنان
+ * للمتطوع — والسقف يمنع تراكمها عند من تنقّل بين الحملات.
+ */
+const MAPS = "gc-field-maps";
+const MAP_HOST = "api.mapbox.com";
+const MAP_LIMIT = 12;
+
 /** شبكة الميدان بطيئة لا معدومة؛ بعدها يُعرض المحفوظ ويُكمَل الجلب خلفه. */
 const NAVIGATION_TIMEOUT_MS = 4000;
 
 const STATIC_PREFIX = "/_next/static/";
+
+/**
+ * ملفات من `public/` ترسمها القشرة ولا يحمل اسمها بصمة: رمز الهوية قناعًا
+ * في رأس التطبيق. تُحفظ مع كل نسخة جديدة من مصدرها، فتغيّرها يصل مع النشر.
+ */
+const SHELL_FILES = ["/brand/logomark.png"];
 const IN_HTML = /\/_next\/static\/[^"'\\\s)<>]+/g;
 const IN_CSS = /url\(\s*["']?([^"')]+)["']?\s*\)/g;
 
@@ -137,16 +152,34 @@ async function pruneStatic() {
   }
 }
 
+async function precacheShellFiles() {
+  const pages = await caches.open(PAGES);
+
+  await Promise.all(
+    SHELL_FILES.map(async (path) => {
+      const response = await fetch(path, {
+        credentials: "omit",
+        cache: "no-cache",
+      });
+
+      // غياب زينةٍ لا يُفشل التثبيت: القشرة تعمل بلا رمزها.
+      if (response.ok) await pages.put(path, response);
+    }),
+  );
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
-    Promise.all(SHELLS.map(precacheShell)).then(() => self.skipWaiting()),
+    Promise.all([...SHELLS.map(precacheShell), precacheShellFiles()]).then(
+      () => self.skipWaiting(),
+    ),
   );
 });
 
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     (async () => {
-      const keep = new Set([PAGES, DATA, STATIC]);
+      const keep = new Set([PAGES, DATA, STATIC, MAPS]);
 
       for (const name of await caches.keys()) {
         if (name.startsWith("gc-field-") && !keep.has(name)) {
@@ -226,6 +259,13 @@ async function navigate(event) {
   return (await settled) ?? offlineFallback(pages, requested);
 }
 
+/** ملف من القشرة بلا بصمة: المحفوظ مع هذه النسخة، وإلا الشبكة. */
+async function shellFile(event, url) {
+  const cached = await (await caches.open(PAGES)).match(url.pathname);
+
+  return cached ?? fetch(event.request);
+}
+
 /** ملف يحمل بصمته في اسمه: المحفوظ هو الصحيح دائمًا. */
 async function staticAsset(event) {
   const cache = await caches.open(STATIC);
@@ -261,6 +301,41 @@ async function routeData(event) {
   }
 }
 
+/**
+ * خريطة الموقع: المحفوظ أولًا. المتطوع يفتح بطاقته مساء اليوم السابق على
+ * شبكة بيته، ويحتاج الخريطة صباحًا في طريقه حيث لا شبكة.
+ *
+ * الصورة تُطلب بـCORS (`crossorigin` على العنصر)، فجوابها يُقرأ ويُحفظ
+ * بحجمه. جواب معتم كان سيُحسب على الحصة بميغابايتات لكل صورة.
+ */
+async function mapImage(event) {
+  const cache = await caches.open(MAPS);
+  const cached = await cache.match(event.request.url);
+
+  if (cached) return cached;
+
+  const response = await fetch(event.request);
+
+  if (response.ok && response.type !== "opaque") {
+    // النسخة تؤخذ قبل أن يُسلَّم الجواب: جسمه يُقرأ مرة واحدة.
+    const copy = response.clone();
+
+    event.waitUntil(
+      (async () => {
+        await cache.put(event.request.url, copy);
+
+        const keys = await cache.keys();
+
+        for (const stale of keys.slice(0, Math.max(0, keys.length - MAP_LIMIT))) {
+          await cache.delete(stale);
+        }
+      })(),
+    );
+  }
+
+  return response;
+}
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 
@@ -268,12 +343,24 @@ self.addEventListener("fetch", (event) => {
 
   const url = new URL(request.url);
 
+  if (url.hostname === MAP_HOST && url.pathname.includes("/static/")) {
+    event.respondWith(mapImage(event));
+
+    return;
+  }
+
   // الـAPI والتخزين وكل ما ليس من أصل الموقع يمرّ كما هو: التطبيق يحفظ
   // بياناته بنفسه، وعامل الخدمة لا يعرف أيها يخص من.
   if (url.origin !== self.location.origin) return;
 
   if (url.pathname.startsWith(STATIC_PREFIX)) {
     event.respondWith(staticAsset(event));
+
+    return;
+  }
+
+  if (SHELL_FILES.includes(url.pathname)) {
+    event.respondWith(shellFile(event, url));
 
     return;
   }

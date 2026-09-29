@@ -49,3 +49,63 @@ describe('form copy template', () => {
     expect(empty.html).toContain('لا إجابات مسجّلة')
   })
 })
+
+describe('personal link template', () => {
+  const rendered = renderTemplate('field-link', {
+    fullNameAr: 'لينا حداد',
+    initiativeNameAr: 'حملة تشجير دمشق',
+    groupNameAr: 'مجموعة الصنوبر',
+    siteNameAr: 'حديقة تشرين',
+    meetsAt: '2026-10-09T05:00:00.000Z',
+    meetingPointAr: 'البوابة الشرقية',
+    linkUrl: 'https://greencities.test/app/link#plk_example',
+    expiresInDays: 45,
+  })
+
+  it('says where and when in words, not only behind the link', () => {
+    expect(rendered.subject).toContain('حملة تشجير دمشق')
+
+    for (const part of ['مجموعة الصنوبر', 'حديقة تشرين', 'البوابة الشرقية']) {
+      expect(rendered.html).toContain(part)
+      expect(rendered.text).toContain(part)
+    }
+
+    // الخامسة فجرًا بتوقيت غرينتش هي الثامنة صباحًا في دمشق.
+    expect(rendered.text).toContain('8:00')
+    expect(rendered.text).toContain('الجمعة')
+  })
+
+  it('carries the link whole, fragment included', () => {
+    expect(rendered.html).toContain(
+      'https://greencities.test/app/link#plk_example',
+    )
+    expect(rendered.text).toContain(
+      'https://greencities.test/app/link#plk_example',
+    )
+  })
+
+  it('leaves out what the group has not decided yet', () => {
+    const bare = renderTemplate('field-link', {
+      fullNameAr: 'لينا حداد',
+      initiativeNameAr: 'حملة',
+      groupNameAr: 'مجموعة',
+      siteNameAr: 'موقع',
+      meetsAt: null,
+      meetingPointAr: null,
+      linkUrl: 'https://greencities.test/app/link#plk_example',
+    })
+
+    expect(bare.html).not.toContain('نقطة اللقاء')
+    expect(bare.html).not.toContain('الموعد')
+  })
+
+  it('escapes a name that carries markup', () => {
+    const hostile = renderTemplate('field-link', {
+      fullNameAr: '<b>اسم</b>',
+      initiativeNameAr: 'حملة',
+      linkUrl: 'https://greencities.test/app/link#plk_example',
+    })
+
+    expect(hostile.html).not.toContain('<b>اسم</b>')
+  })
+})

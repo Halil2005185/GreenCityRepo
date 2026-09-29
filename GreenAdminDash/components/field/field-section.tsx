@@ -1,19 +1,25 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { Pencil, Plus, Trash2, Users } from "lucide-react";
+import { Pencil, Plus, Settings2, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { AttendanceSection } from "@/components/field/attendance-section";
 import { GroupDialog, fieldKey, useFieldCache } from "@/components/field/group-dialog";
 import { MembersDialog } from "@/components/field/members-dialog";
 import { PhotosSection } from "@/components/field/photos-section";
+import { SettingsDialog } from "@/components/field/settings-dialog";
 import { Badge } from "@/components/ui/badge";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { DataTable, PrimaryCell, cells, columnHelper } from "@/components/ui/data-table";
 import { Section } from "@/components/ui/section";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { deleteFieldGroup, getInitiativeField, type FieldGroup } from "@/lib/api/field";
+import {
+  deleteFieldGroup,
+  getInitiativeField,
+  type FieldGroup,
+  type FieldSettings,
+} from "@/lib/api/field";
 import type { InitiativeDetail } from "@/lib/api/initiatives";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 
@@ -41,6 +47,7 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
       <GroupsSection
         initiative={initiative}
         groups={field.data?.groups}
+        settings={field.data?.settings}
         isLoading={field.isPending}
         error={field.error}
         onRetry={() => void field.refetch()}
@@ -54,12 +61,14 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
 function GroupsSection({
   initiative,
   groups,
+  settings,
   isLoading,
   error,
   onRetry,
 }: {
   initiative: InitiativeDetail;
   groups: readonly FieldGroup[] | undefined;
+  settings: FieldSettings | undefined;
   isLoading: boolean;
   error: unknown;
   onRetry: () => void;
@@ -74,6 +83,7 @@ function GroupsSection({
     groupId: null,
     open: false,
   });
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // المبادرة المغلقة انتهى ميدانها: يبقى سجلًا يُقرأ ولا يُعدَّل.
   const closed = initiative.status === "COMPLETED" || initiative.status === "CANCELLED";
@@ -129,6 +139,16 @@ function GroupsSection({
           meta: { numeric: true },
           cell: (info) => cells.number(info.getValue()),
         }),
+        groupCol.accessor("linkedCount", {
+          header: "لهم رابط",
+          meta: { numeric: true },
+          cell: (info) => cells.number(info.getValue()),
+        }),
+        groupCol.accessor("comingCount", {
+          header: "أكّدوا",
+          meta: { numeric: true },
+          cell: (info) => cells.number(info.getValue()),
+        }),
         groupCol.accessor("attendedCount", {
           header: "حضروا",
           meta: { numeric: true },
@@ -158,6 +178,15 @@ function GroupsSection({
           : "لكل موقع مجموعة أو أكثر. قائد المجموعة يفتح ورقة يومها من التطبيق الميداني، وأعضاؤها قائمة حضوره."
       }
       actions={[add]}
+      menuActions={[
+        {
+          key: "settings",
+          label: "إعدادات الميدان",
+          icon: Settings2,
+          requires: MANAGE,
+          onSelect: () => setSettingsOpen(true),
+        },
+      ]}
     >
       <DataTable
         caption="المجموعات الميدانية"
@@ -218,6 +247,13 @@ function GroupsSection({
         group={dialog.group}
         open={dialog.open}
         onOpenChange={(open) => setDialog((current) => ({ ...current, open }))}
+      />
+
+      <SettingsDialog
+        initiativeId={initiative.id}
+        settings={settings}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
       />
 
       <MembersDialog

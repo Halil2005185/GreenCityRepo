@@ -4,7 +4,7 @@ import { CircleCheck, RefreshCw, TriangleAlert } from "lucide-react";
 import { useState } from "react";
 
 import { FieldCard } from "@/components/field/states";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/field/button";
 import { formatAge } from "@/lib/field/labels";
 import { discard, flush, retry, useOutbox } from "@/lib/field/outbox";
 import type { OutboxItem } from "@/lib/field/outbox-types";

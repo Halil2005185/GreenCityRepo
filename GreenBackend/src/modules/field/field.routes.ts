@@ -6,10 +6,17 @@ import {
   requireCapability,
   requireStaff,
 } from '../../common/middleware/authorize.js'
-import { fieldWriteRateLimit } from '../../common/middleware/rate-limit.js'
+import {
+  fieldWriteRateLimit,
+  linkRedeemRateLimit,
+} from '../../common/middleware/rate-limit.js'
 import { validate } from '../../common/middleware/validate.js'
 import * as adminSchemas from './field-admin.schemas.js'
-import { requireFieldAuth } from './field-auth.js'
+import {
+  requireFieldAuth,
+  requireFieldParticipant,
+  requireFieldStaff,
+} from './field-auth.js'
 import * as controller from './field.controller.js'
 import * as schemas from './field.schemas.js'
 
@@ -19,12 +26,37 @@ import * as schemas from './field.schemas.js'
  * الحارس هنا يثبت الهوية وحدها. «أي مجموعة؟» قرار الخدمة لا الموجّه:
  * `field.lead` تفتح لحاملها مجموعاته هو لا مجموعات غيره، وهذا لا يُفحص
  * باسم قدرة على مسار. كل كتابة تمرّ من `requireWritableGroup`.
+ *
+ * مبدآن يدخلان من هنا: عضو الفريق وحامل الرابط الشخصي. `/me` لهما معًا،
+ * وما تحت `/groups` و`/tasks` للفريق، وما تحت `/me/…` لحامل الرابط.
  */
 export const fieldRouter = Router()
+
+/**
+ * قبل الحارس: الرابط نفسه هو الاعتماد، ومن يفتحه لا جلسة له بعد. والرمز في
+ * جسم الطلب لا في مساره، فلا يُكتب في سجل وصول.
+ */
+fieldRouter.post(
+  '/links/redeem',
+  linkRedeemRateLimit,
+  validate({ body: schemas.redeemLinkBodySchema }),
+  controller.postLinkRedeem,
+)
 
 fieldRouter.use(requireFieldAuth)
 
 fieldRouter.get('/me', controller.getHome)
+
+fieldRouter.post(
+  '/me/rsvp',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  validate({ body: schemas.rsvpBodySchema }),
+  controller.postRsvp,
+)
+
+// كل ما بعدها للفريق: حارس واحد على البادئة يرثه أي مسار يُضاف تحتها.
+fieldRouter.use(['/groups', '/tasks'], requireFieldStaff)
 
 fieldRouter.get(
   '/groups/:id',
@@ -164,6 +196,30 @@ fieldAdminRouter.delete(
   '/groups/:groupId/members/:memberId',
   validate({ params: memberOf }),
   controller.deleteMember,
+)
+
+fieldAdminRouter.post(
+  '/links',
+  validate({ params: initiative, body: adminSchemas.createLinksBodySchema }),
+  controller.postLinks,
+)
+
+fieldAdminRouter.post(
+  '/links/revoke',
+  validate({ params: initiative, body: adminSchemas.revokeLinksBodySchema }),
+  controller.postLinksRevoke,
+)
+
+fieldAdminRouter.get(
+  '/feedback-forms',
+  validate({ params: initiative }),
+  controller.getFeedbackForms,
+)
+
+fieldAdminRouter.put(
+  '/settings',
+  validate({ params: initiative, body: adminSchemas.updateSettingsBodySchema }),
+  controller.putSettings,
 )
 
 fieldAdminRouter.get(

@@ -7,7 +7,7 @@ import { fieldGroups } from '../../db/schema/field.js'
 import { areas } from '../../db/schema/geo.js'
 import { users } from '../../db/schema/identity.js'
 import { initiativeSites, initiatives } from '../../db/schema/programs.js'
-import type { FieldPrincipal } from './field-auth.js'
+import type { StaffPrincipal } from './field-auth.js'
 
 export const DAY_MS = 86_400_000
 
@@ -88,7 +88,7 @@ export function clientMoment(value: string | undefined, now = new Date()) {
  */
 export async function requireAccessibleGroup(
   groupId: string,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   const [row] = await db
     .select({
@@ -127,7 +127,7 @@ export type AccessibleGroup = Awaited<ReturnType<typeof requireAccessibleGroup>>
  */
 export async function requireWritableGroup(
   groupId: string,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   const row = await requireAccessibleGroup(groupId, principal)
 

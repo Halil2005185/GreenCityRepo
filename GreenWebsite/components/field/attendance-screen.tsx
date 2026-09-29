@@ -7,7 +7,7 @@ import { ClosedNotice } from "@/components/field/closed-notice";
 import { Field, INPUT_CLASS } from "@/components/field/form";
 import { SheetGate, type SheetView } from "@/components/field/sheet-gate";
 import { FieldCard, FieldNotice } from "@/components/field/states";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/field/button";
 import type { FieldSheet } from "@/lib/field/api";
 import { formatDay, formatTime } from "@/lib/field/labels";
 import { clientIdOf } from "@/lib/field/outbox-types";
@@ -169,7 +169,7 @@ function Attendance({ sheet, actions, writable }: SheetView) {
                   "rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors",
                   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                   filter === value
-                    ? "border-accent-ink bg-accent-ink text-background"
+                    ? "border-accent-ink bg-accent-ink text-[var(--brand-warm-beige)]"
                     : "border-border bg-background text-foreground hover:bg-accent",
                 )}
               >

@@ -229,18 +229,167 @@ export const fieldSheetSchema = registry.register(
     }),
 )
 
+// ── بطاقة المشارك ──────────────────────────────────────────────────────
+
+export const fieldCardMembershipSchema = registry.register(
+  'FieldCardMembership',
+  z.object({
+    memberId: z.uuid(),
+    role: fieldMemberRoleEnum,
+    rsvp: fieldRsvpEnum,
+    rsvpAt: z.iso.datetime().nullable(),
+    group: z.object({
+      id: z.uuid(),
+      nameAr: z.string(),
+      meetsAt: z.iso.datetime().nullable(),
+      meetingPointAr: z.string().nullable(),
+      instructionsAr: z.string().nullable(),
+      leadNameAr: z.string().nullable(),
+      contactPhone: z.string().nullable().openapi({
+        description:
+          'وسيلة التواصل التي اختارها المنسّق للمجموعة. ليست هاتف القائد من حسابه.',
+      }),
+    }),
+    site: z.object({
+      id: z.uuid(),
+      nameAr: z.string(),
+      descriptionAr: z.string().nullable(),
+      status: siteStatusEnum,
+      areaNameAr: z.string().nullable(),
+      lat: z.number().nullable(),
+      lng: z.number().nullable(),
+    }),
+    attendedOn: z.array(z.iso.date()).openapi({
+      description: 'أيام حضوره القائم في هذه المجموعة، بتوقيت دمشق.',
+    }),
+    impact: z
+      .array(
+        z.object({
+          metricId: z.uuid(),
+          metricNameAr: z.string(),
+          unitAr: z.string(),
+          decimals: z.number().int(),
+          value: z.number(),
+        }),
+      )
+      .openapi({ description: 'ما تحقق في الموقع — الموثَّق وحده.' }),
+    photos: z
+      .array(
+        z.object({
+          id: z.uuid(),
+          url: z.string(),
+          captionAr: z.string().nullable(),
+          takenAt: z.iso.datetime().nullable(),
+        }),
+      )
+      .openapi({ description: 'صور الموقع التي سمح المنسّق بنشرها.' }),
+  }),
+)
+
+export const fieldCardSchema = registry.register(
+  'FieldCard',
+  z
+    .object({
+      kind: z.enum(['PARTICIPANT']),
+      participant: z.object({ id: z.uuid(), fullNameAr: z.string() }),
+      initiative: z.object({
+        id: z.uuid(),
+        nameAr: z.string(),
+        status: initiativeStatusEnum,
+      }),
+      link: z.object({ expiresAt: z.iso.datetime() }),
+      day: z.iso.date(),
+      memberships: z.array(fieldCardMembershipSchema),
+      feedback: z
+        .object({ nameAr: z.string(), url: z.string() })
+        .nullable()
+        .openapi({
+          description:
+            'استمارة التقييم على الموقع العام، إن اختارها المنسّق وكانت تستقبل.',
+        }),
+      generatedAt: z.iso.datetime(),
+    })
+    .openapi({
+      description:
+        'بطاقة المتطوع في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم.',
+    }),
+)
+
 // ── القراءة ────────────────────────────────────────────────────────────
 
 registry.registerPath({
   method: 'get',
   path: path('/me'),
   tags: ['Field'],
-  summary: 'هويتي ومجموعاتي',
+  summary: 'هويتي ومجموعاتي، أو بطاقتي',
+  description:
+    'الجواب يتبع من يسأل، ويُعرف بـ`kind`: عضو الفريق يأخذ مجموعاته، وحامل الرابط الشخصي يأخذ بطاقته.',
   security,
   responses: {
-    200: { description: 'الهوية والمجموعات', ...json(fieldHomeSchema) },
-    401: problemResponse('بلا جلسة'),
+    200: {
+      description: 'الهوية والمجموعات، أو البطاقة',
+      ...json(z.union([fieldHomeSchema, fieldCardSchema])),
+    },
+    401: problemResponse('بلا جلسة، أو رابط لم يعد صالحًا'),
     403: problemResponse('الحساب ليس من الفريق'),
+  },
+})
+
+// ── الرابط الشخصي ──────────────────────────────────────────────────────
+
+const LINK_TOKEN_PATTERN = /^plk_[A-Za-z0-9_-]{20,100}$/
+
+export const redeemLinkBodySchema = z.object({
+  token: z.string().regex(LINK_TOKEN_PATTERN, 'الرابط غير صالح.').openapi({
+    description:
+      'الرمز من جزء العنوان (`#`). يُرسَل في الجسم لا في المسار، فلا يُكتب في سجل.',
+  }),
+})
+
+export const redeemedLinkSchema = registry.register(
+  'FieldRedeemedLink',
+  z.object({
+    participant: z.object({ id: z.uuid(), fullNameAr: z.string() }),
+    initiative: z.object({ id: z.uuid(), nameAr: z.string() }),
+    expiresAt: z.iso.datetime(),
+  }),
+)
+
+registry.registerPath({
+  method: 'post',
+  path: path('/links/redeem'),
+  tags: ['Field'],
+  summary: 'فتح رابط شخصي',
+  description:
+    'بلا مصادقة: الرمز هو الاعتماد. يتحقق منه ويعيد اسم صاحبه ومبادرته، وبعده يُرسَل الرمز نفسه في ترويسة `Authorization: Bearer`.',
+  request: { body: json(redeemLinkBodySchema) },
+  responses: {
+    200: { description: 'الرابط صالح', ...json(redeemedLinkSchema) },
+    401: problemResponse('الرابط منتهٍ أو مُبطَل أو غير موجود'),
+    429: problemResponse('محاولات كثيرة'),
+  },
+})
+
+export const rsvpBodySchema = z.object({
+  memberId: z.uuid().openapi({
+    description: 'عضويته في المجموعة التي يؤكّد حضورها، كما في البطاقة.',
+  }),
+  coming: z.boolean(),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/me/rsvp'),
+  tags: ['Field'],
+  summary: 'تأكيد الحضور أو الاعتذار',
+  description: 'لحامل الرابط الشخصي. حالة تُكتب، فإعادة الطلب آمنة.',
+  security,
+  request: { body: json(rsvpBodySchema) },
+  responses: {
+    200: { description: 'سُجّل', ...json(fieldCardSchema) },
+    403: problemResponse('المسار لحامل رابط شخصي'),
+    404: problemResponse('العضوية ليست له'),
+    409: problemResponse('انتهت الحملة أو أُلغي الموقع'),
   },
 })
 
@@ -514,6 +663,8 @@ registry.registerPath({
   },
 })
 
+export type RedeemLinkBody = z.infer<typeof redeemLinkBodySchema>
+export type RsvpBody = z.infer<typeof rsvpBodySchema>
 export type AttendanceBody = z.infer<typeof attendanceBodySchema>
 export type UndoAttendanceBody = z.infer<typeof undoAttendanceBodySchema>
 export type FieldImpactBody = z.infer<typeof fieldImpactBodySchema>

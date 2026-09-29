@@ -2,22 +2,23 @@
 
 import { useQuery } from "@tanstack/react-query";
 
-import { getFieldHome, getFieldSheet } from "./api";
-import { useFieldSession } from "./session";
+import { getFieldCard, getFieldHome, getFieldSheet } from "./api";
+import { useSessionKind } from "./session";
 
 export const fieldKeys = {
   home: ["field", "home"] as const,
+  card: ["field", "card"] as const,
   sheet: (groupId: string) => ["field", "sheet", groupId] as const,
 };
 
 /**
  * القراءة مفتوحة بلا شبكة أيضًا: الحالة `offline` تعني هوية معروفة ومحفوظًا
  * قد يكون على الجهاز، فيُعرض هو ويفشل الجلب خلفه بصمت.
+ *
+ * وكل قراءة لصاحبها: ورقة القائد لا تُطلب برابط متطوع، ولا العكس.
  */
 function useCanRead() {
-  const { status } = useFieldSession();
-
-  return status === "authenticated" || status === "offline";
+  return useSessionKind() === "STAFF";
 }
 
 export function useFieldHome() {
@@ -25,6 +26,15 @@ export function useFieldHome() {
     queryKey: fieldKeys.home,
     queryFn: ({ signal }) => getFieldHome(signal),
     enabled: useCanRead(),
+  });
+}
+
+/** بطاقة المتطوع: أين ومتى ومع من، ثم ما تحقق بعد اليوم. */
+export function useFieldCard() {
+  return useQuery({
+    queryKey: fieldKeys.card,
+    queryFn: ({ signal }) => getFieldCard(signal),
+    enabled: useSessionKind() === "PARTICIPANT",
   });
 }
 

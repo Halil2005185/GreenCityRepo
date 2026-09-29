@@ -2,13 +2,15 @@
 
 import { CloudOff, LogIn, ShieldAlert, Sprout, Users } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import {
   FieldNotice,
   FieldSkeleton,
   PageTitle,
 } from "@/components/field/states";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/field/button";
 import {
   FieldApiError,
   type FieldGroupCard,
@@ -53,11 +55,21 @@ export function SheetGate({
   heading?: (group: FieldGroupCard) => { title: string; description: string };
   children: (view: SheetView) => React.ReactNode;
 }) {
+  const router = useRouter();
   const { status, identity } = useFieldSession();
   const online = useOnline();
   const { home, group, select, query, sheet } = useGroupSheet();
 
-  if (status === "loading") return <FieldSkeleton />;
+  // تبويبات المجموعة للقائد. حامل رابط شخصي فتح عنوانها يعود إلى بطاقته.
+  const volunteer =
+    identity?.kind === "PARTICIPANT" &&
+    (status === "authenticated" || status === "offline");
+
+  useEffect(() => {
+    if (volunteer) router.replace(FIELD_ROUTES.home);
+  }, [volunteer, router]);
+
+  if (status === "loading" || volunteer) return <FieldSkeleton />;
 
   if (status === "anonymous") return <Welcome />;
 
@@ -143,13 +155,19 @@ function Welcome() {
       title={FIELD_APP_NAME}
       description="لقادة المجموعات في حملات المدن الخضراء: ورقة يوم مجموعتك، وحضور متطوعيها، وأعداد موقعها وصوره — في هاتفك، ولو ضعفت الشبكة."
     >
-      <Link
-        href={FIELD_ROUTES.login}
-        className={cn(buttonVariants({ size: "lg" }), "w-full")}
-      >
-        <LogIn aria-hidden />
-        تسجيل الدخول
-      </Link>
+      <div className="w-full space-y-4">
+        <Link
+          href={FIELD_ROUTES.login}
+          className={cn(buttonVariants({ size: "lg" }), "w-full")}
+        >
+          <LogIn aria-hidden />
+          تسجيل الدخول
+        </Link>
+        <p className="text-sm leading-relaxed text-foreground">
+          متطوع؟ افتح رابطك الشخصي الذي وصلك من منسّق الحملة: فيه موعدك وموقعك،
+          بلا حساب ولا كلمة مرور.
+        </p>
+      </div>
     </FieldNotice>
   );
 }
@@ -239,7 +257,7 @@ function GroupSwitcher({
             "shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             group.id === currentId
-              ? "border-accent-ink bg-accent-ink text-background"
+              ? "border-accent-ink bg-accent-ink text-[var(--brand-warm-beige)]"
               : "border-border bg-card text-foreground hover:bg-accent",
           )}
         >

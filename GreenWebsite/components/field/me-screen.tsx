@@ -1,10 +1,18 @@
 "use client";
 
-import { ExternalLink, LogIn, LogOut, Smartphone, UserRound } from "lucide-react";
+import {
+  ExternalLink,
+  KeyRound,
+  LogIn,
+  LogOut,
+  Smartphone,
+  UserRound,
+} from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Button, buttonVariants } from "@/components/field/button";
 import { OutboxList } from "@/components/field/outbox-list";
 import {
   FieldCard,
@@ -12,9 +20,9 @@ import {
   FieldSkeleton,
   PageTitle,
 } from "@/components/field/states";
-import { Button, buttonVariants } from "@/components/ui/button";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import { useDisplayMode } from "@/lib/field/display-mode";
+import { formatDay } from "@/lib/field/labels";
 import { useOutbox } from "@/lib/field/outbox";
 import { useFieldSession, useOnline } from "@/lib/field/session";
 import { cn } from "@/lib/utils";
@@ -40,7 +48,7 @@ export function MeScreen() {
         <FieldNotice
           icon={UserRound}
           title="لم تسجّل الدخول"
-          description="سجّل الدخول بحسابك في الفريق لترى مجموعاتك."
+          description="سجّل الدخول بحسابك في الفريق لترى مجموعاتك. والمتطوع يفتح رابطه الشخصي الذي وصله من المنسّق."
         >
           <Link
             href={FIELD_ROUTES.login}
@@ -65,6 +73,7 @@ export function MeScreen() {
     }
   }
 
+  const volunteer = identity.kind === "PARTICIPANT";
   const memberships = user?.memberships ?? [];
 
   return (
@@ -80,11 +89,31 @@ export function MeScreen() {
             <p className="truncate text-base font-bold text-foreground">
               {identity.fullNameAr}
             </p>
-            <p dir="ltr" className="truncate text-end text-sm text-muted-foreground">
-              {identity.email}
-            </p>
+            {identity.kind === "STAFF" ? (
+              <p
+                dir="ltr"
+                className="truncate text-end text-sm text-muted-foreground"
+              >
+                {identity.email}
+              </p>
+            ) : (
+              <p className="truncate text-sm text-muted-foreground">
+                متطوع في {identity.initiativeNameAr}
+              </p>
+            )}
           </div>
         </div>
+
+        {identity.kind === "PARTICIPANT" ? (
+          <p className="mt-4 flex items-start gap-2 border-t border-border pt-3 text-sm leading-relaxed text-foreground">
+            <KeyRound
+              className="mt-0.5 size-4 shrink-0 text-accent-ink"
+              aria-hidden
+            />
+            دخلت برابطك الشخصي، وهو صالح حتى {formatDay(identity.expiresAt)}.
+            الرابط لك وحدك فلا تشاركه.
+          </p>
+        ) : null}
 
         {memberships.length > 0 ? (
           <ul className="mt-4 space-y-1 border-t border-border pt-3">
@@ -115,12 +144,18 @@ export function MeScreen() {
             />
             {mode === "standalone"
               ? "التطبيق مثبَّت ويُفتح من أيقونته."
-              : "تفتح التطبيق في المتصفح. ثبّته على الشاشة الرئيسية ليُفتح من أيقونته ويعمل بلا شبكة."}
+              : volunteer
+                ? "تفتح بطاقتك في المتصفح. احفظ رسالة الرابط لتعود إليها، أو ثبّت التطبيق على الشاشة الرئيسية."
+                : "تفتح التطبيق في المتصفح. ثبّته على الشاشة الرئيسية ليُفتح من أيقونته ويعمل بلا شبكة."}
           </li>
           <li className="text-muted-foreground">
-            {online
-              ? "ورقة يومك تُحفظ على الجهاز عند كل فتح، وتبقى مقروءة أسبوعًا بلا شبكة. وما تسجّله بلا شبكة يُرسَل حين تعود."
-              : "لا اتصال الآن: ما تراه من المحفوظ على الجهاز، وما تسجّله يُحفظ عليه حتى تعود الشبكة."}
+            {volunteer
+              ? online
+                ? "بطاقتك تُحفظ على الهاتف عند كل فتح، وتبقى مقروءة أسبوعًا بلا شبكة."
+                : "لا اتصال الآن: ما تراه من المحفوظ على الهاتف."
+              : online
+                ? "ورقة يومك تُحفظ على الجهاز عند كل فتح، وتبقى مقروءة أسبوعًا بلا شبكة. وما تسجّله بلا شبكة يُرسَل حين تعود."
+                : "لا اتصال الآن: ما تراه من المحفوظ على الجهاز، وما تسجّله يُحفظ عليه حتى تعود الشبكة."}
           </li>
         </ul>
       </FieldCard>
@@ -135,17 +170,24 @@ export function MeScreen() {
             onClick={() => void leave()}
           >
             <LogOut aria-hidden />
-            {leaving ? "…جارٍ الخروج" : "تسجيل الخروج"}
+            {leaving
+              ? "…جارٍ الخروج"
+              : volunteer
+                ? "انسَ بطاقتي على هذا الجهاز"
+                : "تسجيل الخروج"}
           </Button>
           {unsent > 0 ? (
             // الخروج لا يمسح ما لم يُرسَل، لكنه يوقف إرساله حتى يعود صاحبه.
             <p className="rounded-lg border border-warning/40 bg-warning/10 px-3 py-2.5 text-xs leading-relaxed text-foreground">
               على هذا الهاتف ما لم يُرسَل بعد. إن خرجت الآن بقي محفوظًا باسمك،
-              ولا يُرسَل حتى تعود وتدخل بحسابك من هذا الهاتف نفسه.
+              ولا يُرسَل حتى تعود{" "}
+              {volunteer ? "وتفتح رابطك" : "وتدخل بحسابك"} من هذا الهاتف نفسه.
             </p>
           ) : (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              الخروج يمسح ما حُفظ من أوراق اليوم عن هذا الجهاز.
+              {volunteer
+                ? "رابطك يبقى صالحًا: تفتحه من رسالته متى شئت فتعود بطاقتك."
+                : "الخروج يمسح ما حُفظ من أوراق اليوم عن هذا الجهاز."}
             </p>
           )}
         </div>

@@ -4,8 +4,14 @@ import { errors } from '../../common/errors/app-error.js'
 import { requestTrace } from '../audit/audit.service.js'
 import * as admin from './field-admin.service.js'
 import type * as adminDto from './field-admin.schemas.js'
-import { fieldPrincipal } from './field-auth.js'
+import {
+  fieldPrincipal,
+  participantPrincipal,
+  staffPrincipal,
+} from './field-auth.js'
 import * as capture from './field-capture.service.js'
+import * as card from './field-card.service.js'
+import * as links from './field-links.service.js'
 import * as service from './field.service.js'
 import type * as dto from './field.schemas.js'
 
@@ -21,17 +27,43 @@ function readId(request: Request, key = 'id') {
 
 // ── التطبيق: القراءة ───────────────────────────────────────────────────
 
+/** الجواب يتبع من يسأل: مجموعات القائد، أو بطاقة حامل الرابط. */
 export const getHome: RequestHandler = async (request, response) => {
-  response.status(200).json(await service.loadHome(fieldPrincipal(request)))
+  const principal = fieldPrincipal(request)
+
+  response
+    .status(200)
+    .json(
+      principal.kind === 'STAFF'
+        ? await service.loadHome(principal)
+        : await card.loadCard(principal),
+    )
 }
 
 export const getSheet: RequestHandler = async (request, response) => {
   const sheet = await service.loadSheet(
     readId(request),
-    fieldPrincipal(request),
+    staffPrincipal(request),
   )
 
   response.status(200).json(sheet)
+}
+
+// ── حامل الرابط الشخصي ─────────────────────────────────────────────────
+
+export const postLinkRedeem: RequestHandler = async (request, response) => {
+  const { token } = request.body as dto.RedeemLinkBody
+
+  response.status(200).json(await links.redeemLink(token))
+}
+
+export const postRsvp: RequestHandler = async (request, response) => {
+  const updated = await card.setRsvp(
+    participantPrincipal(request),
+    request.body as dto.RsvpBody,
+  )
+
+  response.status(200).json(updated)
 }
 
 // ── التطبيق: الكتابة ───────────────────────────────────────────────────
@@ -43,7 +75,7 @@ export const postAttendance: RequestHandler = async (request, response) => {
   const recorded = await capture.recordAttendance(
     readId(request),
     request.body as dto.AttendanceBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -54,7 +86,7 @@ export const postAttendanceUndo: RequestHandler = async (request, response) => {
   const undone = await capture.undoAttendance(
     readId(request),
     request.body as dto.UndoAttendanceBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -65,7 +97,7 @@ export const postImpact: RequestHandler = async (request, response) => {
   const entry = await capture.recordImpact(
     readId(request),
     request.body as dto.FieldImpactBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -76,7 +108,7 @@ export const postPhotoSign: RequestHandler = async (request, response) => {
   const signed = await capture.signPhotoUpload(
     readId(request),
     request.body as dto.SignPhotoBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
   )
 
   response.status(200).json({ data: signed })
@@ -86,7 +118,7 @@ export const postPhoto: RequestHandler = async (request, response) => {
   const photo = await capture.registerPhoto(
     readId(request),
     request.body as dto.RegisterPhotoBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -97,7 +129,7 @@ export const postTaskStatus: RequestHandler = async (request, response) => {
   const task = await capture.changeTaskStatusFromField(
     readId(request),
     request.body as dto.FieldTaskStatusBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -108,7 +140,7 @@ export const postTaskComment: RequestHandler = async (request, response) => {
   const task = await capture.commentOnTask(
     readId(request),
     request.body as dto.FieldTaskCommentBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -119,7 +151,7 @@ export const patchSite: RequestHandler = async (request, response) => {
   const site = await capture.changeSiteStatus(
     readId(request),
     request.body as dto.FieldSiteStatusBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -219,6 +251,45 @@ export const deleteMember: RequestHandler = async (request, response) => {
   )
 
   response.status(200).json(members)
+}
+
+// ── المنسّق: الروابط والإعدادات ────────────────────────────────────────
+
+export const postLinks: RequestHandler = async (request, response) => {
+  const issued = await links.createLinks(
+    readId(request),
+    request.body as adminDto.CreateLinksBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(issued)
+}
+
+export const postLinksRevoke: RequestHandler = async (request, response) => {
+  const result = await links.revokeLinks(
+    readId(request),
+    request.body as adminDto.RevokeLinksBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(result)
+}
+
+export const getFeedbackForms: RequestHandler = async (_request, response) => {
+  response.status(200).json({ data: await admin.listFeedbackForms() })
+}
+
+export const putSettings: RequestHandler = async (request, response) => {
+  const field = await admin.updateSettings(
+    readId(request),
+    request.body as adminDto.UpdateSettingsBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(field)
 }
 
 export const getSources: RequestHandler = async (_request, response) => {

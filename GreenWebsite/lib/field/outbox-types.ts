@@ -90,7 +90,20 @@ export type SiteStatusItem = Base & {
   payload: { status: "IN_PROGRESS" | "COMPLETED" };
 };
 
+/**
+ * تأكيد الحضور من بطاقة المتطوع. `groupId` هنا مجموعة العضوية، كبقية
+ * الأفعال، فيُعرف أي بطاقة يمسّها.
+ */
+export type RsvpItem = Base & {
+  kind: "rsvp";
+  payload: { memberId: string; coming: boolean };
+};
+
+/** ما يسجّله القائد على ورقة مجموعته. */
+export type SheetItem = Exclude<OutboxItem, RsvpItem>;
+
 export type OutboxItem =
+  | RsvpItem
   | AttendanceItem
   | WalkInItem
   | UndoItem

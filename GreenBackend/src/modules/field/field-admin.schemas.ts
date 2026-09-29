@@ -34,16 +34,38 @@ export const fieldGroupSchema = registry.register(
     nameAr: z.string(),
     leadUserId: z.uuid().nullable(),
     leadNameAr: z.string().nullable(),
+    contactPhone: z.string().nullable().openapi({
+      description:
+        'وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق.',
+    }),
     meetsAt: z.iso.datetime().nullable(),
     meetingPointAr: z.string().nullable(),
     instructionsAr: z.string().nullable(),
     displayOrder: z.number().int(),
     memberCount: z.number().int(),
+    comingCount: z.number().int().openapi({
+      description: 'من أكّدوا حضورهم من بطاقاتهم.',
+    }),
+    linkedCount: z.number().int().openapi({
+      description: 'أعضاء لهم رابط شخصي قائم لم ينتهِ.',
+    }),
     attendedCount: z.number().int().openapi({
       description: 'من حضر من المجموعة يومًا واحدًا على الأقل.',
     }),
     photoCount: z.number().int(),
     createdAt: z.iso.datetime(),
+  }),
+)
+
+export const fieldSettingsSchema = registry.register(
+  'FieldSettings',
+  z.object({
+    feedbackFormId: z.uuid().nullable(),
+    feedbackFormNameAr: z.string().nullable(),
+    feedbackFormUrl: z.string().nullable().openapi({
+      description:
+        'رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل.',
+    }),
   }),
 )
 
@@ -53,6 +75,7 @@ export const initiativeFieldSchema = registry.register(
     .object({
       initiativeId: z.uuid(),
       groups: z.array(fieldGroupSchema),
+      settings: fieldSettingsSchema,
     })
     .openapi({
       description:
@@ -115,6 +138,12 @@ registry.registerPath({
 
 const meetingFields = {
   leadUserId: z.uuid().nullable().optional(),
+  contactPhone: z
+    .string()
+    .trim()
+    .regex(PHONE_PATTERN, 'صيغة رقم الهاتف غير صحيحة.')
+    .nullable()
+    .optional(),
   meetsAt: z.iso.datetime().nullable().optional(),
   meetingPointAr: z.string().max(300).nullable().optional(),
   instructionsAr: z.string().max(4000).nullable().optional(),
@@ -197,6 +226,21 @@ export const groupMemberSchema = registry.register(
     }),
     attendedDays: z.number().int(),
     lastAttendedOn: z.iso.date().nullable(),
+    rsvpAt: z.iso.datetime().nullable(),
+    link: z
+      .object({
+        status: z.enum(['ACTIVE', 'EXPIRED']),
+        expiresAt: z.iso.datetime(),
+        lastUsedAt: z.iso.datetime().nullable().openapi({
+          description: 'آخر فتح للبطاقة بهذا الرابط. `null` إن لم يُفتح بعد.',
+        }),
+        emailedAt: z.iso.datetime().nullable(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          'رابطه الشخصي القائم في هذه المبادرة. الرابط نفسه لا يُعرض هنا: يظهر مرة واحدة عند توليده.',
+      }),
     attendance: z
       .object({
         id: z.uuid(),
@@ -329,6 +373,145 @@ registry.registerPath({
   responses: {
     200: { description: 'أُخرج', ...json(groupMembersSchema) },
     404: problemResponse('العضو غير موجود في هذه المجموعة'),
+  },
+})
+
+// ── الروابط الشخصية ────────────────────────────────────────────────────
+
+export const createLinksBodySchema = z
+  .object({
+    groupId: z.uuid().optional().openapi({
+      description: 'كل أعضاء هذه المجموعة.',
+    }),
+    participantIds: z.array(z.uuid()).max(500).default([]),
+    ttlDays: z.number().int().min(1).max(365).optional().openapi({
+      description: 'عمر الرابط بالأيام. الافتراضي من إعداد الخادم.',
+    }),
+    email: z.boolean().default(false).openapi({
+      description: 'إرسال الرابط بالبريد لمن له بريد. غيره يُنسخ رابطه.',
+    }),
+  })
+  .refine(
+    (value) => Boolean(value.groupId) || value.participantIds.length > 0,
+    { message: 'اختر مجموعة أو مشاركين.', path: ['participantIds'] },
+  )
+
+export const issuedLinkSchema = registry.register(
+  'FieldIssuedLink',
+  z.object({
+    participantId: z.uuid(),
+    fullNameAr: z.string(),
+    phone: z.string().nullable(),
+    email: z.string().nullable(),
+    groupNameAr: z.string(),
+    url: z.string().openapi({
+      description:
+        'الرابط الشخصي. يظهر في هذا الجواب وحده: الخادم يحفظ بصمته لا نصّه.',
+    }),
+    messageAr: z.string().openapi({
+      description: 'نص جاهز للصق في واتساب، وفيه الرابط.',
+    }),
+    whatsappUrl: z.string().nullable().openapi({
+      description:
+        'يفتح محادثة واتساب مع صاحب الرقم والنص مكتوب فيها. `null` حين لا يُعرف الرقم دوليًا.',
+    }),
+    emailed: z.boolean(),
+  }),
+)
+
+export const createLinksResultSchema = registry.register(
+  'FieldIssuedLinks',
+  z.object({
+    initiativeId: z.uuid(),
+    expiresAt: z.iso.datetime(),
+    links: z.array(issuedLinkSchema),
+  }),
+)
+
+registry.registerPath({
+  method: 'post',
+  path: path('/links'),
+  tags: ['Field'],
+  summary: 'توليد روابط شخصية للمتطوعين',
+  description:
+    'رابط لكل مشارك، يُعرض مرة واحدة. توليد جديد يُبطل رابطه السابق في هذه المبادرة.',
+  security,
+  request: { params: initiativeParamsSchema, body: json(createLinksBodySchema) },
+  responses: {
+    200: { description: 'وُلّدت', ...json(createLinksResultSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+    409: problemResponse('المبادرة ملغاة'),
+    422: problemResponse('مشارك ليس عضوًا في مجموعة من هذه المبادرة'),
+  },
+})
+
+export const revokeLinksBodySchema = z.object({
+  participantIds: z.array(z.uuid()).min(1).max(500),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/links/revoke'),
+  tags: ['Field'],
+  summary: 'إبطال روابط شخصية',
+  description: 'البطاقة تُغلق فورًا على كل جهاز فتحها. ما أُبطل سلفًا يبقى كما هو.',
+  security,
+  request: { params: initiativeParamsSchema, body: json(revokeLinksBodySchema) },
+  responses: {
+    200: {
+      description: 'أُبطلت',
+      ...json(z.object({ initiativeId: z.uuid(), revoked: z.number().int() })),
+    },
+    404: problemResponse('المبادرة غير موجودة'),
+  },
+})
+
+// ── إعدادات الميدان ────────────────────────────────────────────────────
+
+export const feedbackFormSchema = registry.register(
+  'FieldFeedbackForm',
+  z.object({
+    formId: z.uuid(),
+    nameAr: z.string(),
+    slug: z.string(),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/feedback-forms'),
+  tags: ['Field'],
+  summary: 'استمارات تصلح للتقييم',
+  description:
+    'المنشورة التي تستقبل. مسار خاص كمسار المصادر: المنسّق يرى اسم الاستمارة لا أسئلتها.',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: {
+      description: 'الاستمارات',
+      ...json(z.object({ data: z.array(feedbackFormSchema) })),
+    },
+  },
+})
+
+export const updateSettingsBodySchema = z.object({
+  feedbackFormId: z.uuid().nullable(),
+})
+
+registry.registerPath({
+  method: 'put',
+  path: path('/settings'),
+  tags: ['Field'],
+  summary: 'إعدادات ميدان المبادرة',
+  security,
+  request: {
+    params: initiativeParamsSchema,
+    body: json(updateSettingsBodySchema),
+  },
+  responses: {
+    200: { description: 'حُفظت', ...json(initiativeFieldSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+    422: problemResponse('الاستمارة غير موجودة'),
   },
 })
 
@@ -599,6 +782,9 @@ export type UpdateGroupBody = z.infer<typeof updateGroupBodySchema>
 export type MembersQuery = z.infer<typeof membersQuerySchema>
 export type AddMembersBody = z.infer<typeof addMembersBodySchema>
 export type UpdateMemberBody = z.infer<typeof updateMemberBodySchema>
+export type CreateLinksBody = z.infer<typeof createLinksBodySchema>
+export type RevokeLinksBody = z.infer<typeof revokeLinksBodySchema>
+export type UpdateSettingsBody = z.infer<typeof updateSettingsBodySchema>
 export type ApplicantsQuery = z.infer<typeof applicantsQuerySchema>
 export type ParticipantsQuery = z.infer<typeof participantsQuerySchema>
 export type AttendanceImpactBody = z.infer<typeof attendanceImpactBodySchema>

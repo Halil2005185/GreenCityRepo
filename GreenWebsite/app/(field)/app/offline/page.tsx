@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { FieldNotice, PageTitle } from "@/components/field/states";
-import { buttonVariants } from "@/components/ui/button";
+import { buttonVariants } from "@/components/field/button";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import { cn } from "@/lib/utils";
 

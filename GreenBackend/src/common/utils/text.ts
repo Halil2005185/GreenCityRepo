@@ -34,6 +34,38 @@ export function nameKey(value: string) {
     .trim()
 }
 
+/** الأرقام العربية والفارسية بالخانات اللاتينية. */
+function latinDigits(value: string) {
+  return value
+    .normalize('NFKC')
+    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
+    .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+}
+
+/**
+ * الرقم كما يطلبه رابط واتساب (`wa.me`): دولي بلا `+` ولا أصفار.
+ *
+ * ما كُتب دوليًا يبقى كما كُتب، والجوال السوري المحلي (`09XXXXXXXX`) يأخذ
+ * مفتاح البلد. ما عداهما لا يُخمَّن: رقم أرضي أو ناقص يعطي `null`، فيُنسخ
+ * النص باليد بدل أن تُفتح محادثة مع غير صاحبه.
+ */
+export function whatsappNumber(value: string | null | undefined) {
+  if (!value) return null
+
+  const raw = latinDigits(value).trim()
+  const digits = raw.replace(/\D/g, '')
+
+  if (/^(\+|00)/.test(raw)) {
+    const international = digits.replace(/^00/, '')
+
+    return international.length >= 8 && international.length <= 15
+      ? international
+      : null
+  }
+
+  return /^09\d{8}$/.test(digits) ? `963${digits.slice(1)}` : null
+}
+
 /**
  * صورة الهاتف للمطابقة: أرقامه وحدها بلا مفتاح البلد ولا الصفر البادئ.
  *
@@ -43,14 +75,30 @@ export function nameKey(value: string) {
 export function phoneKey(value: string | null | undefined) {
   if (!value) return null
 
-  const digits = value
-    .normalize('NFKC')
-    .replace(/[٠-٩]/g, (digit) => String(digit.charCodeAt(0) - 0x0660))
-    .replace(/[۰-۹]/g, (digit) => String(digit.charCodeAt(0) - 0x06f0))
+  const digits = latinDigits(value)
     .replace(/\D/g, '')
     .replace(/^00/, '')
     .replace(/^963/, '')
     .replace(/^0+/, '')
 
   return digits.length >= 6 ? digits.slice(0, 20) : null
+}
+
+/**
+ * عنوان يشير إلى جهاز التطوير لا إلى موقع يفتحه الناس. به يُعرف في الإنتاج
+ * أن متغيّر عنوانٍ تُرك على قيمته الافتراضية.
+ */
+export function isLocalUrl(value: string) {
+  try {
+    const { hostname } = new URL(value)
+
+    return (
+      hostname === 'localhost' ||
+      hostname.endsWith('.localhost') ||
+      hostname === '127.0.0.1' ||
+      hostname === '[::1]'
+    )
+  } catch {
+    return false
+  }
 }

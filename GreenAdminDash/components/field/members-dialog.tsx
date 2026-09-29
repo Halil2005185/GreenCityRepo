@@ -1,16 +1,28 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { UserMinus, UserPlus, UserRoundCheck, UserRoundCog } from "lucide-react";
+import {
+  Link2,
+  Link2Off,
+  RefreshCcw,
+  UserMinus,
+  UserPlus,
+  UserRoundCheck,
+  UserRoundCog,
+} from "lucide-react";
 import { useMemo, useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { AddMembersDialog, membersKey } from "@/components/field/add-members-dialog";
 import { fieldKey } from "@/components/field/group-dialog";
+import { LinksDialog } from "@/components/field/links-dialog";
 import { ActionButton } from "@/components/ui/actions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/components/ui/confirm-dialog";
-import { DataTable, EmptyCell, PrimaryCell, cells, columnHelper } from "@/components/ui/data-table";
+import { DataTable, EmptyCell, PrimaryCell, columnHelper } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogBody,
@@ -21,30 +33,52 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { FormDialog } from "@/components/ui/form-dialog";
+import { CheckboxField, SelectField, TextField } from "@/components/ui/form-fields";
 import { SearchInput } from "@/components/ui/toolbar";
 import {
   MEMBER_ROLE_LABELS,
+  RSVP_LABELS,
+  createLinks,
   listGroupMembers,
   removeGroupMember,
+  revokeLinks,
   updateGroupMember,
   type FieldGroup,
   type FieldGroupMember,
   type FieldGroupMembers,
+  type FieldIssuedLinks,
 } from "@/lib/api/field";
 import { useApiMutation } from "@/lib/api/use-api-mutation";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { matchesQuery } from "@/lib/text/normalize-ar";
 import { countAr } from "@/lib/text/plural-ar";
+import { formatDate } from "@/lib/utils";
 
 const MANAGE = [CAPABILITIES.fieldManage] as const;
 
 const DAYS = { one: "يوم واحد", two: "يومان", few: "أيام", many: "يومًا", other: "يوم" };
 
+const MEMBERS = {
+  one: "عضو واحد",
+  two: "عضوان",
+  few: "أعضاء",
+  many: "عضوًا",
+  other: "عضو",
+};
+
+const RSVP_TONES = {
+  UNKNOWN: "neutral",
+  COMING: "success",
+  NOT_COMING: "warning",
+} as const;
+
 const memberCol = columnHelper<FieldGroupMember>();
 
 /**
- * أعضاء المجموعة: من يراهم قائدها في «الحضور» بالتطبيق الميداني.
+ * أعضاء المجموعة: من يراهم قائدها في «الحضور» بالتطبيق الميداني، ومن
+ * يُرسَل إليهم رابط بطاقتهم.
  *
  * نافذة لا صفحة: المنسّق يوزّع المتطوعين على مجموعات المبادرة واحدة بعد
  * أخرى، ويعود إلى قائمتها بين كل اثنتين.
@@ -58,7 +92,7 @@ export function MembersDialog({
 }: {
   initiativeId: string;
   group: FieldGroup | null;
-  /** المبادرة مغلقة: القائمة سجلّ يُقرأ. */
+  /** المبادرة مغلقة: القائمة سجلّ يُقرأ. الروابط تبقى — بطاقة ما بعد اليوم. */
   readOnly: boolean;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -68,7 +102,7 @@ export function MembersDialog({
       <DialogContent size="lg">
         {group ? (
           <Members
-            // مجموعة أخرى جلسة أخرى: بحثها ونافذة إضافتها يبدآن من جديد.
+            // مجموعة أخرى جلسة أخرى: بحثها ونوافذها تبدأ من جديد.
             key={group.id}
             initiativeId={initiativeId}
             group={group}
@@ -94,6 +128,11 @@ function Members({
   const { can } = useAuth();
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
+  const [issuing, setIssuing] = useState(false);
+  const [issued, setIssued] = useState<{ links: FieldIssuedLinks | null; open: boolean }>({
+    links: null,
+    open: false,
+  });
   const key = membersKey(initiativeId, group.id);
 
   const members = useQuery({
@@ -105,6 +144,17 @@ function Members({
   const apply = (next: FieldGroupMembers) => {
     queryClient.setQueryData(key, next);
     void queryClient.invalidateQueries({ queryKey: fieldKey(initiativeId) });
+  };
+
+  /** الروابط لا تعيد القائمة: تُقرأ من جديد، ومعها عدّادات المجموعات. */
+  const refresh = () => {
+    void queryClient.invalidateQueries({ queryKey: key });
+    void queryClient.invalidateQueries({ queryKey: fieldKey(initiativeId) });
+  };
+
+  const show = (links: FieldIssuedLinks) => {
+    refresh();
+    setIssued({ links, open: true });
   };
 
   const changeRole = useApiMutation({
@@ -119,12 +169,14 @@ function Members({
     onSuccess: apply,
   });
 
+  const all = useMemo(() => members.data?.members ?? [], [members.data]);
+
   const visible = useMemo(
     () =>
-      (members.data?.members ?? []).filter((member) =>
+      all.filter((member) =>
         matchesQuery(search, member.fullNameAr, member.phone, member.email),
       ),
-    [members.data, search],
+    [all, search],
   );
 
   const columns = useMemo(
@@ -133,7 +185,7 @@ function Members({
         memberCol.accessor("fullNameAr", {
           header: "الاسم",
           cell: (info) => {
-            const { phone, email, fromForm } = info.row.original;
+            const { phone, email, fromForm, role } = info.row.original;
 
             return (
               <PrimaryCell
@@ -141,31 +193,51 @@ function Members({
                 description={
                   phone || email ? <bdi>{[phone, email].filter(Boolean).join(" · ")}</bdi> : null
                 }
-                badge={fromForm ? <Badge tone="outline">من استمارة</Badge> : null}
+                badge={
+                  <>
+                    {role === "ASSISTANT" ? (
+                      <Badge tone="primary">{MEMBER_ROLE_LABELS.ASSISTANT}</Badge>
+                    ) : null}
+                    {fromForm ? <Badge tone="outline">من استمارة</Badge> : null}
+                  </>
+                }
               />
             );
           },
         }),
-        memberCol.accessor("role", {
-          header: "الدور",
+        memberCol.accessor("rsvp", {
+          header: "تأكيد الحضور",
           meta: { className: "whitespace-nowrap" },
           cell: (info) => (
-            <Badge tone={info.getValue() === "ASSISTANT" ? "primary" : "neutral"}>
-              {MEMBER_ROLE_LABELS[info.getValue()]}
-            </Badge>
+            <Badge tone={RSVP_TONES[info.getValue()]}>{RSVP_LABELS[info.getValue()]}</Badge>
           ),
+        }),
+        memberCol.accessor((member) => member.link?.status ?? "NONE", {
+          id: "link",
+          header: "الرابط",
+          meta: { className: "whitespace-nowrap" },
+          cell: (info) => {
+            const { link } = info.row.original;
+
+            if (!link) return <EmptyCell />;
+
+            if (link.status === "EXPIRED") return <Badge tone="warning">انتهى</Badge>;
+
+            return (
+              <div className="space-y-0.5">
+                <Badge tone={link.lastUsedAt ? "success" : "neutral"}>
+                  {link.lastUsedAt ? "فُتح" : "لم يُفتح بعد"}
+                </Badge>
+                <p className="text-xs text-muted-foreground">حتى {formatDate(link.expiresAt)}</p>
+              </div>
+            );
+          },
         }),
         memberCol.accessor("attendedDays", {
           header: "حضر",
           meta: { className: "whitespace-nowrap" },
           cell: (info) =>
             info.getValue() > 0 ? countAr(info.getValue(), DAYS) : <EmptyCell />,
-        }),
-        memberCol.accessor((member) => member.lastAttendedOn ?? undefined, {
-          id: "lastAttendedOn",
-          header: "آخر حضور",
-          sortUndefined: "last",
-          cell: (info) => cells.date(info.getValue()),
         }),
       ]),
     [],
@@ -180,7 +252,18 @@ function Members({
     onSelect: () => setAdding(true),
   };
 
-  const total = members.data?.members.length ?? group.memberCount;
+  const issue = {
+    key: "issue-links",
+    label: "توليد الروابط",
+    icon: Link2,
+    requires: MANAGE,
+    disabled: all.length === 0,
+    disabledReason: "أضف أعضاء أولًا.",
+    onSelect: () => setIssuing(true),
+  };
+
+  const total = members.data ? all.length : group.memberCount;
+  const manage = can(CAPABILITIES.fieldManage);
 
   return (
     <>
@@ -206,8 +289,11 @@ function Members({
             label="ابحث في أعضاء المجموعة"
             className="min-w-0 flex-1 sm:max-w-72"
           />
-          {can(CAPABILITIES.fieldManage) && !readOnly ? (
-            <ActionButton action={add} variant="default" size="sm" />
+          {manage ? (
+            <div className="flex flex-wrap items-center gap-2">
+              <ActionButton action={issue} size="sm" />
+              {readOnly ? null : <ActionButton action={add} variant="default" size="sm" />}
+            </div>
           ) : null}
         </div>
 
@@ -228,38 +314,78 @@ function Members({
               "أضف المقبولين في استمارة التطوع، أو من شارك سابقًا، أو اكتب الأسماء. ومن يحضر بلا تسجيل يضيفه القائد من التطبيق.",
             action: add,
           }}
-          rowActions={(member) =>
-            readOnly
-              ? []
-              : [
-                  {
-                    key: "role",
-                    label: member.role === "ASSISTANT" ? "أعده عضوًا" : "اجعله مساعدًا للقائد",
-                    icon: member.role === "ASSISTANT" ? UserRoundCheck : UserRoundCog,
-                    requires: MANAGE,
-                    loading: changeRole.isPendingFor((pending) => pending.id === member.id),
-                    onSelect: () => changeRole.mutate(member),
-                  },
-                  {
-                    key: "remove",
-                    label: "إخراج من المجموعة",
-                    icon: UserMinus,
-                    destructive: true,
-                    requires: MANAGE,
-                    onSelect: () =>
-                      void confirm({
-                        title: `إخراج ${member.fullNameAr} من «${group.nameAr}»؟`,
-                        description:
-                          "يخرج من قائمة المجموعة ويبقى في سجل المشاركين، وحضوره السابق فيها محفوظ.",
-                        confirmLabel: "إخراج من المجموعة",
-                        destructive: true,
-                        successMessage: "أُخرج من المجموعة.",
-                        onConfirm: async () =>
-                          apply(await removeGroupMember(initiativeId, group.id, member.id)),
+          rowActions={(member) => [
+            {
+              key: "link",
+              label: member.link ? "رابط جديد" : "توليد رابطه",
+              icon: member.link ? RefreshCcw : Link2,
+              requires: MANAGE,
+              onSelect: () =>
+                void confirm({
+                  title: member.link
+                    ? `رابط جديد لـ${member.fullNameAr}؟`
+                    : `توليد رابط ${member.fullNameAr}؟`,
+                  description: member.link
+                    ? "رابطه الحالي يُبطَل فورًا، وبطاقته تُغلق على كل هاتف فتحها حتى يفتح الجديد."
+                    : "يظهر الرابط مرة واحدة بعد توليده، لتنسخه أو ترسله.",
+                  confirmLabel: member.link ? "إبطال القديم وتوليد جديد" : "توليد الرابط",
+                  onConfirm: async () =>
+                    show(
+                      await createLinks(initiativeId, {
+                        participantIds: [member.participantId],
                       }),
+                    ),
+                }),
+            },
+            {
+              key: "revoke",
+              label: "إبطال الرابط",
+              icon: Link2Off,
+              requires: MANAGE,
+              hidden: !member.link,
+              onSelect: () =>
+                void confirm({
+                  title: `إبطال رابط ${member.fullNameAr}؟`,
+                  description:
+                    "بطاقته تُغلق فورًا على كل هاتف فتحها. يبقى عضوًا في المجموعة، وتولّد له رابطًا جديدًا متى شئت.",
+                  confirmLabel: "إبطال الرابط",
+                  destructive: true,
+                  successMessage: "أُبطل الرابط.",
+                  onConfirm: async () => {
+                    await revokeLinks(initiativeId, [member.participantId]);
+                    refresh();
                   },
-                ]
-          }
+                }),
+            },
+            {
+              key: "role",
+              label: member.role === "ASSISTANT" ? "أعده عضوًا" : "اجعله مساعدًا للقائد",
+              icon: member.role === "ASSISTANT" ? UserRoundCheck : UserRoundCog,
+              requires: MANAGE,
+              hidden: readOnly,
+              loading: changeRole.isPendingFor((pending) => pending.id === member.id),
+              onSelect: () => changeRole.mutate(member),
+            },
+            {
+              key: "remove",
+              label: "إخراج من المجموعة",
+              icon: UserMinus,
+              destructive: true,
+              requires: MANAGE,
+              hidden: readOnly,
+              onSelect: () =>
+                void confirm({
+                  title: `إخراج ${member.fullNameAr} من «${group.nameAr}»؟`,
+                  description:
+                    "يخرج من قائمة المجموعة ويبقى في سجل المشاركين، وحضوره السابق فيها محفوظ.",
+                  confirmLabel: "إخراج من المجموعة",
+                  destructive: true,
+                  successMessage: "أُخرج من المجموعة.",
+                  onConfirm: async () =>
+                    apply(await removeGroupMember(initiativeId, group.id, member.id)),
+                }),
+            },
+          ]}
         />
       </DialogBody>
 
@@ -277,14 +403,128 @@ function Members({
         open={adding}
         onOpenChange={setAdding}
       />
+
+      <IssueLinksDialog
+        initiativeId={initiativeId}
+        group={group}
+        members={all}
+        open={issuing}
+        onOpenChange={setIssuing}
+        onIssued={show}
+      />
+
+      <LinksDialog
+        issued={issued.links}
+        open={issued.open}
+        onOpenChange={(next) => setIssued((current) => ({ ...current, open: next }))}
+      />
     </>
   );
 }
 
-const MEMBERS = {
-  one: "عضو واحد",
-  two: "عضوان",
-  few: "أعضاء",
-  many: "عضوًا",
-  other: "عضو",
-};
+const issueSchema = z.object({
+  scope: z.enum(["missing", "all"]),
+  ttlDays: z
+    .string()
+    .trim()
+    .regex(/^[0-9]{1,3}$/, "اكتب عدد الأيام بالأرقام.")
+    .refine((value) => Number(value) >= 1, "يوم واحد على الأقل.")
+    .refine((value) => Number(value) <= 365, "سنة على الأكثر."),
+  email: z.boolean(),
+});
+
+type IssueValues = z.infer<typeof issueSchema>;
+
+/**
+ * توليد الروابط دفعةً. الافتراضي لمن لا رابط قائمًا له: توليدٌ للجميع يُبطل
+ * روابط وصلت أصحابها وفتحوها.
+ */
+function IssueLinksDialog({
+  initiativeId,
+  group,
+  members,
+  open,
+  onOpenChange,
+  onIssued,
+}: {
+  initiativeId: string;
+  group: FieldGroup;
+  members: readonly FieldGroupMember[];
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onIssued: (links: FieldIssuedLinks) => void;
+}) {
+  const form = useForm<IssueValues>({
+    resolver: zodResolver(issueSchema),
+    defaultValues: { scope: "missing", ttlDays: "45", email: false },
+  });
+
+  const missing = members.filter((member) => member.link?.status !== "ACTIVE");
+  const withEmail = members.filter((member) => member.email).length;
+
+  return (
+    <FormDialog<IssueValues, FieldIssuedLinks>
+      open={open}
+      onOpenChange={onOpenChange}
+      size="sm"
+      title={`روابط «${group.nameAr}»`}
+      description="رابط شخصي لكل متطوع: فيه موعده وموقعه وقائد مجموعته، ومنه يؤكّد حضوره. بلا حساب ولا كلمة مرور."
+      form={form}
+      values={{
+        scope: missing.length > 0 ? "missing" : "all",
+        ttlDays: "45",
+        email: false,
+      }}
+      submitLabel="توليد الروابط"
+      onSubmit={(values) =>
+        createLinks(initiativeId, {
+          ...(values.scope === "all"
+            ? { groupId: group.id }
+            : { participantIds: missing.map((member) => member.participantId) }),
+          ttlDays: Number(values.ttlDays),
+          email: values.email,
+        })
+      }
+      onSuccess={onIssued}
+      fieldForError={(error) => (error.status === 422 ? "scope" : null)}
+    >
+      <SelectField
+        control={form.control}
+        name="scope"
+        label="لمن"
+        options={[
+          {
+            value: "missing",
+            label: "من لا رابط قائمًا له",
+            description: `${missing.length} من ${members.length}`,
+            disabled: missing.length === 0,
+          },
+          {
+            value: "all",
+            label: "كل أعضاء المجموعة",
+            description: "يُبطل ما وصلهم من روابط",
+          },
+        ]}
+      />
+      <TextField
+        control={form.control}
+        name="ttlDays"
+        label="صلاحية الرابط بالأيام"
+        hint="يغطي يوم الحملة وما بعده: بالرابط نفسه يرى المتطوع ما تحقق في موقعه."
+        inputMode="numeric"
+        dir="ltr"
+        className="text-end"
+      />
+      <CheckboxField
+        control={form.control}
+        name="email"
+        label="أرسل الرابط بالبريد لمن له بريد"
+        hint={
+          withEmail > 0
+            ? `لهم بريد: ${withEmail}. البقية تنسخ روابطهم أو ترسلها بواتساب من النافذة التالية.`
+            : "لا أحد في المجموعة له بريد مسجَّل."
+        }
+      />
+    </FormDialog>
+  );
+}

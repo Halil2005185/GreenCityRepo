@@ -14,7 +14,7 @@ import {
 
 import { createdAtOnly, timestamps, tsColumn, uuidColumn } from './columns.js'
 import { attendanceMethod, fieldMemberRole, fieldRsvp } from './enums.js'
-import { formSubmissions } from './forms.js'
+import { formSubmissions, forms } from './forms.js'
 import { users } from './identity.js'
 import { impactEntries } from './metrics.js'
 import { initiativeSites, initiatives } from './programs.js'
@@ -107,6 +107,13 @@ export const fieldGroups = pgTable(
       onDelete: 'set null',
     }),
 
+    /**
+     * وسيلة تواصل واحدة تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق:
+     * هاتف القائد إن رضي، أو رقم المنسّق. ليست هاتف القائد من حسابه — ذاك
+     * لم يُعطَ ليُنشر على مئة متطوع.
+     */
+    contactPhone: varchar('contact_phone', { length: 32 }),
+
     meetsAt: tsColumn('meets_at'),
     meetingPointAr: varchar('meeting_point_ar', { length: 300 }),
     /** ما يحضره المتطوع وما ينتبه له — يُقرأ في الميدان، فهو نص لا حقول. */
@@ -158,6 +165,76 @@ export const fieldGroupMembers = pgTable(
     index('field_group_members_participant_idx').on(table.participantId),
   ],
 )
+
+/**
+ * الرابط الشخصي — اعتماد المتطوع الوحيد. لا حساب ولا كلمة مرور.
+ *
+ * يُحفظ مجزّأً كرموز الجلسات: من قرأ القاعدة لا يفتح بطاقة أحد. ونطاقه
+ * مبادرة واحدة، فمن شارك رابطه أعطى بطاقته في تلك الحملة لا أكثر.
+ *
+ * رابط قائم واحد للمشارك في المبادرة: توليد جديد يُبطل ما قبله، فلا يبقى
+ * رابط قديم في محادثة منسيّة يفتح البطاقة بعد أن ظُنّ أنه استُبدل.
+ */
+export const participantLinks = pgTable(
+  'participant_links',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    participantId: uuidColumn('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    initiativeId: uuidColumn('initiative_id')
+      .notNull()
+      .references(() => initiatives.id, { onDelete: 'cascade' }),
+
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    expiresAt: tsColumn('expires_at').notNull(),
+
+    firstUsedAt: tsColumn('first_used_at'),
+    lastUsedAt: tsColumn('last_used_at'),
+    /** أُرسل بالبريد من النظام. النسخ إلى واتساب لا يُعرف هنا. */
+    emailedAt: tsColumn('emailed_at'),
+
+    revokedAt: tsColumn('revoked_at'),
+    revokedById: uuidColumn('revoked_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdById: uuidColumn('created_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('participant_links_token_unique').on(table.tokenHash),
+    uniqueIndex('participant_links_active_unique')
+      .on(table.participantId, table.initiativeId)
+      .where(sql`${table.revokedAt} is null`),
+    index('participant_links_initiative_idx').on(table.initiativeId),
+    check(
+      'participant_links_hash_is_sha256',
+      sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+)
+
+/**
+ * إعدادات ميدان المبادرة. جدول لا أعمدة على `initiatives`: الميدان قدرة
+ * أخرى (`field.manage`) وعقد آخر، ومن يدير المبادرة لا يلزمه أن يراه.
+ *
+ * استمارة التقييم تُختار من الاستمارات المنشورة — لا محرك تقييم جديد.
+ */
+export const fieldSettings = pgTable('field_settings', {
+  initiativeId: uuidColumn('initiative_id')
+    .primaryKey()
+    .references(() => initiatives.id, { onDelete: 'cascade' }),
+  feedbackFormId: uuidColumn('feedback_form_id').references(() => forms.id, {
+    onDelete: 'set null',
+  }),
+  updatedById: uuidColumn('updated_by_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  ...timestamps,
+})
 
 /**
  * الحضور — من جاء فعلًا، في أي يوم.
@@ -318,6 +395,7 @@ export type NewParticipant = typeof participants.$inferInsert
 export type FieldGroup = typeof fieldGroups.$inferSelect
 export type NewFieldGroup = typeof fieldGroups.$inferInsert
 export type FieldGroupMember = typeof fieldGroupMembers.$inferSelect
+export type ParticipantLink = typeof participantLinks.$inferSelect
 export type Attendance = typeof attendance.$inferSelect
 export type Attachment = typeof attachments.$inferSelect
 export type NewAttachment = typeof attachments.$inferInsert

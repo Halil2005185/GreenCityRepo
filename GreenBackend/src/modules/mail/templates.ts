@@ -9,7 +9,11 @@
  * البريد يرفضون معظم CSS الحديث أصلًا فتبقى الأنماط سطرية مهما فعلنا.
  */
 
-export type TemplateKey = 'invitation' | 'password-reset' | 'form-copy'
+export type TemplateKey =
+  | 'invitation'
+  | 'password-reset'
+  | 'form-copy'
+  | 'field-link'
 
 export type RenderedMail = {
   subject: string
@@ -60,6 +64,44 @@ function button(href: string, label: string) {
 }
 
 type Renderer = (data: Record<string, unknown>) => RenderedMail
+
+/**
+ * الموعد كما يُقال: «الجمعة، 9 تشرين الأول، 8:00 ص» بتوقيت دمشق. يُنسَّق
+ * وقت الإرسال كبقية القالب، فموعدٌ عُدّل والرسالة في الطابور يخرج صحيحًا.
+ */
+function formatMeeting(value: unknown) {
+  if (typeof value !== 'string' || value === '') return null
+
+  const moment = new Date(value)
+
+  if (Number.isNaN(moment.getTime())) return null
+
+  return new Intl.DateTimeFormat('ar-SY-u-nu-latn', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    timeZone: 'Asia/Damascus',
+  }).format(moment)
+}
+
+function detailRows(items: Array<[label: string, value: string | null]>) {
+  const rows = items
+    .filter((item): item is [string, string] => Boolean(item[1]))
+    .map(
+      ([label, value]) => `<tr>
+        <td style="padding:6px 0;color:#6b7280;font-size:13px;vertical-align:top;width:34%">${escape(label)}</td>
+        <td style="padding:6px 0;color:#111827;font-size:14px;vertical-align:top">${escape(value)}</td>
+      </tr>`,
+    )
+    .join('')
+
+  return rows
+    ? `<table role="presentation" style="width:100%;border-collapse:collapse;margin:16px 0 0">${rows}</table>`
+    : ''
+}
 
 /** جدول سؤال/جواب — الأزواج تصل جاهزة من الخدمة، فالقالب لا يقرأ قاعدة. */
 function answerTable(items: Array<{ labelAr: string; valueAr: string }>) {
@@ -146,6 +188,54 @@ const templates: Record<TemplateKey, Renderer> = {
         ...items.map((item) => `${item.labelAr}: ${item.valueAr}`),
         '',
         'هذه نسخة للحفظ لا إشعار قبول.',
+      ].join('\n'),
+    }
+  },
+
+  /**
+   * الرابط الشخصي للمتطوع. الرسالة تقول الموعد والمكان بنصّهما، فمن لم يفتح
+   * الرابط عرف أين يذهب؛ والرابط لما يتغيّر بعدها ولتأكيد الحضور.
+   */
+  'field-link': (data) => {
+    const fullNameAr = String(data['fullNameAr'] ?? '')
+    const initiativeNameAr = String(data['initiativeNameAr'] ?? '')
+    const linkUrl = String(data['linkUrl'] ?? '')
+    const expiresInDays = Number(data['expiresInDays'] ?? 45)
+    const meeting = formatMeeting(data['meetsAt'])
+
+    const details: Array<[string, string | null]> = [
+      ['المجموعة', String(data['groupNameAr'] ?? '') || null],
+      ['الموقع', String(data['siteNameAr'] ?? '') || null],
+      ['الموعد', meeting],
+      ['نقطة اللقاء', String(data['meetingPointAr'] ?? '') || null],
+    ]
+
+    return {
+      subject: `موعدك في ${initiativeNameAr}`,
+      html: layout(
+        `أهلًا ${fullNameAr}`,
+        `<p style="line-height:1.9;margin:0">
+           أنت من متطوعي <strong>${escape(initiativeNameAr)}</strong>. هذا
+           رابطك الشخصي: فيه موقعك وموعدك وقائد مجموعتك، ومنه تؤكّد حضورك.
+         </p>
+         ${detailRows(details)}
+         ${button(linkUrl, 'افتح بطاقتي')}
+         <p style="font-size:12px;color:#6b7280;margin:18px 0 0">
+           الرابط لك وحدك فلا تشاركه، وينتهي خلال ${expiresInDays} يومًا. إن لم
+           تكن تتوقع هذه الرسالة فتجاهلها.
+         </p>`,
+      ),
+      text: [
+        `أهلًا ${fullNameAr}،`,
+        `أنت من متطوعي ${initiativeNameAr}.`,
+        ...details
+          .filter((item) => item[1])
+          .map(([label, value]) => `${label}: ${value}`),
+        '',
+        'بطاقتك:',
+        linkUrl,
+        '',
+        'الرابط لك وحدك فلا تشاركه.',
       ].join('\n'),
     }
   },

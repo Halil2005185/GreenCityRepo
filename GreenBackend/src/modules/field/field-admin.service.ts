@@ -11,6 +11,8 @@ import {
   or,
   sql,
 } from 'drizzle-orm'
+
+import { env } from '../../config/env.js'
 import { alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
@@ -23,6 +25,8 @@ import {
   attendance,
   fieldGroupMembers,
   fieldGroups,
+  fieldSettings,
+  participantLinks,
   participants,
 } from '../../db/schema/field.js'
 import { formSubmissions, formVersions, forms } from '../../db/schema/forms.js'
@@ -56,6 +60,7 @@ const groupColumns = {
   nameAr: fieldGroups.nameAr,
   leadUserId: fieldGroups.leadUserId,
   leadNameAr: groupLead.fullNameAr,
+  contactPhone: fieldGroups.contactPhone,
   meetsAt: fieldGroups.meetsAt,
   meetingPointAr: fieldGroups.meetingPointAr,
   instructionsAr: fieldGroups.instructionsAr,
@@ -65,6 +70,22 @@ const groupColumns = {
     select count(*)::int from ${fieldGroupMembers}
      where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
   )`.as('member_count'),
+  comingCount: sql<number>`(
+    select count(*)::int from ${fieldGroupMembers}
+     where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
+       and ${fieldGroupMembers.rsvp} = 'COMING'
+  )`.as('coming_count'),
+  linkedCount: sql<number>`(
+    select count(*)::int from ${fieldGroupMembers}
+     where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
+       and exists (
+         select 1 from ${participantLinks}
+          where ${participantLinks.participantId} = ${fieldGroupMembers.participantId}
+            and ${participantLinks.initiativeId} = ${fieldGroups.initiativeId}
+            and ${participantLinks.revokedAt} is null
+            and ${participantLinks.expiresAt} > now()
+       )
+  )`.as('linked_count'),
   attendedCount: sql<number>`(
     select count(distinct ${attendance.participantId})::int from ${attendance}
      where ${attendance.groupId} = ${fieldGroups.id}
@@ -106,20 +127,139 @@ async function requireInitiative(initiativeId: string) {
   return row
 }
 
+/**
+ * إعدادات الميدان كما تُعرض للمنسّق. رابط الاستمارة `null` ما لم تكن منشورة
+ * تستقبل: هو ما يصل المتطوع فعلًا، لا ما اختير.
+ */
+async function loadSettings(initiativeId: string) {
+  const [row] = await db
+    .select({
+      feedbackFormId: forms.id,
+      feedbackFormNameAr: forms.nameAr,
+      slug: forms.slug,
+      isAccepting: forms.isAccepting,
+      publishedVersionId: formVersions.id,
+    })
+    .from(fieldSettings)
+    .innerJoin(forms, eq(fieldSettings.feedbackFormId, forms.id))
+    .leftJoin(
+      formVersions,
+      and(
+        eq(formVersions.formId, forms.id),
+        eq(formVersions.status, 'PUBLISHED'),
+      ),
+    )
+    .where(eq(fieldSettings.initiativeId, initiativeId))
+    .limit(1)
+
+  if (!row) {
+    return {
+      feedbackFormId: null,
+      feedbackFormNameAr: null,
+      feedbackFormUrl: null,
+    }
+  }
+
+  return {
+    feedbackFormId: row.feedbackFormId,
+    feedbackFormNameAr: row.feedbackFormNameAr,
+    feedbackFormUrl:
+      row.isAccepting && row.publishedVersionId
+        ? `${env.PUBLIC_SITE_URL}/join/${row.slug}`
+        : null,
+  }
+}
+
 /** يُستدعى بعد كل تعديل ليعود ميدان المبادرة كاملًا في نداء واحد. */
 export async function loadInitiativeField(initiativeId: string) {
   await requireInitiative(initiativeId)
 
-  const rows = await groupQuery()
-    .where(eq(fieldGroups.initiativeId, initiativeId))
-    .orderBy(
-      asc(initiativeSites.displayOrder),
-      asc(initiativeSites.nameAr),
-      asc(fieldGroups.displayOrder),
-      asc(fieldGroups.nameAr),
-    )
+  const [rows, settings] = await Promise.all([
+    groupQuery()
+      .where(eq(fieldGroups.initiativeId, initiativeId))
+      .orderBy(
+        asc(initiativeSites.displayOrder),
+        asc(initiativeSites.nameAr),
+        asc(fieldGroups.displayOrder),
+        asc(fieldGroups.nameAr),
+      ),
+    loadSettings(initiativeId),
+  ])
 
-  return { initiativeId, groups: rows.map(serializeGroup) }
+  return { initiativeId, groups: rows.map(serializeGroup), settings }
+}
+
+/** الاستمارات المنشورة التي تستقبل: ما يصلح أن يُرسَل رابطه لمتطوع. */
+export async function listFeedbackForms() {
+  return db
+    .selectDistinct({
+      formId: forms.id,
+      nameAr: forms.nameAr,
+      slug: forms.slug,
+    })
+    .from(forms)
+    .innerJoin(
+      formVersions,
+      and(
+        eq(formVersions.formId, forms.id),
+        eq(formVersions.status, 'PUBLISHED'),
+      ),
+    )
+    .where(eq(forms.isAccepting, true))
+    .orderBy(asc(forms.nameAr))
+}
+
+export async function updateSettings(
+  initiativeId: string,
+  input: dto.UpdateSettingsBody,
+  actor: AuthContext,
+  trace: RequestTrace,
+) {
+  const initiative = await requireInitiative(initiativeId)
+
+  if (input.feedbackFormId) {
+    const [form] = await db
+      .select({ id: forms.id })
+      .from(forms)
+      .where(eq(forms.id, input.feedbackFormId))
+      .limit(1)
+
+    if (!form) throw errors.unprocessable('الاستمارة المختارة غير موجودة.')
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(fieldSettings)
+      .values({
+        initiativeId,
+        feedbackFormId: input.feedbackFormId,
+        updatedById: actor.userId,
+      })
+      .onConflictDoUpdate({
+        target: fieldSettings.initiativeId,
+        set: {
+          feedbackFormId: input.feedbackFormId,
+          updatedById: actor.userId,
+          updatedAt: new Date(),
+        },
+      })
+
+    await recordAudit(
+      {
+        action: 'field.settings_updated',
+        actorUserId: actor.userId,
+        entityType: 'initiative',
+        entityId: initiativeId,
+        entityLabel: initiative.nameAr,
+        summaryAr: 'تعديل إعدادات الميدان',
+        metadata: { feedbackFormId: input.feedbackFormId },
+        ...trace,
+      },
+      tx,
+    )
+  })
+
+  return loadInitiativeField(initiativeId)
 }
 
 /**
@@ -302,6 +442,7 @@ export async function createGroup(
           siteId: site.id,
           nameAr,
           leadUserId: leader?.userId ?? null,
+          contactPhone: input.contactPhone?.trim() || null,
           meetsAt: input.meetsAt ? new Date(input.meetsAt) : null,
           meetingPointAr: input.meetingPointAr
             ? normalizeText(input.meetingPointAr)
@@ -363,6 +504,9 @@ export async function updateGroup(
     ...(input.siteId ? { siteId: input.siteId } : {}),
     ...(input.nameAr ? { nameAr: normalizeText(input.nameAr) } : {}),
     ...(leadChanged ? { leadUserId: input.leadUserId ?? null } : {}),
+    ...(input.contactPhone !== undefined
+      ? { contactPhone: input.contactPhone?.trim() || null }
+      : {}),
     ...(input.meetsAt !== undefined
       ? { meetsAt: input.meetsAt ? new Date(input.meetsAt) : null }
       : {}),
@@ -482,6 +626,7 @@ export async function deleteGroup(
 // ── الأعضاء ────────────────────────────────────────────────────────────
 
 const todayAttendance = alias(attendance, 'member_day_attendance')
+const memberLink = alias(participantLinks, 'member_link')
 
 /**
  * أعضاء المجموعة للمنسّق: وسيلة التواصل كاملة، وحضور اليوم المطلوب، وعدد
@@ -503,7 +648,11 @@ export async function listGroupMembers(
       email: participants.email,
       role: fieldGroupMembers.role,
       rsvp: fieldGroupMembers.rsvp,
+      rsvpAt: fieldGroupMembers.rsvpAt,
       sourceSubmissionId: participants.sourceSubmissionId,
+      linkExpiresAt: memberLink.expiresAt,
+      linkLastUsedAt: memberLink.lastUsedAt,
+      linkEmailedAt: memberLink.emailedAt,
       attendanceId: todayAttendance.id,
       checkedInAt: todayAttendance.checkedInAt,
       method: todayAttendance.method,
@@ -525,6 +674,15 @@ export async function listGroupMembers(
       participants,
       eq(fieldGroupMembers.participantId, participants.id),
     )
+    // الفهرس الفريد يضمن رابطًا غير ملغى واحدًا للمشارك في المبادرة.
+    .leftJoin(
+      memberLink,
+      and(
+        eq(memberLink.participantId, fieldGroupMembers.participantId),
+        eq(memberLink.initiativeId, initiativeId),
+        isNull(memberLink.revokedAt),
+      ),
+    )
     .leftJoin(
       todayAttendance,
       and(
@@ -536,6 +694,8 @@ export async function listGroupMembers(
     )
     .where(eq(fieldGroupMembers.groupId, groupId))
     .orderBy(asc(participants.nameKey), asc(participants.createdAt))
+
+  const now = new Date()
 
   return {
     groupId,
@@ -551,6 +711,18 @@ export async function listGroupMembers(
       fromForm: row.sourceSubmissionId !== null,
       attendedDays: row.attendedDays,
       lastAttendedOn: row.lastAttendedOn,
+      rsvpAt: row.rsvpAt?.toISOString() ?? null,
+      link: row.linkExpiresAt
+        ? {
+            status:
+              row.linkExpiresAt.getTime() > now.getTime()
+                ? ('ACTIVE' as const)
+                : ('EXPIRED' as const),
+            expiresAt: row.linkExpiresAt.toISOString(),
+            lastUsedAt: row.linkLastUsedAt?.toISOString() ?? null,
+            emailedAt: row.linkEmailedAt?.toISOString() ?? null,
+          }
+        : null,
       attendance:
         row.attendanceId && row.checkedInAt && row.method
           ? {

@@ -20,7 +20,7 @@ import {
   changeTaskStatus,
   transitionPath,
 } from '../work/work.service.js'
-import type { FieldPrincipal } from './field-auth.js'
+import type { StaffPrincipal } from './field-auth.js'
 import type * as dto from './field.schemas.js'
 import { loadSheetTasks, serializePhoto } from './field.service.js'
 import {
@@ -87,7 +87,7 @@ async function findAttendance(
 export async function recordAttendance(
   groupId: string,
   input: dto.AttendanceBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const { group, site } = await requireWritableGroup(groupId, principal)
@@ -227,7 +227,7 @@ export async function recordAttendance(
 export async function undoAttendance(
   groupId: string,
   input: dto.UndoAttendanceBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const { group } = await requireWritableGroup(groupId, principal)
@@ -290,7 +290,7 @@ export async function undoAttendance(
 export async function recordImpact(
   groupId: string,
   input: dto.FieldImpactBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const { site } = await requireWritableGroup(groupId, principal)
@@ -316,7 +316,7 @@ export async function recordImpact(
 export async function signPhotoUpload(
   groupId: string,
   input: dto.SignPhotoBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   await requireWritableGroup(groupId, principal)
 
@@ -366,7 +366,7 @@ async function requireSheetTask(taskId: string, row: AccessibleGroup) {
 export async function registerPhoto(
   groupId: string,
   input: dto.RegisterPhotoBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const row = await requireWritableGroup(groupId, principal)
@@ -478,7 +478,7 @@ export async function registerPhoto(
 export async function changeTaskStatusFromField(
   taskId: string,
   input: dto.FieldTaskStatusBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const row = await requireWritableGroup(input.groupId, principal)
@@ -516,7 +516,7 @@ export async function changeTaskStatusFromField(
 export async function commentOnTask(
   taskId: string,
   input: dto.FieldTaskCommentBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const row = await requireWritableGroup(input.groupId, principal)
@@ -537,7 +537,7 @@ export async function commentOnTask(
 async function loadFieldTask(
   taskId: string,
   row: AccessibleGroup,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   const tasks = await loadSheetTasks(
     {
@@ -579,7 +579,7 @@ const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
 export async function changeSiteStatus(
   groupId: string,
   input: dto.FieldSiteStatusBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const { group, site } = await requireWritableGroup(groupId, principal)

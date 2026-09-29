@@ -20,6 +20,8 @@ export const FIELD_ROUTES = {
   attendance: "/app/attendance",
   photos: "/app/photos",
   me: "/app/me",
+  /** مدخل الرابط الشخصي للمتطوع؛ الرمز في جزء العنوان بعده. */
+  link: "/app/link",
   login: "/app/login",
   offline: "/app/offline",
 } as const;

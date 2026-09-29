@@ -27,7 +27,7 @@ export function FieldToaster() {
             "pointer-events-auto flex items-start gap-3 rounded-xl border px-4 py-3 text-sm leading-relaxed shadow-lg",
             toast.tone === "danger"
               ? "border-destructive bg-destructive text-destructive-foreground"
-              : "border-accent-ink bg-accent-ink text-background",
+              : "border-accent-ink bg-accent-ink text-[var(--brand-warm-beige)]",
           )}
         >
           {toast.tone === "danger" ? (

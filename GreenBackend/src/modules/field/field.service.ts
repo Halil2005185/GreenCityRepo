@@ -25,7 +25,7 @@ import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import { workItems } from '../../db/schema/work.js'
 import { loadScopeProgress } from '../impact/impact.service.js'
 import { listTasks } from '../work/work.service.js'
-import type { FieldPrincipal } from './field-auth.js'
+import type { StaffPrincipal } from './field-auth.js'
 import {
   DAY_MS,
   acceptsEntries,
@@ -51,7 +51,7 @@ const siteTaskCount = (extra: SQL) =>
        ${extra}
   )`
 
-export async function loadHome(principal: FieldPrincipal) {
+export async function loadHome(principal: StaffPrincipal) {
   const { auth } = principal
   const canLead = auth.capabilities.includes('field.lead')
   const today = damascusDay(new Date())
@@ -140,7 +140,7 @@ const SHEET_TASK_STATUSES = [
  */
 export async function loadSheetTasks(
   scope: { siteId: string; initiativeId: string; leadUserId: string | null },
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   const statuses = [...SHEET_TASK_STATUSES]
 
@@ -320,7 +320,7 @@ async function loadGroupPhotos(groupId: string) {
  * ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من
  * الجهاز. كل ما تحتاجه تبويبات التطبيق هنا، فلا تبويب ينتظر الشبكة.
  */
-export async function loadSheet(groupId: string, principal: FieldPrincipal) {
+export async function loadSheet(groupId: string, principal: StaffPrincipal) {
   const { group, leadNameAr, initiative, site, areaNameAr } =
     await requireAccessibleGroup(groupId, principal)
 

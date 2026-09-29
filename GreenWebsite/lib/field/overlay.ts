@@ -1,6 +1,11 @@
-import type { FieldSheet } from "./api";
+import type { FieldCard, FieldSheet } from "./api";
 import { damascusDay } from "./labels";
-import { type OutboxItem, pendingId } from "./outbox-types";
+import {
+  type OutboxItem,
+  type RsvpItem,
+  type SheetItem,
+  pendingId,
+} from "./outbox-types";
 import { withReading } from "./targets";
 
 /**
@@ -47,7 +52,7 @@ export function forDay(sheet: FieldSheet, day: string): FieldSheet {
  * الطابور هو مصدر ما لم يُرسَل، وحين يُرسَل الفعل يُثبَّت أثره بهذه الدالة
  * نفسها ثم يُسأل الخادم عن حقيقته.
  */
-export function applyItem(sheet: FieldSheet, item: OutboxItem): FieldSheet {
+export function applyItem(sheet: FieldSheet, item: SheetItem): FieldSheet {
   switch (item.kind) {
     case "attendance":
       // حضور يومٍ آخر لم يُرسَل بعد: يُرسَل ليومه، ولا يُعرض حضورًا لهذا اليوم.
@@ -175,7 +180,40 @@ export function overlay(
 ): FieldSheet {
   return items
     .filter(
-      (item) => item.groupId === sheet.group.id && item.status === "pending",
+      (item): item is SheetItem =>
+        item.kind !== "rsvp" &&
+        item.groupId === sheet.group.id &&
+        item.status === "pending",
     )
     .reduce(applyItem, forDay(sheet, today));
+}
+
+/** أثر تأكيد حضورٍ لم يُرسَل بعد على بطاقة المتطوع. */
+export function applyRsvp(card: FieldCard, item: RsvpItem): FieldCard {
+  return {
+    ...card,
+    memberships: card.memberships.map((membership) =>
+      membership.memberId === item.payload.memberId
+        ? {
+            ...membership,
+            rsvp: item.payload.coming
+              ? ("COMING" as const)
+              : ("NOT_COMING" as const),
+          }
+        : membership,
+    ),
+  };
+}
+
+/** البطاقة وعليها ما ينتظر الإرسال؛ آخر تأكيد يغلب ما قبله. */
+export function overlayCard(
+  card: FieldCard,
+  items: readonly OutboxItem[],
+): FieldCard {
+  return items
+    .filter(
+      (item): item is RsvpItem =>
+        item.kind === "rsvp" && item.status === "pending",
+    )
+    .reduce(applyRsvp, card);
 }

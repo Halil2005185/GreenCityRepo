@@ -16,7 +16,7 @@ import { TargetRow } from "@/components/field/count-stepper";
 import type { SheetView } from "@/components/field/sheet-gate";
 import { FieldCard } from "@/components/field/states";
 import { TaskChecklist } from "@/components/field/task-checklist";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/field/button";
 import type { FieldSheet } from "@/lib/field/api";
 import { FIELD_ROUTES } from "@/lib/field/config";
 import {

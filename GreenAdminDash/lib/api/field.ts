@@ -13,6 +13,10 @@ export type FieldParticipant = components["schemas"]["FieldParticipant"];
 export type FieldAttendanceDay = components["schemas"]["FieldAttendanceDay"];
 export type FieldAttendanceImpact = components["schemas"]["FieldAttendanceImpact"];
 export type FieldManagedPhoto = components["schemas"]["FieldManagedPhoto"];
+export type FieldIssuedLink = components["schemas"]["FieldIssuedLink"];
+export type FieldIssuedLinks = components["schemas"]["FieldIssuedLinks"];
+export type FieldFeedbackForm = components["schemas"]["FieldFeedbackForm"];
+export type FieldSettings = components["schemas"]["FieldSettings"];
 
 export type FieldMemberRole = FieldGroupMember["role"];
 
@@ -23,6 +27,12 @@ export type FieldMemberRole = FieldGroupMember["role"];
 export const MEMBER_ROLE_LABELS: Record<FieldMemberRole, string> = {
   MEMBER: "عضو",
   ASSISTANT: "مساعد القائد",
+};
+
+export const RSVP_LABELS: Record<FieldGroupMember["rsvp"], string> = {
+  UNKNOWN: "لم يُجب",
+  COMING: "سيحضر",
+  NOT_COMING: "اعتذر",
 };
 
 export const ATTENDANCE_METHOD_LABELS: Record<
@@ -67,6 +77,7 @@ export type FieldGroupInput = {
   siteId: string;
   nameAr: string;
   leadUserId: string | null;
+  contactPhone: string | null;
   meetsAt: string | null;
   meetingPointAr: string | null;
   instructionsAr: string | null;
@@ -185,6 +196,52 @@ export function searchParticipants(
     `${base(initiativeId)}/participants${query({ q: search })}`,
     { ...(signal ? { signal } : {}) },
   ).then((response) => response.data);
+}
+
+// ── الروابط الشخصية ────────────────────────────────────────────────────
+
+/**
+ * رابط لكل متطوع، يعود **في هذا الجواب وحده**: الخادم يحفظ بصمته لا نصّه.
+ * توليد جديد يُبطل رابطه السابق في المبادرة.
+ */
+export function createLinks(
+  initiativeId: string,
+  body: {
+    groupId?: string;
+    participantIds?: string[];
+    ttlDays?: number;
+    email?: boolean;
+  },
+) {
+  return apiFetch<FieldIssuedLinks>(`${base(initiativeId)}/links`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function revokeLinks(initiativeId: string, participantIds: string[]) {
+  return apiFetch<{ initiativeId: string; revoked: number }>(
+    `${base(initiativeId)}/links/revoke`,
+    { method: "POST", body: { participantIds } },
+  );
+}
+
+// ── إعدادات الميدان ────────────────────────────────────────────────────
+
+export function listFeedbackForms(initiativeId: string) {
+  return apiFetch<{ data: FieldFeedbackForm[] }>(
+    `${base(initiativeId)}/feedback-forms`,
+  ).then((response) => response.data);
+}
+
+export function updateFieldSettings(
+  initiativeId: string,
+  body: { feedbackFormId: string | null },
+) {
+  return apiFetch<InitiativeField>(`${base(initiativeId)}/settings`, {
+    method: "PUT",
+    body,
+  });
 }
 
 // ── الحضور ─────────────────────────────────────────────────────────────
