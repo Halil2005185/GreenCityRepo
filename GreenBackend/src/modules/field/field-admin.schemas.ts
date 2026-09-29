@@ -777,8 +777,115 @@ registry.registerPath({
   },
 })
 
+// ── الإعلانات ──────────────────────────────────────────────────────────
+
+export const announcementAudienceEnum = z.enum(['ALL', 'LEADS', 'VOLUNTEERS'])
+
+export const managedAnnouncementSchema = registry.register(
+  'FieldManagedAnnouncement',
+  z.object({
+    id: z.uuid(),
+    groupId: z.uuid().nullable(),
+    groupNameAr: z.string().nullable(),
+    audience: announcementAudienceEnum,
+    titleAr: z.string(),
+    bodyAr: z.string(),
+    createdByNameAr: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+    devices: z
+      .object({
+        targeted: z.number().int().openapi({
+          description: 'الأجهزة المشتركة ساعة الإعلان.',
+        }),
+        sent: z.number().int(),
+        pending: z.number().int(),
+        failed: z.number().int().openapi({
+          description: 'لم يصلها: اشتراك زال، أو خدمة الإشعار رفضت.',
+        }),
+      })
+      .openapi({
+        description:
+          'إيصال الإشعار. الإعلان نفسه يظهر في التطبيق لكل من يفتحه، اشترك أم لا.',
+      }),
+  }),
+)
+
+export const announcementsSchema = registry.register(
+  'FieldAnnouncements',
+  z.object({
+    initiativeId: z.uuid(),
+    pushEnabled: z.boolean().openapi({
+      description:
+        'هل هيّأ الخادم مفاتيح الإشعارات. بدونها يظهر الإعلان في التطبيق ولا يُرسَل إشعار.',
+    }),
+    announcements: z.array(managedAnnouncementSchema),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/announcements'),
+  tags: ['Field'],
+  summary: 'إعلانات الميدان',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: { description: 'الإعلانات، الأحدث أولًا', ...json(announcementsSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+  },
+})
+
+export const createAnnouncementBodySchema = z.object({
+  groupId: z.uuid().optional().openapi({
+    description: 'مجموعة بعينها. بدونه يذهب الإعلان إلى مجموعات المبادرة كلها.',
+  }),
+  audience: announcementAudienceEnum.default('ALL'),
+  titleAr: z.string().trim().min(2).max(120),
+  bodyAr: z.string().trim().min(2).max(600),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/announcements'),
+  tags: ['Field'],
+  summary: 'إعلان جديد للميدان',
+  description:
+    'يظهر في ورقة القائد وبطاقة المتطوع، ويُدرج إشعار لكل جهاز مشترك من المستهدفين. الإشعار لا يُستردّ بعد إرساله.',
+  security,
+  request: {
+    params: initiativeParamsSchema,
+    body: json(createAnnouncementBodySchema),
+  },
+  responses: {
+    201: { description: 'أُعلن', ...json(announcementsSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+    422: problemResponse('المجموعة ليست من هذه المبادرة'),
+  },
+})
+
+export const announcementParamsSchema = z.object({
+  id: z.uuid(),
+  announcementId: z.uuid(),
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: path('/announcements/{announcementId}'),
+  tags: ['Field'],
+  summary: 'حذف إعلان',
+  description:
+    'يزيله من التطبيق ويوقف ما لم يُرسَل من إشعاراته. ما وصل هاتفًا لا يُستردّ.',
+  security,
+  request: { params: announcementParamsSchema },
+  responses: {
+    200: { description: 'حُذف', ...json(announcementsSchema) },
+    404: problemResponse('الإعلان غير موجود في هذه المبادرة'),
+  },
+})
+
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>
 export type UpdateGroupBody = z.infer<typeof updateGroupBodySchema>
+export type CreateAnnouncementBody = z.infer<typeof createAnnouncementBodySchema>
 export type MembersQuery = z.infer<typeof membersQuerySchema>
 export type AddMembersBody = z.infer<typeof addMembersBodySchema>
 export type UpdateMemberBody = z.infer<typeof updateMemberBodySchema>

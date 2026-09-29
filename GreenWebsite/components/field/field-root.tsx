@@ -2,6 +2,7 @@
 
 import { FieldChrome } from "@/components/field/field-chrome";
 import { OutboxBridge } from "@/components/field/outbox-bridge";
+import { PushBridge } from "@/components/field/push-bridge";
 import { ServiceWorkerRegistration } from "@/components/field/sw-register";
 import { FieldToaster } from "@/components/field/toaster";
 import { FieldQueryProvider } from "@/lib/field/query";
@@ -22,6 +23,7 @@ export function FieldRoot({ children }: { children: React.ReactNode }) {
       <FieldSessionProvider>
         <ServiceWorkerRegistration />
         <OutboxBridge />
+        <PushBridge />
         <FieldChrome>{children}</FieldChrome>
         <FieldToaster />
       </FieldSessionProvider>

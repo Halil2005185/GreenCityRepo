@@ -25,6 +25,7 @@ import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import { workItems } from '../../db/schema/work.js'
 import { loadScopeProgress } from '../impact/impact.service.js'
 import { listTasks } from '../work/work.service.js'
+import { loadAnnouncements } from './field-announcements.service.js'
 import type { StaffPrincipal } from './field-auth.js'
 import {
   DAY_MS,
@@ -326,7 +327,7 @@ export async function loadSheet(groupId: string, principal: StaffPrincipal) {
 
   const day = damascusDay(new Date())
 
-  const [tasks, targets, members, gallery] = await Promise.all([
+  const [tasks, targets, members, gallery, announcements] = await Promise.all([
     loadSheetTasks(
       {
         siteId: site.id,
@@ -338,6 +339,11 @@ export async function loadSheet(groupId: string, principal: StaffPrincipal) {
     loadSheetTargets(site.id, initiative.id),
     loadMembers(group.id, day),
     loadGroupPhotos(group.id),
+    loadAnnouncements({
+      initiativeId: initiative.id,
+      groupIds: [group.id],
+      reader: 'LEADS',
+    }),
   ])
 
   return {
@@ -373,6 +379,7 @@ export async function loadSheet(groupId: string, principal: StaffPrincipal) {
        */
       canApproveTasks: principal.auth.capabilities.includes('work.approve'),
     },
+    announcements,
     tasks,
     targets,
     members,

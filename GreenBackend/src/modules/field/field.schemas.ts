@@ -171,6 +171,28 @@ export const fieldPhotoSchema = registry.register(
   }),
 )
 
+export const fieldAnnouncementSchema = registry.register(
+  'FieldAnnouncement',
+  z
+    .object({
+      id: z.uuid(),
+      titleAr: z.string(),
+      bodyAr: z.string(),
+      groupNameAr: z.string().nullable().openapi({
+        description: 'المجموعة التي وُجّه إليها؛ فارغ = كل مجموعات المبادرة.',
+      }),
+      createdAt: z.iso.datetime(),
+    })
+    .openapi({
+      description:
+        'إعلان المنسّق. محتوى في التطبيق قبل أن يكون إشعارًا: يقرؤه من لم يفعّل الإشعارات حين يفتح ورقته أو بطاقته.',
+    }),
+)
+
+const announcements = z.array(fieldAnnouncementSchema).openapi({
+  description: 'أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر.',
+})
+
 export const fieldSheetSchema = registry.register(
   'FieldSheet',
   z
@@ -211,6 +233,7 @@ export const fieldSheetSchema = registry.register(
             'من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة.',
         }),
       }),
+      announcements,
       tasks: z.array(fieldTaskSchema),
       targets: z.array(fieldTargetSchema),
       members: z.array(fieldMemberSchema),
@@ -299,6 +322,7 @@ export const fieldCardSchema = registry.register(
       }),
       link: z.object({ expiresAt: z.iso.datetime() }),
       day: z.iso.date(),
+      announcements,
       memberships: z.array(fieldCardMembershipSchema),
       feedback: z
         .object({ nameAr: z.string(), url: z.string() })
@@ -390,6 +414,83 @@ registry.registerPath({
     403: problemResponse('المسار لحامل رابط شخصي'),
     404: problemResponse('العضوية ليست له'),
     409: problemResponse('انتهت الحملة أو أُلغي الموقع'),
+  },
+})
+
+// ── الإشعارات ──────────────────────────────────────────────────────────
+
+export const pushKeySchema = registry.register(
+  'FieldPushKey',
+  z.object({
+    enabled: z.boolean().openapi({
+      description: 'هل هيّأ الخادم مفاتيح الإشعارات. بدونها لا اشتراك.',
+    }),
+    publicKey: z.string().nullable().openapi({
+      description:
+        'مفتاح VAPID العام (`applicationServerKey`). من الخادم لا من بيئة الموقع، فلا يفترق المفتاحان عند التدوير.',
+    }),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/push/key'),
+  tags: ['Field'],
+  summary: 'مفتاح الاشتراك في الإشعارات',
+  security,
+  responses: {
+    200: { description: 'المفتاح وحال الإشعارات', ...json(pushKeySchema) },
+    401: problemResponse('بلا جلسة، أو رابط لم يعد صالحًا'),
+  },
+})
+
+const BASE64URL = /^[A-Za-z0-9_-]+$/
+
+export const pushSubscribeBodySchema = z
+  .object({
+    endpoint: z.url().max(2000),
+    keys: z.object({
+      p256dh: z.string().min(80).max(100).regex(BASE64URL),
+      auth: z.string().min(16).max(50).regex(BASE64URL),
+    }),
+  })
+  .openapi({
+    description:
+      'اشتراك المتصفح كما يعطيه `PushSubscription.toJSON()`. العنوان يجب أن يكون من خدمة إشعارات معروفة.',
+  })
+
+export const pushUnsubscribeBodySchema = z.object({
+  endpoint: z.url().max(2000),
+})
+
+const pushStateSchema = z.object({ subscribed: z.boolean() })
+
+registry.registerPath({
+  method: 'post',
+  path: path('/push/subscriptions'),
+  tags: ['Field'],
+  summary: 'تسجيل اشتراك هذا الجهاز في الإشعارات',
+  description:
+    'آمن التكرار: التطبيق يعيد إرساله عند كل فتح. والجهاز لمن دخل آخرًا.',
+  security,
+  request: { body: json(pushSubscribeBodySchema) },
+  responses: {
+    200: { description: 'سُجّل', ...json(pushStateSchema) },
+    409: problemResponse('الإشعارات غير مفعّلة على الخادم'),
+    422: problemResponse('عنوان الاشتراك ليس من خدمة إشعارات معروفة'),
+  },
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/push/subscriptions/remove'),
+  tags: ['Field'],
+  summary: 'إزالة اشتراك هذا الجهاز',
+  description: 'غياب الاشتراك نجاح: المطلوب ألا يصل هذا الجهازَ إشعار.',
+  security,
+  request: { body: json(pushUnsubscribeBodySchema) },
+  responses: {
+    200: { description: 'أُزيل', ...json(pushStateSchema) },
   },
 })
 
@@ -665,6 +766,8 @@ registry.registerPath({
 
 export type RedeemLinkBody = z.infer<typeof redeemLinkBodySchema>
 export type RsvpBody = z.infer<typeof rsvpBodySchema>
+export type PushSubscribeBody = z.infer<typeof pushSubscribeBodySchema>
+export type PushUnsubscribeBody = z.infer<typeof pushUnsubscribeBodySchema>
 export type AttendanceBody = z.infer<typeof attendanceBodySchema>
 export type UndoAttendanceBody = z.infer<typeof undoAttendanceBodySchema>
 export type FieldImpactBody = z.infer<typeof fieldImpactBodySchema>

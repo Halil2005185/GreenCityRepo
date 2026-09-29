@@ -17,6 +17,10 @@ export type FieldIssuedLink = components["schemas"]["FieldIssuedLink"];
 export type FieldIssuedLinks = components["schemas"]["FieldIssuedLinks"];
 export type FieldFeedbackForm = components["schemas"]["FieldFeedbackForm"];
 export type FieldSettings = components["schemas"]["FieldSettings"];
+export type FieldAnnouncements = components["schemas"]["FieldAnnouncements"];
+export type FieldManagedAnnouncement =
+  components["schemas"]["FieldManagedAnnouncement"];
+export type AnnouncementAudience = FieldManagedAnnouncement["audience"];
 
 export type FieldMemberRole = FieldGroupMember["role"];
 
@@ -42,6 +46,12 @@ export const ATTENDANCE_METHOD_LABELS: Record<
   LEAD_TAP: "سجّله القائد",
   WALK_IN: "حضر بلا تسجيل",
   SELF: "سجّل نفسه",
+};
+
+export const AUDIENCE_LABELS: Record<AnnouncementAudience, string> = {
+  ALL: "القادة والمتطوعون",
+  LEADS: "القادة",
+  VOLUNTEERS: "المتطوعون",
 };
 
 const base = (initiativeId: string) => `/admin/initiatives/${initiativeId}/field`;
@@ -242,6 +252,38 @@ export function updateFieldSettings(
     method: "PUT",
     body,
   });
+}
+
+// ── الإعلانات ──────────────────────────────────────────────────────────
+
+export function listAnnouncements(initiativeId: string) {
+  return apiFetch<FieldAnnouncements>(`${base(initiativeId)}/announcements`);
+}
+
+/**
+ * الإعلان يظهر في التطبيق لكل من يفتحه، ويُرسَل إشعارًا لمن فعّل الإشعارات.
+ * الإشعار لا يُستردّ بعد إرساله.
+ */
+export function createAnnouncement(
+  initiativeId: string,
+  body: {
+    groupId?: string;
+    audience: AnnouncementAudience;
+    titleAr: string;
+    bodyAr: string;
+  },
+) {
+  return apiFetch<FieldAnnouncements>(`${base(initiativeId)}/announcements`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function deleteAnnouncement(initiativeId: string, announcementId: string) {
+  return apiFetch<FieldAnnouncements>(
+    `${base(initiativeId)}/announcements/${announcementId}`,
+    { method: "DELETE" },
+  );
 }
 
 // ── الحضور ─────────────────────────────────────────────────────────────

@@ -17,6 +17,7 @@ import { generateOpaqueToken, hashToken } from '../auth/token.service.js'
 import { enqueueEmail } from '../mail/outbox.service.js'
 import type * as dto from './field-admin.schemas.js'
 import type { ParticipantPrincipal } from './field-auth.js'
+import { dropParticipantSubscriptions } from './field-push.service.js'
 import { DAY_MS } from './field.shared.js'
 
 /**
@@ -275,6 +276,9 @@ export async function createLinks(
         ),
       )
 
+    // اشتراكات الرابط القديم تسقط معه؛ الهاتف الذي يفتح الجديد يعيد اشتراكه.
+    await dropParticipantSubscriptions(tx, initiativeId, participantIds)
+
     await tx.insert(participantLinks).values(
       issued.map((link) => ({
         participantId: link.recipient.participantId,
@@ -381,6 +385,12 @@ export async function revokeLinks(
         ),
       )
       .returning({ participantId: participantLinks.participantId })
+
+    await dropParticipantSubscriptions(
+      tx,
+      initiativeId,
+      rows.map((row) => row.participantId),
+    )
 
     if (rows.length > 0) {
       await recordAudit(

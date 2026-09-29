@@ -34,8 +34,9 @@ export const FIELD_APP_SHORT_NAME = "الميدان";
  * يُقرأ بشكل لم يعد الكود يعرفه.
  *
  * 2: ورقة اليوم صارت تحمل الأعضاء والصور ويومها وما يُسمح به.
+ * 3: الورقة والبطاقة تحملان إعلانات المنسّق.
  */
-export const FIELD_DATA_VERSION = "2";
+export const FIELD_DATA_VERSION = "3";
 
 /** ورقة اليوم تبقى مقروءة بلا شبكة أسبوعًا من آخر جلب. */
 export const FIELD_CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;

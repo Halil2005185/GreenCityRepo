@@ -24,6 +24,7 @@ import {
   setLinkToken,
 } from "./api";
 import { clearFieldData } from "./db";
+import { disablePush } from "./push";
 import { notify } from "./toast";
 
 /**
@@ -373,6 +374,13 @@ export function FieldSessionProvider({
     const leaving = identity?.kind ?? "STAFF";
 
     try {
+      /**
+       * قبل الخروج والرمز ما زال صالحًا: هذا الجهاز لا يستقبل بعده إشعارًا
+       * باسم من خرج. فشله لا يوقف الخروج — إلغاء المتصفح وحده يكفي ليزول
+       * الاشتراك عند أول إرسال.
+       */
+      await disablePush().catch(() => undefined);
+
       // المتطوع لا جلسة له على الخادم: خروجه نسيان الرابط على هذا الجهاز.
       if (leaving === "STAFF") await requestLogout();
     } catch (error) {

@@ -14,6 +14,7 @@ import { formVersions, forms } from '../../db/schema/forms.js'
 import { areas } from '../../db/schema/geo.js'
 import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import { loadScopeProgress } from '../impact/impact.service.js'
+import { loadAnnouncements } from './field-announcements.service.js'
 import type { ParticipantPrincipal } from './field-auth.js'
 import type * as dto from './field.schemas.js'
 import { damascusDay, groupLead } from './field.shared.js'
@@ -154,7 +155,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
   const groupIds = rows.map((row) => row.group.id)
   const siteIds = [...new Set(rows.map((row) => row.site.id))]
 
-  const [attended, feedback, impact, photos] = await Promise.all([
+  const [attended, feedback, impact, photos, announcements] = await Promise.all([
     groupIds.length > 0
       ? db
           .select({
@@ -178,6 +179,11 @@ export async function loadCard(principal: ParticipantPrincipal) {
     Promise.all(
       siteIds.map(async (id) => [id, await loadSitePhotos(id)] as const),
     ),
+    loadAnnouncements({
+      initiativeId: principal.initiativeId,
+      groupIds,
+      reader: 'VOLUNTEERS',
+    }),
   ])
 
   const impactBySite = new Map(impact)
@@ -192,6 +198,7 @@ export async function loadCard(principal: ParticipantPrincipal) {
     initiative,
     link: { expiresAt: principal.linkExpiresAt.toISOString() },
     day: damascusDay(new Date()),
+    announcements,
     memberships: rows.map((row) => ({
       memberId: row.memberId,
       role: row.role,

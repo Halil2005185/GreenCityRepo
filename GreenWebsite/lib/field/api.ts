@@ -13,6 +13,8 @@ export type FieldTarget = components["schemas"]["FieldTarget"];
 export type FieldCard = components["schemas"]["FieldCard"];
 export type FieldCardMembership = components["schemas"]["FieldCardMembership"];
 export type FieldRedeemedLink = components["schemas"]["FieldRedeemedLink"];
+export type FieldAnnouncement = components["schemas"]["FieldAnnouncement"];
+export type FieldPushKey = components["schemas"]["FieldPushKey"];
 
 /** من يُنادى باسمه: عضو فريق بجلسته، أو متطوع برابطه الشخصي. */
 export type SessionKind = "STAFF" | "PARTICIPANT";

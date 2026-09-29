@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
+import { Announcements } from "@/components/field/announcements";
 import { ClosedNotice } from "@/components/field/closed-notice";
 import { TargetRow } from "@/components/field/count-stepper";
 import type { SheetView } from "@/components/field/sheet-gate";
@@ -54,6 +55,8 @@ export function GroupSheet({
   return (
     <div className="space-y-4">
       <ClosedNotice sheet={sheet} />
+
+      <Announcements items={sheet.announcements} />
 
       <FieldCard>
         <dl className="space-y-4">

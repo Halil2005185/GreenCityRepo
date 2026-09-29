@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Announcements } from "@/components/field/announcements";
 import { Button, buttonVariants } from "@/components/field/button";
 import {
   FieldCard as Card,
@@ -93,6 +94,8 @@ export function VolunteerCard() {
           {closed}
         </p>
       ) : null}
+
+      <Announcements items={card.announcements} />
 
       {card.memberships.length === 0 ? (
         <FieldNotice

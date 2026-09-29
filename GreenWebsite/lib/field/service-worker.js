@@ -336,6 +336,114 @@ async function mapImage(event) {
   return response;
 }
 
+/**
+ * إشعار من المنسّق. الحمولة يكتبها الخادم: العنوان والنص وأين يُفتح.
+ *
+ * كل حدث يُظهر إشعارًا مهما كانت حمولته: الاشتراك `userVisibleOnly`، ومتصفح
+ * يستقبل حدثًا بلا إشعار يعرض بدله «حُدّث هذا الموقع في الخلفية» ثم يسحب
+ * الإذن إن تكرر.
+ */
+function readPush(event) {
+  try {
+    return event.data ? event.data.json() : {};
+  } catch {
+    return {};
+  }
+}
+
+/** الإشعار يفتح صفحة من التطبيق وحده، أيًّا كان ما في الحمولة. */
+function targetOf(path) {
+  const home = `${SCOPE_PATH}home`;
+
+  try {
+    const url = new URL(typeof path === "string" ? path : home, self.location.origin);
+    const inside =
+      url.origin === self.location.origin && url.pathname.startsWith(SCOPE_PATH);
+
+    return inside ? url.href : new URL(home, self.location.origin).href;
+  } catch {
+    return new URL(home, self.location.origin).href;
+  }
+}
+
+/** نوافذ التطبيق المفتوحة الآن، في أي تبويب كانت. */
+async function openApps() {
+  const open = await self.clients.matchAll({
+    type: "window",
+    includeUncontrolled: true,
+  });
+
+  return open.filter((client) =>
+    new URL(client.url).pathname.startsWith(SCOPE_PATH),
+  );
+}
+
+/**
+ * التطبيق المفتوح يقرأ الإعلانات من جديد: ما جاء به الإشعار يظهر في صفحته
+ * لحظة وصوله، لا حين يُنقر ولا عند الفتح التالي.
+ */
+async function refreshOpenApps() {
+  for (const client of await openApps()) {
+    client.postMessage({ type: "gc-field-announcement" });
+  }
+}
+
+self.addEventListener("push", (event) => {
+  const data = readPush(event);
+
+  event.waitUntil(
+    Promise.all([
+      self.registration.showNotification(
+        typeof data.title === "string" && data.title
+          ? data.title
+          : "المدن الخضراء",
+        {
+          body: typeof data.body === "string" ? data.body : "",
+          icon: "/app-icons/icon-192.png",
+          badge: "/app-icons/badge-96.png",
+          dir: "rtl",
+          lang: "ar",
+          // الوسم معرّف الإعلان: إعادة إرساله تحلّ محلّه ولا تكرّره.
+          ...(typeof data.tag === "string" ? { tag: data.tag } : {}),
+          data: { url: targetOf(data.url) },
+        },
+      ),
+      // تحديث الصفحة زينة فوق الإشعار: فشله لا يُسقط الإشعار نفسه.
+      refreshOpenApps().catch(() => undefined),
+    ]),
+  );
+});
+
+/**
+ * النقر يعيد إلى التطبيق المفتوح إن وُجد، وإلا يفتحه. نافذة ثانية للتطبيق
+ * نفسه تعني طابورين يفرّغان معًا.
+ */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const url = targetOf(event.notification.data && event.notification.data.url);
+
+  event.waitUntil(
+    (async () => {
+      const [ours] = await openApps();
+
+      if (ours) {
+        ours.postMessage({ type: "gc-field-announcement" });
+
+        try {
+          await ours.focus();
+
+          return;
+        } catch {
+          // نافذة لا يُسمح بإبرازها: تُفتح أخرى بدل أن يضيع النقر.
+        }
+      }
+
+      await self.clients.openWindow(url);
+    })(),
+  );
+});
+
 self.addEventListener("fetch", (event) => {
   const { request } = event;
 

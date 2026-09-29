@@ -4,6 +4,7 @@ import { errors } from '../../common/errors/app-error.js'
 import { requestTrace } from '../audit/audit.service.js'
 import * as admin from './field-admin.service.js'
 import type * as adminDto from './field-admin.schemas.js'
+import * as announcements from './field-announcements.service.js'
 import {
   fieldPrincipal,
   participantPrincipal,
@@ -12,6 +13,7 @@ import {
 import * as capture from './field-capture.service.js'
 import * as card from './field-card.service.js'
 import * as links from './field-links.service.js'
+import * as push from './field-push.service.js'
 import * as service from './field.service.js'
 import type * as dto from './field.schemas.js'
 
@@ -64,6 +66,37 @@ export const postRsvp: RequestHandler = async (request, response) => {
   )
 
   response.status(200).json(updated)
+}
+
+// ── الإشعارات ──────────────────────────────────────────────────────────
+
+export const getPushKey: RequestHandler = (_request, response) => {
+  response.status(200).json(push.pushKey())
+}
+
+export const postPushSubscription: RequestHandler = async (
+  request,
+  response,
+) => {
+  const state = await push.subscribe(
+    fieldPrincipal(request),
+    request.body as dto.PushSubscribeBody,
+    request.header('user-agent'),
+  )
+
+  response.status(200).json(state)
+}
+
+export const postPushUnsubscribe: RequestHandler = async (
+  request,
+  response,
+) => {
+  const state = await push.unsubscribe(
+    fieldPrincipal(request),
+    request.body as dto.PushUnsubscribeBody,
+  )
+
+  response.status(200).json(state)
 }
 
 // ── التطبيق: الكتابة ───────────────────────────────────────────────────
@@ -290,6 +323,36 @@ export const putSettings: RequestHandler = async (request, response) => {
   )
 
   response.status(200).json(field)
+}
+
+// ── المنسّق: الإعلانات ─────────────────────────────────────────────────
+
+export const getAnnouncements: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json(await announcements.listAnnouncements(readId(request)))
+}
+
+export const postAnnouncement: RequestHandler = async (request, response) => {
+  const list = await announcements.createAnnouncement(
+    readId(request),
+    request.body as adminDto.CreateAnnouncementBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(201).json(list)
+}
+
+export const deleteAnnouncement: RequestHandler = async (request, response) => {
+  const list = await announcements.deleteAnnouncement(
+    readId(request),
+    readId(request, 'announcementId'),
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(list)
 }
 
 export const getSources: RequestHandler = async (_request, response) => {

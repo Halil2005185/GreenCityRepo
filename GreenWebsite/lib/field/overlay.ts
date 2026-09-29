@@ -20,6 +20,7 @@ export function isCurrentShape(
 ): sheet is FieldSheet {
   return (
     sheet !== undefined &&
+    Array.isArray(sheet.announcements) &&
     Array.isArray(sheet.members) &&
     Array.isArray(sheet.photos) &&
     Array.isArray(sheet.targets) &&

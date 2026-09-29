@@ -55,6 +55,23 @@ fieldRouter.post(
   controller.postRsvp,
 )
 
+// الإشعارات للمبدأين: القائد يشترك بحسابه، والمتطوع برابطه.
+fieldRouter.get('/push/key', controller.getPushKey)
+
+fieldRouter.post(
+  '/push/subscriptions',
+  fieldWriteRateLimit,
+  validate({ body: schemas.pushSubscribeBodySchema }),
+  controller.postPushSubscription,
+)
+
+fieldRouter.post(
+  '/push/subscriptions/remove',
+  fieldWriteRateLimit,
+  validate({ body: schemas.pushUnsubscribeBodySchema }),
+  controller.postPushUnsubscribe,
+)
+
 // كل ما بعدها للفريق: حارس واحد على البادئة يرثه أي مسار يُضاف تحتها.
 fieldRouter.use(['/groups', '/tasks'], requireFieldStaff)
 
@@ -220,6 +237,27 @@ fieldAdminRouter.put(
   '/settings',
   validate({ params: initiative, body: adminSchemas.updateSettingsBodySchema }),
   controller.putSettings,
+)
+
+fieldAdminRouter.get(
+  '/announcements',
+  validate({ params: initiative }),
+  controller.getAnnouncements,
+)
+
+fieldAdminRouter.post(
+  '/announcements',
+  validate({
+    params: initiative,
+    body: adminSchemas.createAnnouncementBodySchema,
+  }),
+  controller.postAnnouncement,
+)
+
+fieldAdminRouter.delete(
+  '/announcements/:announcementId',
+  validate({ params: adminSchemas.announcementParamsSchema }),
+  controller.deleteAnnouncement,
 )
 
 fieldAdminRouter.get(

@@ -13,6 +13,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { Button, buttonVariants } from "@/components/field/button";
+import { NotificationsCard } from "@/components/field/notifications-card";
 import { OutboxList } from "@/components/field/outbox-list";
 import {
   FieldCard,
@@ -134,6 +135,8 @@ export function MeScreen() {
       </FieldCard>
 
       <OutboxList />
+
+      <NotificationsCard />
 
       <FieldCard title="على هذا الجهاز">
         <ul className="space-y-3 text-sm text-foreground">

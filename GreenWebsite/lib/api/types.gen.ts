@@ -7183,6 +7183,169 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/field/push/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** مفتاح الاشتراك في الإشعارات */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المفتاح وحال الإشعارات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldPushKey"];
+                    };
+                };
+                /** @description بلا جلسة، أو رابط لم يعد صالحًا */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل اشتراك هذا الجهاز في الإشعارات
+         * @description آمن التكرار: التطبيق يعيد إرساله عند كل فتح. والجهاز لمن دخل آخرًا.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                        keys: {
+                            p256dh: string;
+                            auth: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            subscribed: boolean;
+                        };
+                    };
+                };
+                /** @description الإشعارات غير مفعّلة على الخادم */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description عنوان الاشتراك ليس من خدمة إشعارات معروفة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/push/subscriptions/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إزالة اشتراك هذا الجهاز
+         * @description غياب الاشتراك نجاح: المطلوب ألا يصل هذا الجهازَ إشعار.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُزيل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            subscribed: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/field/groups/{id}": {
         parameters: {
             query?: never;
@@ -9044,6 +9207,164 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/admin/initiatives/{id}/field/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** إعلانات الميدان */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الإعلانات، الأحدث أولًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAnnouncements"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * إعلان جديد للميدان
+         * @description يظهر في ورقة القائد وبطاقة المتطوع، ويُدرج إشعار لكل جهاز مشترك من المستهدفين. الإشعار لا يُستردّ بعد إرساله.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description مجموعة بعينها. بدونه يذهب الإعلان إلى مجموعات المبادرة كلها.
+                         */
+                        groupId?: string;
+                        /**
+                         * @default ALL
+                         * @enum {string}
+                         */
+                        audience?: "ALL" | "LEADS" | "VOLUNTEERS";
+                        titleAr: string;
+                        bodyAr: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُعلن */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAnnouncements"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المجموعة ليست من هذه المبادرة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/announcements/{announcementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * حذف إعلان
+         * @description يزيله من التطبيق ويوقف ما لم يُرسَل من إشعاراته. ما وصل هاتفًا لا يُستردّ.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    announcementId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذف */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAnnouncements"];
+                    };
+                };
+                /** @description الإعلان غير موجود في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -10442,6 +10763,17 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        /** @description إعلان المنسّق. محتوى في التطبيق قبل أن يكون إشعارًا: يقرؤه من لم يفعّل الإشعارات حين يفتح ورقته أو بطاقته. */
+        FieldAnnouncement: {
+            /** Format: uuid */
+            id: string;
+            titleAr: string;
+            bodyAr: string;
+            /** @description المجموعة التي وُجّه إليها؛ فارغ = كل مجموعات المبادرة. */
+            groupNameAr: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
         /** @description ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز. */
         FieldSheet: {
             group: {
@@ -10485,6 +10817,8 @@ export interface components {
                 /** @description من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة. */
                 canApproveTasks: boolean;
             };
+            /** @description أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر. */
+            announcements: components["schemas"]["FieldAnnouncement"][];
             tasks: components["schemas"]["FieldTask"][];
             targets: components["schemas"]["FieldTarget"][];
             members: components["schemas"]["FieldMember"][];
@@ -10572,6 +10906,8 @@ export interface components {
             };
             /** Format: date */
             day: string;
+            /** @description أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر. */
+            announcements: components["schemas"]["FieldAnnouncement"][];
             memberships: components["schemas"]["FieldCardMembership"][];
             /** @description استمارة التقييم على الموقع العام، إن اختارها المنسّق وكانت تستقبل. */
             feedback: {
@@ -10594,6 +10930,12 @@ export interface components {
             };
             /** Format: date-time */
             expiresAt: string;
+        };
+        FieldPushKey: {
+            /** @description هل هيّأ الخادم مفاتيح الإشعارات. بدونها لا اشتراك. */
+            enabled: boolean;
+            /** @description مفتاح VAPID العام (`applicationServerKey`). من الخادم لا من بيئة الموقع، فلا يفترق المفتاحان عند التدوير. */
+            publicKey: string | null;
         };
         FieldGroup: {
             /** Format: uuid */
@@ -10821,6 +11163,36 @@ export interface components {
             sizeBytes: number;
             /** Format: date-time */
             createdAt: string;
+        };
+        FieldManagedAnnouncement: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            groupId: string | null;
+            groupNameAr: string | null;
+            /** @enum {string} */
+            audience: "ALL" | "LEADS" | "VOLUNTEERS";
+            titleAr: string;
+            bodyAr: string;
+            createdByNameAr: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description إيصال الإشعار. الإعلان نفسه يظهر في التطبيق لكل من يفتحه، اشترك أم لا. */
+            devices: {
+                /** @description الأجهزة المشتركة ساعة الإعلان. */
+                targeted: number;
+                sent: number;
+                pending: number;
+                /** @description لم يصلها: اشتراك زال، أو خدمة الإشعار رفضت. */
+                failed: number;
+            };
+        };
+        FieldAnnouncements: {
+            /** Format: uuid */
+            initiativeId: string;
+            /** @description هل هيّأ الخادم مفاتيح الإشعارات. بدونها يظهر الإعلان في التطبيق ولا يُرسَل إشعار. */
+            pushEnabled: boolean;
+            announcements: components["schemas"]["FieldManagedAnnouncement"][];
         };
     };
     responses: never;

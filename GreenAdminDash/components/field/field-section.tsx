@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Pencil, Plus, Settings2, Trash2, Users } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { AnnouncementsSection } from "@/components/field/announcements-section";
 import { AttendanceSection } from "@/components/field/attendance-section";
 import { GroupDialog, fieldKey, useFieldCache } from "@/components/field/group-dialog";
 import { MembersDialog } from "@/components/field/members-dialog";
@@ -30,8 +31,9 @@ const NO_GROUPS: readonly FieldGroup[] = [];
 const groupCol = columnHelper<FieldGroup>();
 
 /**
- * تبويب «الميدان»: مجموعات المبادرة وأعضاؤها، ثم ما عاد من الميدان — الحضور
- * والصور. أقسام متتالية بعمود واحد، كل قسم بجدوله وأفعاله فوقه.
+ * تبويب «الميدان»: مجموعات المبادرة وأعضاؤها، وما يُعلَن لهم، ثم ما عاد من
+ * الميدان — الحضور والصور. أقسام متتالية بعمود واحد، كل قسم بجدوله وأفعاله
+ * فوقه.
  *
  * ما يُكوَّن هنا هو ما يراه القائد في التطبيق الميداني: تسميته قائدًا تفتح
  * له ورقة يوم المجموعة، وأعضاؤها هم قائمة حضوره.
@@ -51,6 +53,10 @@ export function FieldSection({ initiative }: { initiative: InitiativeDetail }) {
         isLoading={field.isPending}
         error={field.error}
         onRetry={() => void field.refetch()}
+      />
+      <AnnouncementsSection
+        initiative={initiative}
+        groups={field.data?.groups ?? NO_GROUPS}
       />
       <AttendanceSection initiative={initiative} />
       <PhotosSection initiative={initiative} groups={field.data?.groups ?? NO_GROUPS} />

@@ -333,6 +333,16 @@ export const attendanceMethod = pgEnum('attendance_method', [
 ])
 
 /**
+ * لمن الإعلان الميداني: قادة المجموعات، أو متطوعوها، أو الجميع. موعد تغيّر
+ * يهمّ الجميع، و«أحضروا المعاول من المستودع» يهمّ القادة وحدهم.
+ */
+export const fieldAnnouncementAudience = pgEnum('field_announcement_audience', [
+  'ALL',
+  'LEADS',
+  'VOLUNTEERS',
+])
+
+/**
  * حالة رسالة الصادر.
  *
  * `SENDING` ليست زينة: بدونها لا يعرف العامل التالي أن رسالة التُقطت

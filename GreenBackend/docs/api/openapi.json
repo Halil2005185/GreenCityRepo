@@ -5980,6 +5980,40 @@
           "createdAt"
         ]
       },
+      "FieldAnnouncement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "titleAr": {
+            "type": "string"
+          },
+          "bodyAr": {
+            "type": "string"
+          },
+          "groupNameAr": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "المجموعة التي وُجّه إليها؛ فارغ = كل مجموعات المبادرة."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "titleAr",
+          "bodyAr",
+          "groupNameAr",
+          "createdAt"
+        ],
+        "description": "إعلان المنسّق. محتوى في التطبيق قبل أن يكون إشعارًا: يقرؤه من لم يفعّل الإشعارات حين يفتح ورقته أو بطاقته."
+      },
       "FieldSheet": {
         "type": "object",
         "properties": {
@@ -6139,6 +6173,13 @@
               "canApproveTasks"
             ]
           },
+          "announcements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldAnnouncement"
+            },
+            "description": "أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر."
+          },
           "tasks": {
             "type": "array",
             "items": {
@@ -6179,6 +6220,7 @@
           "site",
           "day",
           "permissions",
+          "announcements",
           "tasks",
           "targets",
           "members",
@@ -6480,6 +6522,13 @@
             "type": "string",
             "format": "date"
           },
+          "announcements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldAnnouncement"
+            },
+            "description": "أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر."
+          },
           "memberships": {
             "type": "array",
             "items": {
@@ -6516,6 +6565,7 @@
           "initiative",
           "link",
           "day",
+          "announcements",
           "memberships",
           "feedback",
           "generatedAt"
@@ -6566,6 +6616,26 @@
           "participant",
           "initiative",
           "expiresAt"
+        ]
+      },
+      "FieldPushKey": {
+        "type": "object",
+        "properties": {
+          "enabled": {
+            "type": "boolean",
+            "description": "هل هيّأ الخادم مفاتيح الإشعارات. بدونها لا اشتراك."
+          },
+          "publicKey": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "مفتاح VAPID العام (`applicationServerKey`). من الخادم لا من بيئة الموقع، فلا يفترق المفتاحان عند التدوير."
+          }
+        },
+        "required": [
+          "enabled",
+          "publicKey"
         ]
       },
       "FieldGroup": {
@@ -7414,6 +7484,113 @@
           "publicUseAllowed",
           "sizeBytes",
           "createdAt"
+        ]
+      },
+      "FieldManagedAnnouncement": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "groupId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "groupNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "audience": {
+            "type": "string",
+            "enum": [
+              "ALL",
+              "LEADS",
+              "VOLUNTEERS"
+            ]
+          },
+          "titleAr": {
+            "type": "string"
+          },
+          "bodyAr": {
+            "type": "string"
+          },
+          "createdByNameAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "devices": {
+            "type": "object",
+            "properties": {
+              "targeted": {
+                "type": "integer",
+                "description": "الأجهزة المشتركة ساعة الإعلان."
+              },
+              "sent": {
+                "type": "integer"
+              },
+              "pending": {
+                "type": "integer"
+              },
+              "failed": {
+                "type": "integer",
+                "description": "لم يصلها: اشتراك زال، أو خدمة الإشعار رفضت."
+              }
+            },
+            "required": [
+              "targeted",
+              "sent",
+              "pending",
+              "failed"
+            ],
+            "description": "إيصال الإشعار. الإعلان نفسه يظهر في التطبيق لكل من يفتحه، اشترك أم لا."
+          }
+        },
+        "required": [
+          "id",
+          "groupId",
+          "groupNameAr",
+          "audience",
+          "titleAr",
+          "bodyAr",
+          "createdByNameAr",
+          "createdAt",
+          "devices"
+        ]
+      },
+      "FieldAnnouncements": {
+        "type": "object",
+        "properties": {
+          "initiativeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pushEnabled": {
+            "type": "boolean",
+            "description": "هل هيّأ الخادم مفاتيح الإشعارات. بدونها يظهر الإعلان في التطبيق ولا يُرسَل إشعار."
+          },
+          "announcements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FieldManagedAnnouncement"
+            }
+          }
+        },
+        "required": [
+          "initiativeId",
+          "pushEnabled",
+          "announcements"
         ]
       }
     },
@@ -17879,6 +18056,190 @@
         }
       }
     },
+    "/api/field/push/key": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "مفتاح الاشتراك في الإشعارات",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "المفتاح وحال الإشعارات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldPushKey"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "بلا جلسة، أو رابط لم يعد صالحًا",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/push/subscriptions": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "تسجيل اشتراك هذا الجهاز في الإشعارات",
+        "description": "آمن التكرار: التطبيق يعيد إرساله عند كل فتح. والجهاز لمن دخل آخرًا.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "format": "uri"
+                  },
+                  "keys": {
+                    "type": "object",
+                    "properties": {
+                      "p256dh": {
+                        "type": "string",
+                        "minLength": 80,
+                        "maxLength": 100,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      },
+                      "auth": {
+                        "type": "string",
+                        "minLength": 16,
+                        "maxLength": 50,
+                        "pattern": "^[A-Za-z0-9_-]+$"
+                      }
+                    },
+                    "required": [
+                      "p256dh",
+                      "auth"
+                    ]
+                  }
+                },
+                "required": [
+                  "endpoint",
+                  "keys"
+                ],
+                "description": "اشتراك المتصفح كما يعطيه `PushSubscription.toJSON()`. العنوان يجب أن يكون من خدمة إشعارات معروفة."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "سُجّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subscribed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "subscribed"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الإشعارات غير مفعّلة على الخادم",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "عنوان الاشتراك ليس من خدمة إشعارات معروفة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/field/push/subscriptions/remove": {
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إزالة اشتراك هذا الجهاز",
+        "description": "غياب الاشتراك نجاح: المطلوب ألا يصل هذا الجهازَ إشعار.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "endpoint": {
+                    "type": "string",
+                    "maxLength": 2000,
+                    "format": "uri"
+                  }
+                },
+                "required": [
+                  "endpoint"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "أُزيل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "subscribed": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "subscribed"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/field/groups/{id}": {
       "get": {
         "tags": [
@@ -20338,6 +20699,202 @@
           },
           "404": {
             "description": "الصورة غير موجودة في هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/announcements": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إعلانات الميدان",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "الإعلانات، الأحدث أولًا",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAnnouncements"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "إعلان جديد للميدان",
+        "description": "يظهر في ورقة القائد وبطاقة المتطوع، ويُدرج إشعار لكل جهاز مشترك من المستهدفين. الإشعار لا يُستردّ بعد إرساله.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "groupId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "مجموعة بعينها. بدونه يذهب الإعلان إلى مجموعات المبادرة كلها."
+                  },
+                  "audience": {
+                    "type": "string",
+                    "enum": [
+                      "ALL",
+                      "LEADS",
+                      "VOLUNTEERS"
+                    ],
+                    "default": "ALL"
+                  },
+                  "titleAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "bodyAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 600
+                  }
+                },
+                "required": [
+                  "titleAr",
+                  "bodyAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُعلن",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAnnouncements"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "المبادرة غير موجودة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "المجموعة ليست من هذه المبادرة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/initiatives/{id}/field/announcements/{announcementId}": {
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "summary": "حذف إعلان",
+        "description": "يزيله من التطبيق ويوقف ما لم يُرسَل من إشعاراته. ما وصل هاتفًا لا يُستردّ.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "announcementId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "حُذف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FieldAnnouncements"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "الإعلان غير موجود في هذه المبادرة",
             "content": {
               "application/problem+json": {
                 "schema": {
