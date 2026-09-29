@@ -22,22 +22,24 @@ export function CtaBand({
   secondary?: { href: string; label: string } | null;
 }) {
   return (
-    <section className="on-painted relative isolate overflow-hidden border-y border-border">
-      <Backdrop src="/bg/section.webp" />
-
+    <section className="relative overflow-hidden ">
+      <Backdrop className="" src="/bg/sectionNew.png" />
       <Container>
         <div className="flex flex-col items-start gap-8 py-16 md:flex-row md:items-center md:justify-between md:gap-12">
           <div className="max-w-2xl space-y-3">
-            <h2 className="text-2xl font-bold leading-[1.5] tracking-tight text-foreground lg:text-3xl">
+            <h2 className="text-2xl font-bold leading-loose tracking-tight text-[var(--brand-warm-beige)] lg:text-3xl">
               {title}
             </h2>
-            <p className="text-base leading-loose text-foreground">
+            <p className="text-base leading-loose text-[var(--brand-warm-beige)]">
               {description}
             </p>
           </div>
 
           <div className="flex shrink-0 flex-wrap gap-3">
-            <Link href={primary.href} className={buttonVariants({ size: "lg" })}>
+            <Link
+              href={primary.href}
+              className={buttonVariants({ size: "lg" })}
+            >
               {primary.label}
             </Link>
             {secondary && (
@@ -45,6 +47,7 @@ export function CtaBand({
                 href={secondary.href}
                 className={cn(
                   buttonVariants({ variant: "outline", size: "lg" }),
+                  "border-[var(--brand-warm-beige)] text-[var(--brand-warm-beige)]",
                 )}
               >
                 {secondary.label}

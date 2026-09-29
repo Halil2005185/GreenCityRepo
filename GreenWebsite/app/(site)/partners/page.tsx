@@ -9,7 +9,10 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { RevealGroup } from "@/components/ui/reveal";
 import { PageHeader, Section } from "@/components/ui/section";
 import { listPartners } from "@/lib/api/public";
-import { PARTNERSHIP_TYPES, SUPPORT_FORMS } from "@/lib/content/partnership";
+import {
+  PARTNERSHIP_TYPES,
+  SUPPORT_FORMS,
+} from "@/lib/content/partnership";
 import { revealDelay } from "@/lib/utils";
 
 export const metadata: Metadata = {
@@ -21,8 +24,8 @@ export const metadata: Metadata = {
 
 export default async function PartnersPage() {
   /**
-   * الجهات الظاهرة هنا هي من وافقت صراحة على إظهار الاسم والشعار. الموافقة
-   * قرار مستقل عن الشراكة نفسها، فشريك نشط قد لا يظهر هنا عن قصد.
+   * الجهات الظاهرة هنا هي من وافقت صراحة على إظهار الاسم والشعار.
+   * الموافقة قرار مستقل عن الشراكة نفسها، فشريك نشط قد لا يظهر هنا عن قصد.
    */
   const partners = await listPartners();
 
@@ -34,17 +37,27 @@ export default async function PartnersPage() {
         description="الشراكة عندنا التزام متبادل مكتوب في ميثاق المشروع: دور واضح للجهة، وشفافية في ما يُنجَز، ومتابعة لا تنتهي عند الفعالية."
       />
 
+      {/* أنواع الشراكة */}
       <Section
         eyebrow="أنواع الشراكة"
+        eyebrowClassName="text-[var(--brand-brown)]"
         title="خمسة أنواع"
+        titleClassName="text-[var(--brand-deep-green)]"
         description="يمكن للجهة الواحدة أن تحمل أكثر من نوع، ويرتبط نوع شراكة الفعالية بمبادرة بعينها."
       >
         <RevealGroup className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {PARTNERSHIP_TYPES.map((item, index) => (
-            <div key={item.type} className="reveal" style={revealDelay(index)}>
+            <div
+              key={item.type}
+              className="reveal"
+              style={revealDelay(index)}
+            >
               <Card className="h-full">
                 <CardHeader>
-                  <CardTitle>{item.label}</CardTitle>
+                  <CardTitle className="text-[var(--brand-deep-green)]">
+                    {item.label}
+                  </CardTitle>
+
                   <p className="text-sm leading-loose text-muted-foreground">
                     {item.description}
                   </p>
@@ -55,10 +68,13 @@ export default async function PartnersPage() {
         </RevealGroup>
       </Section>
 
+      {/* أشكال الدعم */}
       <Section
         muted
         eyebrow="أشكال الدعم"
+        eyebrowClassName="text-[var(--brand-brown)]"
         title="كيف يمكن أن تشارك جهتك"
+        titleClassName="text-[var(--brand-deep-green)]"
         description="لا يشترط الدعم المالي. أكثر ما نحتاجه غالبًا خبرة أو مساحة أو أيادٍ تعمل."
       >
         <RevealGroup>
@@ -82,24 +98,45 @@ export default async function PartnersPage() {
         </RevealGroup>
       </Section>
 
-      <Section eyebrow="المسار" title="من التواصل إلى الشراكة">
+      {/* مسار الشراكة */}
+      <Section
+        eyebrow="المسار"
+        title="من التواصل إلى الشراكة"
+        backdrop
+        className="relative overflow-hidden"
+      >
         <PartnershipJourney />
       </Section>
 
-      <Section muted eyebrow="شركاؤنا" title="جهات نعمل معها">
+      {/* الشركاء */}
+      <Section
+        muted
+        eyebrow="شركاؤنا"
+        eyebrowClassName="text-[var(--brand-brown)]"
+        title="جهات نعمل معها"
+        titleClassName="text-[var(--brand-deep-green)]"
+      >
         {partners.length > 0 ? (
           <RevealGroup>
             <ul className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
               {partners.map((partner, index) => (
-                <li key={partner.id} className="reveal" style={revealDelay(index)}>
+                <li
+                  key={partner.id}
+                  className="reveal"
+                  style={revealDelay(index)}
+                >
                   <Card className="h-full">
                     <CardHeader>
-                      <CardTitle>{partner.nameAr}</CardTitle>
+                      <CardTitle className="text-[var(--brand-deep-green)]">
+                        {partner.nameAr}
+                      </CardTitle>
+
                       <div className="flex flex-wrap gap-2">
                         {partner.partnershipTypes.map((type) => (
                           <Badge key={type} tone="outline">
-                            {PARTNERSHIP_TYPES.find((item) => item.type === type)
-                              ?.label ?? type}
+                            {PARTNERSHIP_TYPES.find(
+                              (item) => item.type === type,
+                            )?.label ?? type}
                           </Badge>
                         ))}
                       </div>
@@ -117,7 +154,12 @@ export default async function PartnersPage() {
         )}
       </Section>
 
-      <CtaBand secondary={{ href: "/contact", label: "تواصل معنا" }} />
+      <CtaBand
+        secondary={{
+          href: "/contact",
+          label: "تواصل معنا",
+        }}
+      />
     </>
   );
 }

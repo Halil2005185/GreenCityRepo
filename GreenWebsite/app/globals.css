@@ -25,14 +25,15 @@
   --brand-brown: #7a4018;
 
   /* الأسطح الفاتحة: بيج مائل إلى الدفء، بنسبة 60% «خلفيات هادئة». */
-  --background: #fffbf8;
+  --background: rgb(254 240 231 / 0.4);
   --surface: #fdf3ec;
   --surface-strong: #f7eae0;
   --card: #ffffff;
   --card-foreground: var(--foreground);
 
-  --foreground: var(--brand-urban-charcoal); /* 13.88:1 على الخلفية */
-  --muted-foreground: #566068; /* 6.24:1 على الخلفية، 5.45:1 على أغمق سطح */
+  /* تم تغيير اللون الأساسي للنص من Urban Charcoal إلى Deep Green */
+  --foreground: var(--brand-deep-green);
+  --muted-foreground: #566068;
 
   /**
    * الأخضر الحيوي **تعبئة لا نص**: على سطح فاتح تباينه 1.41:1 — أي أنه غير
@@ -41,7 +42,7 @@
    */
   --primary: var(--brand-life-green);
   --primary-foreground: var(--brand-deep-green);
-  --accent-ink: var(--brand-deep-green); /* 12.70:1 على الخلفية */
+  --accent-ink: var(--brand-deep-green);
 
   --secondary: #f7eae0;
   --secondary-foreground: var(--brand-deep-green);
@@ -49,13 +50,12 @@
   --accent: #f2e4d8;
   --accent-foreground: var(--brand-deep-green);
 
-  --destructive: #b3261e; /* 6.35:1 */
+  --destructive: #b3261e;
   --destructive-foreground: #ffffff;
-  --success: #1e7a46; /* 5.20:1 */
-  --warning: #8a5a00; /* 5.76:1 */
+  --success: #1e7a46;
+  --warning: #8a5a00;
 
   --border: #ebdccf;
-  /** حدّ الحقل أغمق من حدّ البطاقة: 3.27:1 — حدّ الإدخال عنصر واجهة يُشترط تمييزه. */
   --input: #9e8b7a;
   --ring: var(--brand-deep-green);
 
@@ -64,15 +64,9 @@
 
 /**
  * نطاق الشريط المرسوم: كل ما يعلو لوحةً خضراء داكنة يُلفّ بهذا الصنف،
- * فتنقلب المتغيّرات داخله وتتبعها المكوّنات دون أن تعرف أين هي. هكذا يبقى
- * `text-muted-foreground` مثلًا صحيحًا في الموضعين، ولا يُكتب لون صريح.
+ * فتنقلب المتغيّرات داخله وتتبعها المكوّنات دون أن تعرف أين هي.
  *
- * **قاعدة لا تُخرق: النص داخل الشريط المرسوم بيجٌ كامل (`text-foreground`)
- * لا `text-muted-foreground`.** في اللوحتين بكسلات أوراق مُشمسة تقارب
- * الأبيض داخل مساحة النص لا في أطرافها وحدها؛ قيست أسوأ حالة عند حجاب
- * 78%: البيج 5.99:1 والنص الثانوي 3.48:1. التدرّج هنا بالحجم والوزن لا
- * باللون — وهو أيضًا ما يوجبه دليل الهوية: «النصوص الأساسية لا تُستخدم
- * بدرجات لونية مخففة».
+ * النص داخل الشريط المرسوم بيج كامل.
  */
 .on-painted {
   --background: var(--brand-deep-green);
@@ -80,12 +74,12 @@
   --surface-strong: #284d1a;
   --card: #214712;
 
-  --foreground: var(--brand-warm-beige); /* 11.72:1 على الأخضر العميق */
+  --foreground: var(--brand-warm-beige);
   --muted-foreground: #bbbda6;
 
   --primary: var(--brand-life-green);
   --primary-foreground: var(--brand-deep-green);
-  --accent-ink: var(--brand-life-green); /* 8.97:1 على الأخضر العميق */
+  --accent-ink: var(--brand-life-green);
 
   --secondary: #284d1a;
   --secondary-foreground: var(--brand-warm-beige);
@@ -98,7 +92,6 @@
   --success: #7bd8a4;
   --warning: #f5c451;
 
-  /* حدود الأشرطة زخرفية لا حدود إدخال، فالبيج الشفيف أنسب من لون صلب. */
   --border: rgb(254 240 231 / 0.24);
   --input: rgb(254 240 231 / 0.32);
   --ring: var(--brand-life-green);
@@ -155,11 +148,6 @@
     color: var(--brand-deep-green);
   }
 
-  /**
-   * النصوص عربية، لكن الأرقام المعلنة (أثر، أهداف، سنوات) تبقى لاتينية
-   * لأنها تُقارَن بصريًا وتُنسخ. العزل يمنع محرك BiDi من قلب ترتيب
-   * الرقم حين يجاور نصًا عربيًا.
-   */
   .numeric {
     font-variant-numeric: tabular-nums;
     direction: ltr;
@@ -168,15 +156,6 @@
 }
 
 @layer components {
-  /*
-   * رمز الهوية: الملف نقطي، فيُستعمل قناعًا وتأتي التعبئة من `--logo`.
-   * هكذا يبقى شكل الرمز كما سُلّم بالبكسل، ويتبع لونه متغيّرًا واحدًا —
-   * أخضر عميق على الفاتح، وأخضر حيوي داخل الأشرطة المرسومة.
-   *
-   * دليل الهوية يمنع التدرجات والشفافية على اللوغو، فالتعبئة لون صلب من
-   * ألوان الهوية دائمًا. نسبة الأبعاد من أبعاد الملف نفسه حتى يكفي تحديد
-   * الارتفاع في موضع الاستعمال.
-   */
   .brand-logo {
     display: inline-block;
     aspect-ratio: 452 / 512;
@@ -185,14 +164,6 @@
     mask: url("/brand/logomark.png") center / contain no-repeat;
   }
 
-  /**
-   * الكشف عند التمرير: الحركة في CSS و«صار مرئيًا» وحدها في JS — مراقبٌ
-   * واحد للمجموعة كلها لا مراقب لكل عنصر، فالعناصر الداخلية تبقى مكوّنات
-   * خادم ولا يُدفع إلى المتصفح إلا الغلاف.
-   *
-   * الإخفاء مشروط بوجود `data-reveal-visible` على الأب: العنصر الذي لا
-   * مجموعةَ له يُعرض كما هو، فلا يختفي محتوى بسبب صنفٍ نُسي.
-   */
   [data-reveal-visible] .reveal {
     opacity: 0;
     transform: translateY(1.25rem);
@@ -207,10 +178,6 @@
     transform: none;
   }
 
-  /**
-   * بلا JavaScript لا مراقب يقلب السمة، فيبقى المحتوى مخفيًا إلى الأبد.
-   * هذه القاعدة تُلغي الإخفاء أصلًا في تلك الحالة.
-   */
   @media (scripting: none) {
     [data-reveal-visible] .reveal {
       opacity: 1;
@@ -218,10 +185,6 @@
     }
   }
 
-  /**
-   * من ضبط نظامه على تقليل الحركة يرى المحتوى مستقرًا من أول لحظة: لا
-   * إزاحة ولا تلاشٍ ولا تأخير.
-   */
   @media (prefers-reduced-motion: reduce) {
     [data-reveal-visible] .reveal,
     [data-reveal-visible="true"] .reveal {
@@ -230,5 +193,49 @@
       transition: none;
       transition-delay: 0ms;
     }
+  }
+}
+
+.timeline-number {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+[data-reveal-visible="true"] .timeline-number {
+  animation: timelineNumberDown 700ms ease-out forwards;
+  animation-delay: var(--number-delay);
+}
+
+@keyframes timelineNumberDown {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.timeline-text {
+  opacity: 0;
+  transform: translateY(24px);
+}
+
+[data-reveal-visible="true"] .timeline-text {
+  animation: timelineTextDown 700ms ease-out forwards;
+  animation-delay: var(--text-delay);
+}
+
+@keyframes timelineTextDown {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

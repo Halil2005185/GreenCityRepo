@@ -18,10 +18,9 @@ import { cn } from "@/lib/utils";
  * في أطرافها — والتدرّج يترك ذلك البكسل بلا حماية.
  */
 const SCRIMS = {
-  /** الافتراضي: اللوحة ظاهرة والبيج فوقها 5.99:1 في أسوأ بكسل. */
-  default: "bg-background/[0.78]",
-  /** للمساحات كثيفة النص: اللوحة أثرٌ خفيف، والبيج 7.46:1. */
-  strong: "bg-background/[0.88]",
+  default: "bg-[var(--brand-deep-green)]/40",
+  strong: "bg-[var(--brand-deep-green)]/60",
+  none: "",
 } as const;
 
 export function Backdrop({
@@ -47,7 +46,7 @@ export function Backdrop({
   return (
     <div
       aria-hidden
-      className={cn("absolute inset-0 -z-10 overflow-hidden bg-background", className)}
+      className={cn("absolute inset-0 -z-10 overflow-hidden", className)}
     >
       <Image
         src={src}

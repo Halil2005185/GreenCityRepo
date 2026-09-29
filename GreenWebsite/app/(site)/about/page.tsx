@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { CtaBand } from "@/components/sections/cta-band";
+import { Backdrop } from "@/components/ui/backdrop";
 import { PageHeader, Section, SectionHeading } from "@/components/ui/section";
 import { RevealGroup } from "@/components/ui/reveal";
 import { revealDelay } from "@/lib/utils";
@@ -55,15 +56,19 @@ export default function AboutPage() {
         description={siteConfig.description}
       />
 
-      <Section>
-        <div className="grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+      {/* الفكرة + كيف تُدار المبادرة */}
+      <Section className="relative my-20 overflow-hidden ">
+        <Backdrop src="/bg/sectionNew.png" />
+
+        <div className="relative z-10 grid gap-12 lg:grid-cols-[1.1fr_1fr] lg:gap-16">
+          {/* الفكرة */}
           <div className="space-y-6">
             <SectionHeading title="الفكرة" />
             <div className="space-y-5">
               {IDEA.map((paragraph) => (
                 <p
                   key={paragraph}
-                  className="max-w-[58ch] text-base leading-loose text-muted-foreground"
+                  className="max-w-[58ch] text-base leading-loose text-white/90"
                 >
                   {paragraph}
                 </p>
@@ -71,31 +76,48 @@ export default function AboutPage() {
             </div>
           </div>
 
+          {/* كيف تُدار المبادرة */}
           <div className="space-y-6">
             <SectionHeading title="كيف تُدار المبادرة" />
-
-            {/*
-              الخط الواصل يُرسم قطعةً بين كل دائرتين لا شريطًا مطلقًا
-              يُوضَع بإزاحة محسوبة: الإزاحة تُقاس بالبكسل من حافة بعينها
-              فتنكسر عند انعكاس الاتجاه أو تغيّر حجم الدائرة.
-            */}
             <RevealGroup>
               <ol className="space-y-0">
                 {PROCESS.map((step, index) => (
-                  <li
-                    key={step}
-                    className="reveal flex gap-5 pb-7 last:pb-0"
-                    style={revealDelay(index, 80)}
-                  >
-                    <div className="flex flex-col items-center">
-                      <span className="numeric flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                  <li key={step} className="relative flex gap-5 pb-7 last:pb-0">
+                    {/* الرقم + الخط */}
+                    <div className="relative flex w-8 shrink-0 flex-col items-center">
+                      {/* الرقم */}
+                      <span
+                        className="timeline-number numeric relative z-10 flex size-8 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground"
+                        style={
+                          {
+                            "--number-delay": `${index * 700}ms`,
+                          } as React.CSSProperties
+                        }
+                      >
                         {index + 1}
                       </span>
-                      {index < PROCESS.length - 1 && (
-                        <span aria-hidden className="mt-2 w-px flex-1 bg-border" />
+                      {/* الخط */}
+                      {index !== PROCESS.length - 1 && (
+                        <span
+                          aria-hidden
+                          className="timeline-step-line mt-1 w-px flex-1 origin-top bg-primary"
+                          style={
+                            {
+                              "--line-delay": `${index * 700 + 700}ms`,
+                            } as React.CSSProperties
+                          }
+                        />
                       )}
                     </div>
-                    <p className="flex-1 pt-1 text-base leading-loose text-muted-foreground">
+                    {/* النص */}
+                    <p
+                      className="timeline-text flex-1 pt-1 text-base leading-loose text-white/90"
+                      style={
+                        {
+                          "--text-delay": `${index * 700}ms`,
+                        } as React.CSSProperties
+                      }
+                    >
                       {step}
                     </p>
                   </li>
@@ -106,26 +128,34 @@ export default function AboutPage() {
         </div>
       </Section>
 
-      <Section muted eyebrow="مبادئنا" title="أربعة نلتزم بها">
-        <RevealGroup className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
-          {PRINCIPLES.map((principle, index) => (
-            <div
-              key={principle.title}
-              className="reveal space-y-3"
-              style={revealDelay(index, 80)}
-            >
-              <span className="numeric flex size-10 items-center justify-center rounded-full bg-accent-ink/10 text-sm font-bold text-accent-ink">
-                {index + 1}
-              </span>
-              <h3 className="text-lg font-bold leading-[1.6] text-foreground">
-                {principle.title}
-              </h3>
-              <p className="text-sm leading-loose text-muted-foreground">
-                {principle.body}
-              </p>
-            </div>
-          ))}
-        </RevealGroup>
+      <Section
+        eyebrow="مبادئنا"
+        title="أربعة نلتزم بها"
+        backdrop
+        className="relative my-20 overflow-hidden"
+      >
+        <Backdrop className="" src="/bg/sectionNew.png" />
+        <div className="relative z-10">
+          <RevealGroup className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {PRINCIPLES.map((principle, index) => (
+              <div
+                key={principle.title}
+                className="reveal space-y-3"
+                style={revealDelay(index, 80)}
+              >
+                <span className="numeric flex size-10 items-center justify-center rounded-full bg-accent-ink/10 text-sm font-bold text-accent-ink">
+                  {index + 1}
+                </span>
+                <h3 className="text-lg font-bold leading-loose text-[var(--brand-warm-beige)]">
+                  {principle.title}
+                </h3>
+                <p className="text-medium leading-loose text-muted-foreground">
+                  {principle.body}
+                </p>
+              </div>
+            ))}
+          </RevealGroup>
+        </div>
       </Section>
 
       <CtaBand />
