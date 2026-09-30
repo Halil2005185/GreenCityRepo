@@ -1,12 +1,19 @@
 "use client";
 
-import { CalendarCheck, Camera, UserRound, Users } from "lucide-react";
+import {
+  Award,
+  CalendarCheck,
+  Camera,
+  IdCard,
+  UserRound,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
+import { FieldBrand } from "@/components/field/brand";
 import { InstallBanner } from "@/components/field/install-banner";
 import { SyncBadge } from "@/components/field/sync-badge";
-import { BrandLockup } from "@/components/layout/logo";
 import {
   FIELD_APP_NAME,
   FIELD_APP_SHORT_NAME,
@@ -14,21 +21,46 @@ import {
 } from "@/lib/field/config";
 import { useCurrentGroup } from "@/lib/field/current-group";
 import { formatDay } from "@/lib/field/labels";
-import { useFieldHome } from "@/lib/field/queries";
-import { useFieldSession } from "@/lib/field/session";
+import { useFieldSession, useSessionKind } from "@/lib/field/session";
+import { useMyGroups } from "@/lib/field/sheet";
 import { cn } from "@/lib/utils";
 
-const TABS = [
+const LEAD_TABS = [
   { href: FIELD_ROUTES.home, label: "اليوم", icon: CalendarCheck },
   { href: FIELD_ROUTES.attendance, label: "الحضور", icon: Users },
   { href: FIELD_ROUTES.photos, label: "الصور", icon: Camera },
   { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
 ] as const;
 
+/** المتطوع يقرأ ولا يسجّل: بطاقته، وسجلّه، وما يخصّه على هذا الجهاز. */
+const VOLUNTEER_TABS = [
+  { href: FIELD_ROUTES.home, label: "بطاقتي", icon: IdCard },
+  { href: FIELD_ROUTES.record, label: "سجلّي", icon: Award },
+  { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
+] as const;
+
+/** مساعد القائد متطوع يسجّل حضور مجموعته: تبويبات المتطوع، ومعها الحضور. */
+const ASSISTANT_TABS = [
+  { href: FIELD_ROUTES.home, label: "بطاقتي", icon: IdCard },
+  { href: FIELD_ROUTES.attendance, label: "الحضور", icon: Users },
+  { href: FIELD_ROUTES.record, label: "سجلّي", icon: Award },
+  { href: FIELD_ROUTES.me, label: "أنا", icon: UserRound },
+] as const;
+
+type Tab = (
+  | typeof LEAD_TABS
+  | typeof VOLUNTEER_TABS
+  | typeof ASSISTANT_TABS
+)[number];
+
 const TITLES: Record<string, string> = {
   [FIELD_ROUTES.attendance]: "الحضور",
   [FIELD_ROUTES.photos]: "الصور",
   [FIELD_ROUTES.me]: "أنا",
+  [FIELD_ROUTES.link]: "بطاقتي",
+  [FIELD_ROUTES.checkin]: "تسجيل الحضور",
+  [FIELD_ROUTES.record]: "سجلّي",
+  [FIELD_ROUTES.certificate]: "شهادتي",
   [FIELD_ROUTES.login]: "تسجيل الدخول",
   [FIELD_ROUTES.offline]: "بلا اتصال",
 };
@@ -55,22 +87,42 @@ const COLUMN = "mx-auto w-full max-w-[30rem] px-4";
 export function FieldChrome({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { status } = useFieldSession();
+  const kind = useSessionKind();
+  const { groups } = useMyGroups();
 
   // صفحة الدخول بلا تبويبات: لا شيء يُنتقل إليه قبل الدخول.
-  const showTabs = status === "authenticated" || status === "offline";
+  const showTabs = kind !== null;
+  const tabs: readonly Tab[] =
+    kind !== "PARTICIPANT"
+      ? LEAD_TABS
+      : groups && groups.length > 0
+        ? ASSISTANT_TABS
+        : VOLUNTEER_TABS;
 
   return (
-    <div data-field-app className="flex min-h-dvh flex-col bg-background">
-      <BrowserHeader pathname={pathname} showTabs={showTabs} />
-      <AppHeader pathname={pathname} signedOut={status === "anonymous"} />
+    <div
+      data-field-app
+      className="flex min-h-dvh flex-col bg-background print:block print:min-h-0 print:bg-white"
+    >
+      {/* ما حول الصفحة لا يُطبع: الشهادة ورقة، لا لقطة من التطبيق. */}
+      <div className="contents print:hidden">
+        <BrowserHeader pathname={pathname} tabs={showTabs ? tabs : null} />
+        <AppHeader
+          pathname={pathname}
+          signedOut={status === "anonymous"}
+          volunteer={kind === "PARTICIPANT"}
+        />
 
-      <InstallBanner />
+        <InstallBanner />
+      </div>
 
       <main
         id="main"
         className={cn(
           COLUMN,
-          "flex-1 py-6",
+          // `!` لأن حشوة وضع التطبيق أدناه تساويها أولويةً وتغلبها بترتيبها،
+          // فتبقى تحت الشهادة وتدفع إلى الطابعة صفحة ثانية فارغة.
+          "flex-1 py-6 print:max-w-none print:p-0!",
           // يُفسح لشريط التبويب الثابت وما تحته من حافة الجهاز.
           showTabs && "app:pb-[calc(5.5rem+env(safe-area-inset-bottom))]",
         )}
@@ -78,21 +130,36 @@ export function FieldChrome({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
-      {showTabs ? <TabBar pathname={pathname} /> : null}
+      {showTabs ? (
+        <div className="contents print:hidden">
+          <TabBar pathname={pathname} tabs={tabs} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-const isActive = (pathname: string, href: string) =>
-  pathname === href || pathname.startsWith(`${href}/`);
+/** صفحات تُفتح من تبويب وليست تبويبًا: يبقى تبويبها مضاءً وهي مفتوحة. */
+const PARENT_TAB: Record<string, string> = {
+  [FIELD_ROUTES.certificate]: FIELD_ROUTES.record,
+};
+
+const isActive = (pathname: string, href: string) => {
+  const current = PARENT_TAB[pathname] ?? pathname;
+
+  return current === href || current.startsWith(`${href}/`);
+};
 
 function BrowserHeader({
   pathname,
-  showTabs,
+  tabs,
 }: {
   pathname: string;
-  showTabs: boolean;
+  /** `null` قبل الدخول: لا تبويبات. */
+  tabs: readonly Tab[] | null;
 }) {
+  const showTabs = tabs !== null;
+
   return (
     <header className="app:hidden border-b border-border bg-background">
       <div className={cn(COLUMN, "flex items-center justify-between gap-3 py-4")}>
@@ -101,7 +168,7 @@ function BrowserHeader({
           href="/"
           className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          <BrandLockup />
+          <FieldBrand />
         </Link>
 
         {/* بعد الدخول تقول التبويبات أين أنت، فيأخذ مكانَ الشارة حالُ الإرسال. */}
@@ -119,7 +186,7 @@ function BrowserHeader({
           aria-label="أقسام التطبيق"
           className={cn(COLUMN, "flex gap-1 overflow-x-auto pb-3")}
         >
-          {TABS.map((tab) => (
+          {tabs.map((tab) => (
             <Link
               key={tab.href}
               href={tab.href}
@@ -128,7 +195,8 @@ function BrowserHeader({
                 "shrink-0 rounded-full px-4 py-2 text-sm font-medium transition-colors",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 isActive(pathname, tab.href)
-                  ? "bg-accent-ink text-background"
+                  ? // بيج صلب لا `text-background`: خلفية الموقع شفيفة.
+                    "bg-accent-ink text-[var(--brand-warm-beige)]"
                   : "text-muted-foreground hover:bg-accent hover:text-foreground",
               )}
             >
@@ -150,12 +218,15 @@ function BrowserHeader({
 function AppHeader({
   pathname,
   signedOut,
+  volunteer,
 }: {
   pathname: string;
   signedOut: boolean;
+  volunteer: boolean;
 }) {
-  const home = useFieldHome();
-  const { current } = useCurrentGroup(home.data?.groups);
+  const { identity } = useFieldSession();
+  const { groups } = useMyGroups();
+  const { current } = useCurrentGroup(groups);
 
   /**
    * بلا جلسة لا مجموعة في الرأس، ولو بقيت ورقتها في المحفوظ: من انتهت جلسته
@@ -177,8 +248,13 @@ function AppHeader({
     pathname === FIELD_ROUTES.login || pathname === FIELD_ROUTES.offline;
   const title = signedOut && !open
     ? FIELD_APP_SHORT_NAME
-    : ((onHome ? group?.nameAr : TITLES[pathname]) ?? "اليوم");
-  const subtitle = !group
+    : volunteer && onHome
+      ? "بطاقتي"
+      : ((onHome ? group?.nameAr : TITLES[pathname]) ?? "اليوم");
+  // المساعد في «الحضور» يرى أي مجموعة يسجّل لها؛ وفي غيره مبادرة بطاقته.
+  const subtitle = volunteer && identity?.kind === "PARTICIPANT" && (onHome || !group)
+    ? identity.initiativeNameAr
+    : !group
     ? FIELD_APP_NAME
     : onHome
       ? [group.siteNameAr, group.meetsAt ? formatDay(group.meetsAt) : null]
@@ -204,14 +280,20 @@ function AppHeader({
   );
 }
 
-function TabBar({ pathname }: { pathname: string }) {
+function TabBar({
+  pathname,
+  tabs,
+}: {
+  pathname: string;
+  tabs: readonly Tab[];
+}) {
   return (
     <nav
       aria-label="تبويبات التطبيق"
       className="fixed inset-x-0 bottom-0 z-40 hidden border-t border-border bg-card pb-[env(safe-area-inset-bottom)] app:block"
     >
       <ul className={cn(COLUMN, "flex items-stretch justify-around gap-1 py-2")}>
-        {TABS.map((tab) => {
+        {tabs.map((tab) => {
           const active = isActive(pathname, tab.href);
 
           return (

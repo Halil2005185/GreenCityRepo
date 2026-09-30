@@ -4,6 +4,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { useSyncExternalStore } from "react";
 
 import {
+  type FieldCard,
   FieldApiError,
   type FieldSheet,
   OfflineError,
@@ -12,9 +13,14 @@ import {
 } from "./api";
 import { fieldDb } from "./db";
 import { damascusDay } from "./labels";
-import type { OutboxDraft, OutboxItem, PhotoItem } from "./outbox-types";
-import { applyItem, forDay, isCurrentShape } from "./overlay";
-import { fieldKeys } from "./queries";
+import {
+  type OutboxDraft,
+  type OutboxItem,
+  type PhotoItem,
+  isCardItem,
+} from "./outbox-types";
+import { applyCardItem, applyItem, forDay, isCurrentShape } from "./overlay";
+import { attendanceChanged, fieldKeys } from "./queries";
 
 export type OutboxState = {
   /** ما ينتظر وما رُفض، الأقدم أولًا. */
@@ -262,6 +268,22 @@ function send(item: OutboxItem) {
   const group = `/field/groups/${item.groupId}`;
 
   switch (item.kind) {
+    case "rsvp":
+      return fieldFetch("/field/me/rsvp", {
+        method: "POST",
+        body: item.payload,
+      });
+
+    case "self-checkin":
+      return fieldFetch("/field/me/checkin", {
+        method: "POST",
+        body: {
+          clientId: item.clientId,
+          groupId: item.groupId,
+          ...item.payload,
+        },
+      });
+
     case "attendance":
       return fieldFetch(`${group}/attendance`, {
         method: "POST",
@@ -326,7 +348,7 @@ function send(item: OutboxItem) {
  * ما يُعاد من تلقائه: الخادم مشغول أو متعثّر، أو رابط الرفع انتهى عمره.
  * وما عداه رفضٌ لن يتغيّر بالتكرار — بيانات لا تُقبل، أو مجموعة لم تعد له.
  */
-function isTransient(error: FieldApiError) {
+export function isTransient(error: FieldApiError) {
   return (
     error.status === 408 ||
     error.status === 425 ||
@@ -375,6 +397,7 @@ function nextItem(skipped: ReadonlySet<string>) {
 async function drain(current: NonNullable<typeof engine>) {
   const touched = new Set<string>();
   const skipped = new Set<string>();
+  let cardTouched = false;
 
   try {
     for (;;) {
@@ -435,15 +458,22 @@ async function drain(current: NonNullable<typeof engine>) {
        * الأثر يُثبَّت في الورقة المحفوظة قبل أن يخرج الفعل من الطابور، فلا
        * تمرّ لحظة تختفي فيها علامة الحضور بين الإرسال وجواب الخادم.
        */
-      current.queryClient.setQueryData<FieldSheet>(
-        fieldKeys.sheet(item.groupId),
-        (sheet) =>
-          isCurrentShape(sheet)
-            ? applyItem(forDay(sheet, damascusDay(Date.now())), item)
-            : sheet,
-      );
+      if (isCardItem(item)) {
+        current.queryClient.setQueryData<FieldCard>(fieldKeys.card, (card) =>
+          card ? applyCardItem(card, item) : card,
+        );
+        cardTouched = true;
+      } else {
+        current.queryClient.setQueryData<FieldSheet>(
+          fieldKeys.sheet(item.groupId),
+          (sheet) =>
+            isCurrentShape(sheet)
+              ? applyItem(forDay(sheet, damascusDay(Date.now())), item)
+              : sheet,
+        );
+        touched.add(item.groupId);
+      }
 
-      touched.add(item.groupId);
       await remove(item.clientId);
     }
   } finally {
@@ -455,6 +485,11 @@ async function drain(current: NonNullable<typeof engine>) {
 
     if (touched.size > 0) {
       void current.queryClient.invalidateQueries({ queryKey: fieldKeys.home });
+    }
+
+    if (cardTouched) {
+      void current.queryClient.invalidateQueries({ queryKey: fieldKeys.card });
+      attendanceChanged(current.queryClient);
     }
   }
 }

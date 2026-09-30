@@ -1,4 +1,5 @@
 import type { BadgeTone } from "@/components/ui/badge";
+import type { FieldDeletionRequest } from "@/lib/api/field";
 import type { SubmissionStatus } from "@/lib/api/forms";
 import type {
   InitiativeStatus,
@@ -125,6 +126,12 @@ const submissionStatus = {
   REJECTED: { label: "مرفوض", tone: "danger" },
 } satisfies StatusMap<SubmissionStatus>;
 
+const deletionRequestStatus = {
+  PENDING: { label: "ينتظر القرار", tone: "warning" },
+  DONE: { label: "نُفّذ", tone: "neutral" },
+  REJECTED: { label: "رُفض", tone: "danger" },
+} satisfies StatusMap<FieldDeletionRequest["status"]>;
+
 const auditSeverity = {
   INFO: { label: "عادي", tone: "neutral" },
   NOTICE: { label: "ملحوظ", tone: "primary" },
@@ -172,6 +179,7 @@ export const STATUS = {
   membershipStatus,
   invitationStatus,
   submissionStatus,
+  deletionRequestStatus,
   auditSeverity,
   formAccepting,
   charterState,

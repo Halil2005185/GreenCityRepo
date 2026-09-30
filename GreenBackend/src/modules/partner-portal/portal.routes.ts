@@ -20,6 +20,12 @@ const getMe: RequestHandler = async (request, response) => {
   response.status(200).json(await service.loadSelf(request.auth!))
 }
 
+const getFieldTeams: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json({ data: await service.loadFieldTeams(request.auth!) })
+}
+
 const patchMe: RequestHandler = async (request, response) => {
   const updated = await service.updateSelf(
     request.auth!,
@@ -52,6 +58,7 @@ export const partnerPortalRouter = Router()
 partnerPortalRouter.use(requireAuth, requirePartnerScope)
 
 partnerPortalRouter.get('/me', getMe)
+partnerPortalRouter.get('/me/field-teams', getFieldTeams)
 
 partnerPortalRouter.patch(
   '/me',

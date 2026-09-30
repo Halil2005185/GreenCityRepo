@@ -5275,6 +5275,56 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/partner/me/field-teams": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * فرق جهتي في الميدان
+         * @description المجموعات الميدانية المنسوبة إلى الجهة في المبادرات التي بدأ تنفيذها، بأعداد الحضور. النطاق من الجلسة.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الفرق، الأحدث موعدًا أولًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["PartnerFieldTeam"][];
+                        };
+                    };
+                };
+                /** @description الحساب لا يمثل جهة */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/partners": {
         parameters: {
             query?: never;
@@ -6985,14 +7035,17 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/field/me": {
+    "/api/field/me/record": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** هويتي ومجموعاتي */
+        /**
+         * سجلّي عبر الحملات
+         * @description لحامل الرابط الشخصي.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -7002,16 +7055,182 @@ export interface paths {
             };
             requestBody?: never;
             responses: {
-                /** @description الهوية والمجموعات */
+                /** @description السجل */
                 200: {
                     headers: {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["FieldHome"];
+                        "application/json": components["schemas"]["FieldRecord"];
                     };
                 };
-                /** @description بلا جلسة */
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me/certificate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * شهادة مشاركتي
+         * @description لحامل الرابط الشخصي، في مبادرة رابطه. تصدر عند أول طلب وتعود هي نفسها بعده برمزها.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الشهادة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCertificate"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الشهادات غير مفعّلة، أو لا حضور مسجَّلًا له بعد */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/public/certificates/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * التحقق من شهادة مشاركة
+         * @description بلا مصادقة، محدود المعدل. غير الموجودة وما لم يبقَ لصاحبها يوم حضور جواب واحد.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الشهادة صحيحة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["VerifiedCertificate"];
+                        };
+                    };
+                };
+                /** @description لا شهادة بهذا الرمز */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description محاولات كثيرة */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * هويتي ومجموعاتي، أو بطاقتي
+         * @description الجواب يتبع من يسأل، ويُعرف بـ`kind`: عضو الفريق يأخذ مجموعاته، وحامل الرابط الشخصي يأخذ بطاقته.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الهوية والمجموعات، أو البطاقة */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldHome"] | components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description بلا جلسة، أو رابط لم يعد صالحًا */
                 401: {
                     headers: {
                         [name: string]: unknown;
@@ -7039,6 +7258,493 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/field/links/redeem": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * فتح رابط شخصي
+         * @description بلا مصادقة: الرمز هو الاعتماد. يتحقق منه ويعيد اسم صاحبه ومبادرته، وبعده يُرسَل الرمز نفسه في ترويسة `Authorization: Bearer`.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description الرمز من جزء العنوان (`#`). يُرسَل في الجسم لا في المسار، فلا يُكتب في سجل. */
+                        token: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description الرابط صالح */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldRedeemedLink"];
+                    };
+                };
+                /** @description الرابط منتهٍ أو مُبطَل أو غير موجود — جواب واحد. ورابط من حُذفت بياناته بطلبه عنوانه `PARTICIPANT_DELETED` */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description محاولات كثيرة */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me/rsvp": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تأكيد الحضور أو الاعتذار
+         * @description لحامل الرابط الشخصي. حالة تُكتب، فإعادة الطلب آمنة.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description عضويته في المجموعة التي يؤكّد حضورها، كما في البطاقة.
+                         */
+                        memberId: string;
+                        coming: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description العضوية ليست له */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description انتهت الحملة أو أُلغي الموقع */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me/deletion-request": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * طلب حذف بياناتي
+         * @description لحامل الرابط الشخصي. الطلب لا يحذف شيئًا: يراجعه المنسّق وينفّذه من اللوحة. طلب قائم واحد للشخص، فتكراره يعيد القائم.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلب قائم */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        /**
+         * التراجع عن طلب حذف بياناتي
+         * @description ما لم يُقرَّر بعد. غياب الطلب نجاح.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description لا طلب قائمًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/push/key": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** مفتاح الاشتراك في الإشعارات */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description المفتاح وحال الإشعارات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldPushKey"];
+                    };
+                };
+                /** @description بلا جلسة، أو رابط لم يعد صالحًا */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/push/subscriptions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل اشتراك هذا الجهاز في الإشعارات
+         * @description آمن التكرار: التطبيق يعيد إرساله عند كل فتح. والجهاز لمن دخل آخرًا.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                        keys: {
+                            p256dh: string;
+                            auth: string;
+                        };
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            subscribed: boolean;
+                        };
+                    };
+                };
+                /** @description الإشعارات غير مفعّلة على الخادم */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description عنوان الاشتراك ليس من خدمة إشعارات معروفة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/push/subscriptions/remove": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إزالة اشتراك هذا الجهاز
+         * @description غياب الاشتراك نجاح: المطلوب ألا يصل هذا الجهازَ إشعار.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uri */
+                        endpoint: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُزيل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            subscribed: boolean;
+                        };
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/field/me/checkin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تسجيل المتطوع حضورَه برمز قائده
+         * @description لحامل الرابط الشخصي، في مجموعة هو عضو فيها. الرمز يتبدّل كل دقيقة ويُقبل دقيقتين قبل وقت كتابته وبعده. آمن التكرار.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description معرّف المُرسِل. إعادة الطلب بالمعرّف نفسه تعيد النتيجة الأولى ولا تكتب ثانية.
+                         */
+                        clientId: string;
+                        /** Format: uuid */
+                        groupId: string;
+                        /** @description الرمز الظاهر على هاتف قائد المجموعة. */
+                        code: string;
+                        /**
+                         * Format: date-time
+                         * @description وقت كتابة الرمز على الهاتف. من كتبه بلا شبكة يُرسَل طلبه لاحقًا، والرمز يُفحص على وقت كتابته.
+                         */
+                        scannedAt?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description سُجّل حضوره */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldCard"];
+                    };
+                };
+                /** @description المسار لحامل رابط شخصي */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description ليس عضوًا في هذه المجموعة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة لا تقبل تسجيلًا الآن، أو الموقع ملغى */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الرمز غير صحيح أو انتهى وقته */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description محاولات كثيرة */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/field/groups/{id}": {
         parameters: {
             query?: never;
@@ -7048,7 +7754,7 @@ export interface paths {
         };
         /**
          * ورقة يوم المجموعة
-         * @description لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`. مجموعة يقودها غيرك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.
+         * @description لقائد المجموعة نفسها بـ`field.lead`، ولمن يحمل `field.manage`، ولمساعد قائدها برابطه الشخصي — وورقته حضور وحده. مجموعة ليست لك تعطي 404 كغير الموجودة، فلا تُستكشف المعرّفات.
          */
         get: {
             parameters: {
@@ -7100,7 +7806,7 @@ export interface paths {
         put?: never;
         /**
          * تسجيل حضور
-         * @description آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.
+         * @description للقائد ولمساعده. آمن التكرار: إعادة الطلب تعيد الحضور نفسه، ومن سُجّل حضوره في اليوم يعود حضوره القائم.
          */
         post: {
             parameters: {
@@ -7190,7 +7896,7 @@ export interface paths {
         put?: never;
         /**
          * التراجع عن حضور
-         * @description بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.
+         * @description للقائد ولمساعده. بطابع لا بحذف. ما أُلغي سلفًا يعود كما هو.
          */
         post: {
             parameters: {
@@ -7859,6 +8565,49 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/initiatives/{id}/field/partner-options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * الجهات التي تُنسب إليها مجموعة
+         * @description الجهات النشطة غير المعلّقة. مسار خاص لأن المنسّق لا يحمل بالضرورة `partners.view`.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الجهات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldPartnerOption"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/initiatives/{id}/field/groups": {
         parameters: {
             query?: never;
@@ -7886,6 +8635,14 @@ export interface paths {
                         nameAr: string;
                         /** Format: uuid */
                         leadUserId?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة.
+                         */
+                        partnerId?: string | null;
+                        contactPhone?: string | null;
+                        /** @description بأنصاف الساعات. `null` يمحوها. */
+                        hoursPerDay?: number | null;
                         /** Format: date-time */
                         meetsAt?: string | null;
                         meetingPointAr?: string | null;
@@ -7913,7 +8670,7 @@ export interface paths {
                         "application/problem+json": components["schemas"]["Problem"];
                     };
                 };
-                /** @description الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء */
+                /** @description الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو الجهة ليست شريكًا نشطًا، أو المبادرة نقطة خضراء */
                 422: {
                     headers: {
                         [name: string]: unknown;
@@ -8009,6 +8766,14 @@ export interface paths {
                         nameAr?: string;
                         /** Format: uuid */
                         leadUserId?: string | null;
+                        /**
+                         * Format: uuid
+                         * @description جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة.
+                         */
+                        partnerId?: string | null;
+                        contactPhone?: string | null;
+                        /** @description بأنصاف الساعات. `null` يمحوها. */
+                        hoursPerDay?: number | null;
                         /** Format: date-time */
                         meetsAt?: string | null;
                         meetingPointAr?: string | null;
@@ -8252,6 +9017,262 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * توليد روابط شخصية للمتطوعين
+         * @description رابط لكل مشارك، يُعرض مرة واحدة. توليد جديد يُبطل رابطه السابق في هذه المبادرة.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description كل أعضاء هذه المجموعة.
+                         */
+                        groupId?: string;
+                        /** @default [] */
+                        participantIds?: string[];
+                        /** @description عمر الرابط بالأيام. الافتراضي من إعداد الخادم. */
+                        ttlDays?: number;
+                        /**
+                         * @description إرسال الرابط بالبريد لمن له بريد. غيره يُنسخ رابطه.
+                         * @default false
+                         */
+                        email?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description وُلّدت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldIssuedLinks"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المبادرة ملغاة */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description مشارك ليس عضوًا في مجموعة من هذه المبادرة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/links/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إبطال روابط شخصية
+         * @description البطاقة تُغلق فورًا على كل جهاز فتحها. ما أُبطل سلفًا يبقى كما هو.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        participantIds: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description أُبطلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            /** Format: uuid */
+                            initiativeId: string;
+                            revoked: number;
+                        };
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/feedback-forms": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * استمارات تصلح للتقييم
+         * @description المنشورة التي تستقبل. مسار خاص كمسار المصادر: المنسّق يرى اسم الاستمارة لا أسئلتها.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الاستمارات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["FieldFeedbackForm"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** إعدادات ميدان المبادرة */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        feedbackFormId: string | null;
+                        certificatesEnabled?: boolean;
+                        certificateSignerNameAr?: string | null;
+                        certificateSignerTitleAr?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description حُفظت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["InitiativeField"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاستمارة غير موجودة، أو فُعّلت الشهادات بلا اسم من يوقّعها */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
     "/api/admin/initiatives/{id}/field/sources": {
@@ -8643,6 +9664,338 @@ export interface paths {
                 };
             };
         };
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/announcements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** إعلانات الميدان */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الإعلانات، الأحدث أولًا */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAnnouncements"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        /**
+         * إعلان جديد للميدان
+         * @description يظهر في ورقة القائد وبطاقة المتطوع، ويُدرج إشعار لكل جهاز مشترك من المستهدفين. الإشعار لا يُستردّ بعد إرساله.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: uuid
+                         * @description مجموعة بعينها. بدونه يذهب الإعلان إلى مجموعات المبادرة كلها.
+                         */
+                        groupId?: string;
+                        /**
+                         * @default ALL
+                         * @enum {string}
+                         */
+                        audience?: "ALL" | "LEADS" | "VOLUNTEERS";
+                        titleAr: string;
+                        bodyAr: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُعلن */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAnnouncements"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description المجموعة ليست من هذه المبادرة */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/announcements/{announcementId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * حذف إعلان
+         * @description يزيله من التطبيق ويوقف ما لم يُرسَل من إشعاراته. ما وصل هاتفًا لا يُستردّ.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    announcementId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذف */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldAnnouncements"];
+                    };
+                };
+                /** @description الإعلان غير موجود في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/deletion-requests": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * طلبات حذف البيانات
+         * @description ما وصل من روابط هذه المبادرة، القائم أولًا.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description الطلبات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldDeletionRequests"];
+                    };
+                };
+                /** @description المبادرة غير موجودة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/deletion-requests/{requestId}/approve": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * تنفيذ طلب حذف البيانات
+         * @description يمحو اسم المشارك ووسيلة التواصل وطلب استمارته وعضوياته وروابطه واشتراكات إشعاره وشهاداته، واسمه في سجل التدقيق. يبقى حضوره عددًا بلا اسم. لا يُتراجع عنه.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description نُفّذ */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldDeletionRequests"];
+                    };
+                };
+                /** @description الطلب غير موجود في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description سبق أن قُرّر هذا الطلب */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/initiatives/{id}/field/deletion-requests/{requestId}/reject": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** رفض طلب حذف البيانات */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    id: string;
+                    requestId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        /** @description يقرؤها صاحب الطلب في بطاقته: ما الذي يلزمه، أو بمن يتصل. */
+                        noteAr: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description رُفض */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["FieldDeletionRequests"];
+                    };
+                };
+                /** @description الطلب غير موجود في هذه المبادرة */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description سبق أن قُرّر هذا الطلب */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
         trace?: never;
     };
 }
@@ -9064,6 +10417,11 @@ export interface components {
             };
             /** Format: date-time */
             submittedAt: string;
+            /**
+             * Format: date-time
+             * @description مُحيت بياناته بطلب صاحبه حذفَ بياناته: لا اسم ولا وسيلة تواصل ولا إجابات. الطلب يبقى عددًا في استمارته.
+             */
+            redactedAt: string | null;
         };
         FormSubmissionDetail: components["schemas"]["FormSubmissionSummary"] & {
             answers?: {
@@ -9692,6 +11050,27 @@ export interface components {
                 acknowledgedByNameAr: string;
             }[];
         };
+        /** @description فريق ميداني منسوب إلى الجهة، بأعداده وحدها. لا أسماء ولا وسائل تواصل: المتطوعون أعطوا بياناتهم للمشروع لا للجهة. */
+        PartnerFieldTeam: {
+            /** Format: uuid */
+            groupId: string;
+            groupNameAr: string;
+            initiativeNameAr: string;
+            initiativeStatus: string;
+            siteNameAr: string;
+            areaNameAr: string | null;
+            /** Format: date-time */
+            meetsAt: string | null;
+            memberCount: number;
+            /** @description من أكّدوا حضورهم من بطاقاتهم. */
+            comingCount: number;
+            /** @description من حضر من الفريق يومًا واحدًا على الأقل. */
+            attendedCount: number;
+            /** @description مجموع أيام الحضور: شخص حضر يومين يُعدّ يومين. */
+            attendanceDays: number;
+            /** Format: date */
+            lastAttendedOn: string | null;
+        };
         PartnerSummary: {
             /** Format: uuid */
             id: string;
@@ -10043,6 +11422,17 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        /** @description إعلان المنسّق. محتوى في التطبيق قبل أن يكون إشعارًا: يقرؤه من لم يفعّل الإشعارات حين يفتح ورقته أو بطاقته. */
+        FieldAnnouncement: {
+            /** Format: uuid */
+            id: string;
+            titleAr: string;
+            bodyAr: string;
+            /** @description المجموعة التي وُجّه إليها؛ فارغ = كل مجموعات المبادرة. */
+            groupNameAr: string | null;
+            /** Format: date-time */
+            createdAt: string;
+        };
         /** @description ورقة يوم المجموعة في نداء واحد: تُجلب مرة عند الفتح وتُقرأ بعدها من الجهاز. */
         FieldSheet: {
             group: {
@@ -10085,7 +11475,18 @@ export interface components {
             permissions: {
                 /** @description من يعتمد الإنجاز ينهي المهمة، ومن لا يعتمده يرسلها للمراجعة. */
                 canApproveTasks: boolean;
+                /** @description ورقة مساعد القائد: حضور وحده. المهام والأعداد والصور فارغة فيها، والهواتف محجوبة. */
+                attendanceOnly: boolean;
             };
+            /** @description رمز الحضور الذاتي: HOTP على SHA-256، عدّاده الوقت مقسومًا على `periodSeconds`. */
+            checkin: {
+                /** @description سرّ رمز الحضور الذاتي، ست‌عشري. منه يحسب الهاتف الرمز بلا شبكة. لا يُعرض. */
+                secret: string;
+                periodSeconds: number;
+                digits: number;
+            };
+            /** @description أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر. */
+            announcements: components["schemas"]["FieldAnnouncement"][];
             tasks: components["schemas"]["FieldTask"][];
             targets: components["schemas"]["FieldTarget"][];
             members: components["schemas"]["FieldMember"][];
@@ -10097,6 +11498,213 @@ export interface components {
              * @description وقت الخادم عند بناء الورقة. التطبيق يحفظها ويعرضها بلا شبكة، وهذا ما يقوله عن عمرها.
              */
             generatedAt: string;
+        };
+        FieldCardMembership: {
+            /** Format: uuid */
+            memberId: string;
+            /** @enum {string} */
+            role: "MEMBER" | "ASSISTANT";
+            /** @enum {string} */
+            rsvp: "UNKNOWN" | "COMING" | "NOT_COMING";
+            /** Format: date-time */
+            rsvpAt: string | null;
+            group: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+                /** Format: date-time */
+                meetsAt: string | null;
+                meetingPointAr: string | null;
+                instructionsAr: string | null;
+                leadNameAr: string | null;
+                /** @description وسيلة التواصل التي اختارها المنسّق للمجموعة. ليست هاتف القائد من حسابه. */
+                contactPhone: string | null;
+            };
+            site: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+                descriptionAr: string | null;
+                /** @enum {string} */
+                status: "PLANNED" | "IN_PROGRESS" | "COMPLETED" | "CANCELLED";
+                areaNameAr: string | null;
+                lat: number | null;
+                lng: number | null;
+            };
+            /** @description أيام حضوره القائم في هذه المجموعة، بتوقيت دمشق. */
+            attendedOn: string[];
+            /** @description ما تحقق في الموقع — الموثَّق وحده. */
+            impact: {
+                /** Format: uuid */
+                metricId: string;
+                metricNameAr: string;
+                unitAr: string;
+                decimals: number;
+                value: number;
+            }[];
+            /** @description صور الموقع التي سمح المنسّق بنشرها. */
+            photos: {
+                /** Format: uuid */
+                id: string;
+                url: string;
+                captionAr: string | null;
+                /** Format: date-time */
+                takenAt: string | null;
+            }[];
+        };
+        /** @description بطاقة المتطوع في مبادرة رابطه: أين ومتى ومع من، ثم ما تحقق بعد اليوم. */
+        FieldCard: {
+            /** @enum {string} */
+            kind: "PARTICIPANT";
+            participant: {
+                /** Format: uuid */
+                id: string;
+                fullNameAr: string;
+            };
+            initiative: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+                /** @enum {string} */
+                status: "DRAFT" | "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+            };
+            link: {
+                /** Format: date-time */
+                expiresAt: string;
+            };
+            /** Format: date */
+            day: string;
+            /** @description أحدث إعلانات المنسّق لهذا القارئ، مما لم يمضِ عليه شهر. */
+            announcements: components["schemas"]["FieldAnnouncement"][];
+            memberships: components["schemas"]["FieldCardMembership"][];
+            /** @description استمارة التقييم على الموقع العام، إن اختارها المنسّق وكانت تستقبل. */
+            feedback: {
+                nameAr: string;
+                url: string;
+            } | null;
+            /** @description شهادة المشاركة في هذه المبادرة. تصدر لمن له يوم حضور قائم فيها. */
+            certificate: {
+                /** @description هل فعّل المنسّق الشهادات لهذه المبادرة. */
+                enabled: boolean;
+                /** @description رمز شهادته إن صدرت. */
+                code: string | null;
+            };
+            /** @description طلبه حذف بياناته: القائم، أو آخر ما رُفض. على الشخص لا على الحملة، فيظهر في كل بطاقاته. */
+            deletionRequest: {
+                /** @enum {string} */
+                status: "PENDING" | "REJECTED";
+                /** Format: date-time */
+                requestedAt: string;
+                /** Format: date-time */
+                decidedAt: string | null;
+                /** @description ما كتبه المنسّق لصاحب الطلب حين رفضه. */
+                noteAr: string | null;
+            } | null;
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        /** @description سجل المشارك عبر الحملات: ما حضره بأيامه وساعاته، الأحدث أولًا. عضوية بلا حضور ليست فيه. */
+        FieldRecord: {
+            participant: {
+                /** Format: uuid */
+                id: string;
+                fullNameAr: string;
+            };
+            totals: {
+                initiatives: number;
+                days: number;
+                hours: number | null;
+            };
+            participations: {
+                /** Format: uuid */
+                initiativeId: string;
+                initiativeNameAr: string;
+                /** @enum {string} */
+                initiativeStatus: "DRAFT" | "PLANNING" | "ACTIVE" | "COMPLETED" | "CANCELLED";
+                programNameAr: string;
+                /** @description أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين. */
+                days: number;
+                /** @description مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها. */
+                hours: number | null;
+                /** Format: date */
+                firstDay: string | null;
+                /** Format: date */
+                lastDay: string | null;
+                sites: string[];
+                certificate: {
+                    code: string | null;
+                    /** @description تُصدَر الآن بهذا الرابط: مبادرة الرابط نفسها، والشهادات مفعّلة فيها. */
+                    canIssue: boolean;
+                };
+            }[];
+            /** Format: date-time */
+            generatedAt: string;
+        };
+        /** @description شهادة المشاركة كما تُطبع. الأيام والساعات من الحضور ساعة القراءة، لا نسخة يوم الإصدار. */
+        FieldCertificate: {
+            code: string;
+            /** Format: date-time */
+            issuedAt: string;
+            fullNameAr: string;
+            initiativeNameAr: string;
+            programNameAr: string;
+            /** @description أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين. */
+            days: number;
+            /** @description مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها. */
+            hours: number | null;
+            /** Format: date */
+            firstDay: string | null;
+            /** Format: date */
+            lastDay: string | null;
+            sites: string[];
+            signer: {
+                nameAr: string;
+                titleAr: string | null;
+            } | null;
+            /** @description صفحة التحقق من الشهادة على الموقع العام. */
+            verifyUrl: string;
+        };
+        /** @description ما تقوله الشهادة لمن يتحقق منها: الاسم والحملة والأيام والساعات. لا وسيلة تواصل ولا معرّف. */
+        VerifiedCertificate: {
+            code: string;
+            /** Format: date-time */
+            issuedAt: string;
+            fullNameAr: string;
+            initiativeNameAr: string;
+            programNameAr: string;
+            /** @description أيام الحضور القائمة. اليوم يُعدّ مرة ولو حضر في مجموعتين. */
+            days: number;
+            /** @description مجموع ساعات مجموعاته في أيام حضوره. `null` حين لم تُحدَّد ساعات لأيٍّ منها. */
+            hours: number | null;
+            /** Format: date */
+            firstDay: string | null;
+            /** Format: date */
+            lastDay: string | null;
+            sites: string[];
+            signer: {
+                nameAr: string;
+                titleAr: string | null;
+            } | null;
+        };
+        FieldRedeemedLink: {
+            participant: {
+                /** Format: uuid */
+                id: string;
+                fullNameAr: string;
+            };
+            initiative: {
+                /** Format: uuid */
+                id: string;
+                nameAr: string;
+            };
+            /** Format: date-time */
+            expiresAt: string;
+        };
+        FieldPushKey: {
+            /** @description هل هيّأ الخادم مفاتيح الإشعارات. بدونها لا اشتراك. */
+            enabled: boolean;
+            /** @description مفتاح VAPID العام (`applicationServerKey`). من الخادم لا من بيئة الموقع، فلا يفترق المفتاحان عند التدوير. */
+            publicKey: string | null;
         };
         FieldGroup: {
             /** Format: uuid */
@@ -10112,23 +11720,51 @@ export interface components {
             /** Format: uuid */
             leadUserId: string | null;
             leadNameAr: string | null;
+            /**
+             * Format: uuid
+             * @description الجهة الشريكة التي تُنسب إليها المجموعة، فتظهر في بوابتها بأعدادها.
+             */
+            partnerId: string | null;
+            partnerNameAr: string | null;
+            /** @description وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق. */
+            contactPhone: string | null;
+            /** @description ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله وشهادته. */
+            hoursPerDay: number | null;
             /** Format: date-time */
             meetsAt: string | null;
             meetingPointAr: string | null;
             instructionsAr: string | null;
             displayOrder: number;
             memberCount: number;
+            /** @description من أكّدوا حضورهم من بطاقاتهم. */
+            comingCount: number;
+            /** @description أعضاء لهم رابط شخصي قائم لم ينتهِ. */
+            linkedCount: number;
             /** @description من حضر من المجموعة يومًا واحدًا على الأقل. */
             attendedCount: number;
             photoCount: number;
             /** Format: date-time */
             createdAt: string;
         };
+        FieldSettings: {
+            /** Format: uuid */
+            feedbackFormId: string | null;
+            feedbackFormNameAr: string | null;
+            /** @description رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل. */
+            feedbackFormUrl: string | null;
+            /** @description هل تصدر شهادات مشاركة لمتطوعي هذه المبادرة من بطاقاتهم. */
+            certificatesEnabled: boolean;
+            certificateSignerNameAr: string | null;
+            certificateSignerTitleAr: string | null;
+            /** @description الشهادات التي صدرت في هذه المبادرة. */
+            certificateCount: number;
+        };
         /** @description ميدان المبادرة كاملًا. كل مسار كتابة على المجموعات يعيده، فتتحدّث لوحة المنسّق بنداء واحد. */
         InitiativeField: {
             /** Format: uuid */
             initiativeId: string;
             groups: components["schemas"]["FieldGroup"][];
+            settings: components["schemas"]["FieldSettings"];
         };
         /** @description عضو نشط يحمل `field.lead`. الدور والمكتب هما ما منحه القدرة، ليميّز المنسّق بين متشابهَي الاسم. */
         FieldLeadCandidate: {
@@ -10137,6 +11773,13 @@ export interface components {
             fullNameAr: string;
             roleNameAr: string;
             officeNameAr: string;
+        };
+        /** @description جهة شريكة نشطة تُنسب إليها مجموعة. اسمها ونوعها وحدهما: سجل الشركاء لمن يحمل صلاحيته. */
+        FieldPartnerOption: {
+            /** Format: uuid */
+            id: string;
+            displayNameAr: string;
+            organizationKind: string;
         };
         FieldGroupMember: {
             /** Format: uuid */
@@ -10155,6 +11798,22 @@ export interface components {
             attendedDays: number;
             /** Format: date */
             lastAttendedOn: string | null;
+            /** Format: date-time */
+            rsvpAt: string | null;
+            /** @description رابطه الشخصي القائم في هذه المبادرة. الرابط نفسه لا يُعرض هنا: يظهر مرة واحدة عند توليده. */
+            link: {
+                /** @enum {string} */
+                status: "ACTIVE" | "EXPIRED";
+                /** Format: date-time */
+                expiresAt: string;
+                /**
+                 * Format: date-time
+                 * @description آخر فتح للبطاقة بهذا الرابط. `null` إن لم يُفتح بعد.
+                 */
+                lastUsedAt: string | null;
+                /** Format: date-time */
+                emailedAt: string | null;
+            } | null;
             /** @description حضوره القائم في اليوم المطلوب. */
             attendance: {
                 /** Format: uuid */
@@ -10183,6 +11842,34 @@ export interface components {
                     reasonAr: string;
                 }[];
             };
+        };
+        FieldIssuedLink: {
+            /** Format: uuid */
+            participantId: string;
+            fullNameAr: string;
+            phone: string | null;
+            email: string | null;
+            groupNameAr: string;
+            /** @description الرابط الشخصي. يظهر في هذا الجواب وحده: الخادم يحفظ بصمته لا نصّه. */
+            url: string;
+            /** @description نص جاهز للصق في واتساب، وفيه الرابط. */
+            messageAr: string;
+            /** @description يفتح محادثة واتساب مع صاحب الرقم والنص مكتوب فيها. `null` حين لا يُعرف الرقم دوليًا. */
+            whatsappUrl: string | null;
+            emailed: boolean;
+        };
+        FieldIssuedLinks: {
+            /** Format: uuid */
+            initiativeId: string;
+            /** Format: date-time */
+            expiresAt: string;
+            links: components["schemas"]["FieldIssuedLink"][];
+        };
+        FieldFeedbackForm: {
+            /** Format: uuid */
+            formId: string;
+            nameAr: string;
+            slug: string;
         };
         FieldApplicantSource: {
             /** Format: uuid */
@@ -10266,6 +11953,73 @@ export interface components {
             sizeBytes: number;
             /** Format: date-time */
             createdAt: string;
+        };
+        FieldManagedAnnouncement: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            groupId: string | null;
+            groupNameAr: string | null;
+            /** @enum {string} */
+            audience: "ALL" | "LEADS" | "VOLUNTEERS";
+            titleAr: string;
+            bodyAr: string;
+            createdByNameAr: string | null;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description إيصال الإشعار. الإعلان نفسه يظهر في التطبيق لكل من يفتحه، اشترك أم لا. */
+            devices: {
+                /** @description الأجهزة المشتركة ساعة الإعلان. */
+                targeted: number;
+                sent: number;
+                pending: number;
+                /** @description لم يصلها: اشتراك زال، أو خدمة الإشعار رفضت. */
+                failed: number;
+            };
+        };
+        FieldAnnouncements: {
+            /** Format: uuid */
+            initiativeId: string;
+            /** @description هل هيّأ الخادم مفاتيح الإشعارات. بدونها يظهر الإعلان في التطبيق ولا يُرسَل إشعار. */
+            pushEnabled: boolean;
+            announcements: components["schemas"]["FieldManagedAnnouncement"][];
+        };
+        /** @description طلب متطوع حذف بياناته، وما يمسّه تنفيذه. الحذف على الشخص كله لا على حملة. */
+        FieldDeletionRequest: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            status: "PENDING" | "DONE" | "REJECTED";
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            decidedAt: string | null;
+            decidedByNameAr: string | null;
+            decisionNoteAr: string | null;
+            participant: {
+                /** Format: uuid */
+                id: string;
+                /** @description نُفّذ الحذف: الاسم بعده «مشارك محذوف»، ولا وسيلة تواصل. */
+                anonymized: boolean;
+            };
+            fullNameAr: string;
+            phone: string | null;
+            email: string | null;
+            /** @description مجموعاته في هذه المبادرة. */
+            groupNamesAr: string[];
+            /** @description أيام حضوره القائمة في الحملات كلها. تبقى بعد التنفيذ بلا اسم. */
+            attendedDays: number;
+            /** @description المبادرات التي هو عضو في مجموعاتها: التنفيذ يخرجه منها كلها. */
+            initiativeCount: number;
+            certificateCount: number;
+            /** @description طلبات الاستمارات التي تعود له — الطلب الذي جاء منه، وما طابقه اسمًا مع هاتفه أو بريده. التنفيذ يمحو ما كُتب فيها. يُحسب لما ينتظر قرارًا وحده. */
+            submissionCount: number;
+        };
+        FieldDeletionRequests: {
+            /** Format: uuid */
+            initiativeId: string;
+            pendingCount: number;
+            requests: components["schemas"]["FieldDeletionRequest"][];
         };
     };
     responses: never;

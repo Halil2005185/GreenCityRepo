@@ -315,6 +315,16 @@ export const fieldMemberRole = pgEnum('field_member_role', [
   'ASSISTANT',
 ])
 
+/**
+ * طلب حذف البيانات: قائم حتى يقرر المنسّق. التراجع عنه يحذف صفّه، فلا حال
+ * له هنا؛ وما نُفّذ لا يعود.
+ */
+export const deletionRequestStatus = pgEnum('deletion_request_status', [
+  'PENDING',
+  'DONE',
+  'REJECTED',
+])
+
 /** تأكيد الحضور المسبق. `UNKNOWN` لم يُجب بعد — وهو غير «لن يحضر». */
 export const fieldRsvp = pgEnum('field_rsvp', [
   'UNKNOWN',
@@ -330,6 +340,16 @@ export const attendanceMethod = pgEnum('attendance_method', [
   'LEAD_TAP',
   'WALK_IN',
   'SELF',
+])
+
+/**
+ * لمن الإعلان الميداني: قادة المجموعات، أو متطوعوها، أو الجميع. موعد تغيّر
+ * يهمّ الجميع، و«أحضروا المعاول من المستودع» يهمّ القادة وحدهم.
+ */
+export const fieldAnnouncementAudience = pgEnum('field_announcement_audience', [
+  'ALL',
+  'LEADS',
+  'VOLUNTEERS',
 ])
 
 /**

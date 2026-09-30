@@ -109,7 +109,8 @@ async function findMatch(
 export async function resolveParticipant(
   tx: Transaction,
   input: ParticipantInput,
-  options: { actorUserId: string; groupId?: string | null },
+  /** `actorUserId` فارغ حين يضيفه مساعد القائد: مشارك لا عضو فريق. */
+  options: { actorUserId: string | null; groupId?: string | null },
 ): Promise<{ id: string; created: boolean }> {
   const fullNameAr = normalizeText(input.fullNameAr)
   const phone = input.phone?.trim() || null

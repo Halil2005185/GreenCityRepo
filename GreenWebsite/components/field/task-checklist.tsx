@@ -11,7 +11,7 @@ import { useId, useState } from "react";
 
 import { TEXTAREA_CLASS } from "@/components/field/form";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/field/button";
 import type { FieldTask } from "@/lib/field/api";
 import {
   TASK_STATUS_LABELS,

@@ -4,7 +4,7 @@ import { Minus, Plus } from "lucide-react";
 import { useId, useState } from "react";
 
 import { INPUT_CLASS } from "@/components/field/form";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/field/button";
 import type { FieldTarget } from "@/lib/field/api";
 import { enteredValue, isCounter } from "@/lib/field/targets";
 import { latinDigits } from "@/lib/field/text";

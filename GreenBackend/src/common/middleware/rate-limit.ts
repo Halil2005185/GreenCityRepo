@@ -76,6 +76,44 @@ export const publicSubmissionRateLimit = buildLimiter({
 })
 
 /**
+ * فتح الرابط الشخصي — بلا مصادقة، فالحد على العنوان.
+ *
+ * الرمز 256 بتًّا فلا يُخمَّن؛ الحد هنا يوقف طرق المسار لا تخمين الرمز.
+ * وسقفه واسع: متطوعو مدرسة كاملة يفتحون روابطهم من شبكة واحدة في ساعة.
+ */
+export const linkRedeemRateLimit = buildLimiter({
+  windowMs: 15 * 60_000,
+  limit: 300,
+})
+
+/**
+ * التحقق من شهادة برمزها — عام، فالحد على العنوان.
+ *
+ * الرمز عشرة محارف من اثنين وثلاثين فلا يُخمَّن؛ والحد يوقف من يمرّ على
+ * الرموز واحدًا واحدًا، ويسع جهة تتحقق من شهادات فريق كامل.
+ */
+export const certificateVerifyRateLimit = buildLimiter({
+  windowMs: 15 * 60_000,
+  limit: 60,
+})
+
+/**
+ * محاولات رمز الحضور — على المشارك لا على العنوان: متطوعو المجموعة كلهم
+ * يكتبون رموزهم من شبكة واحدة عند نقطة اللقاء.
+ *
+ * الرمز ستة أرقام تُقبل منها خمسة في أي لحظة؛ ثلاثون محاولة في ربع ساعة
+ * تسع من يخطئ في الكتابة، ولا تسع من يجرّب الأرقام.
+ */
+export const selfCheckinRateLimit = buildLimiter({
+  windowMs: 15 * 60_000,
+  limit: 30,
+  keyGenerator: (request) =>
+    request.field?.kind === 'PARTICIPANT'
+      ? `checkin:${request.field.participantId}`
+      : ipKeyGenerator(request.ip ?? ''),
+})
+
+/**
  * كتابات التطبيق الميداني — على الحساب لا على العنوان.
  *
  * قادة موقع واحد على شبكة جوال واحدة يخرجون من عنوان واحد، فحدٌّ على العنوان
@@ -87,6 +125,10 @@ export const publicSubmissionRateLimit = buildLimiter({
 export const fieldWriteRateLimit = buildLimiter({
   windowMs: 15 * 60_000,
   limit: 900,
+  // حامل الرابط الشخصي يُحاسَب برابطه: متطوعو موقع واحد على شبكة واحدة.
   keyGenerator: (request) =>
-    request.auth?.userId ?? ipKeyGenerator(request.ip ?? ''),
+    request.auth?.userId ??
+    (request.field?.kind === 'PARTICIPANT'
+      ? `participant:${request.field.participantId}`
+      : ipKeyGenerator(request.ip ?? '')),
 })

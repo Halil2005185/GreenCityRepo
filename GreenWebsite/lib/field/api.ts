@@ -1,6 +1,6 @@
 import type { components } from "@/lib/api/types.gen";
 
-import { FIELD_API_ORIGIN } from "./config";
+import { FIELD_API_ORIGIN, PARTICIPANT_DELETED } from "./config";
 
 export type Problem = components["schemas"]["Problem"];
 export type SessionResponse = components["schemas"]["SessionResponse"];
@@ -10,6 +10,22 @@ export type FieldGroupCard = components["schemas"]["FieldGroupCard"];
 export type FieldSheet = components["schemas"]["FieldSheet"];
 export type FieldTask = components["schemas"]["FieldTask"];
 export type FieldTarget = components["schemas"]["FieldTarget"];
+export type FieldCard = components["schemas"]["FieldCard"];
+export type FieldCardMembership = components["schemas"]["FieldCardMembership"];
+export type FieldRedeemedLink = components["schemas"]["FieldRedeemedLink"];
+export type FieldAnnouncement = components["schemas"]["FieldAnnouncement"];
+export type FieldPushKey = components["schemas"]["FieldPushKey"];
+export type FieldRecord = components["schemas"]["FieldRecord"];
+export type FieldCertificate = components["schemas"]["FieldCertificate"];
+
+/** من يُنادى باسمه: عضو فريق بجلسته، أو متطوع برابطه الشخصي. */
+export type SessionKind = "STAFF" | "PARTICIPANT";
+
+/**
+ * لماذا انتهت الجلسة. `deleted`: حُذفت بيانات صاحب الرابط بطلبه — يقوله
+ * الخادم صريحًا، فلا يُقال له «اطلب رابطًا جديدًا».
+ */
+export type SessionLostReason = "ended" | "deleted";
 
 /**
  * رفضٌ من الخادم، بجسمه كما أرسله (`application/problem+json`). الواجهة
@@ -63,6 +79,18 @@ function currentAccessToken() {
   if (!accessToken || Date.now() >= accessTokenExpiresAt) return null;
 
   return accessToken;
+}
+
+/**
+ * رمز الرابط الشخصي. المتطوع لا جلسة له تُدوَّر: رمزه يُرسَل كما هو مع كل
+ * طلب، وصلاحه يقرره الخادم. يضعه مزوّد الجلسة حين يُعرف صاحب الجهاز.
+ */
+let linkToken: string | null = null;
+
+export function setLinkToken(token: string | null) {
+  linkToken = token;
+
+  if (token) sessionKnownLost = false;
 }
 
 /** شبكة الميدان بطيئة لا معدومة؛ بعد هذا الحد يُعامَل الطلب كأنه لم يصل. */
@@ -148,12 +176,16 @@ async function toApiError(response: Response) {
  * انتهت مدتها، أو أُبطلت من اللوحة، أو دوّرها تبويب آخر. بلا هذا البلاغ يبقى
  * التطبيق يعرض صاحبه داخلًا وطابوره واقفًا بلا سبب يُقرأ.
  */
-const sessionLostListeners = new Set<() => void>();
+const sessionLostListeners = new Set<
+  (kind: SessionKind, reason: SessionLostReason) => void
+>();
 
 /** طلبات متزامنة تكتشف الخروج معًا؛ يُبلَّغ به مرة حتى الدخول التالي. */
 let sessionKnownLost = false;
 
-export function onSessionLost(listener: () => void) {
+export function onSessionLost(
+  listener: (kind: SessionKind, reason: SessionLostReason) => void,
+) {
   sessionLostListeners.add(listener);
 
   return () => {
@@ -228,10 +260,46 @@ export async function logout() {
 
 type RequestOptions = Pick<SendOptions, "method" | "body" | "signal">;
 
+function announceSessionLost(
+  kind: SessionKind,
+  reason: SessionLostReason = "ended",
+) {
+  if (sessionKnownLost) return;
+
+  sessionKnownLost = true;
+  for (const listener of sessionLostListeners) listener(kind, reason);
+}
+
+async function finish<T>(response: Response): Promise<T> {
+  if (!response.ok) throw await toApiError(response);
+
+  if (response.status === 204) return undefined as T;
+
+  return (await response.json()) as T;
+}
+
 export async function fieldFetch<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<T> {
+  // المتطوع: رمز واحد لا يُدوَّر. 401 تعني أن رابطه انتهى أو أُبطل.
+  if (linkToken) {
+    const response = await send(path, { ...options, token: linkToken });
+
+    if (response.status === 401) {
+      const refusal = await toApiError(response);
+
+      announceSessionLost(
+        "PARTICIPANT",
+        refusal.code === PARTICIPANT_DELETED ? "deleted" : "ended",
+      );
+
+      throw refusal;
+    }
+
+    return finish<T>(response);
+  }
+
   let token = currentAccessToken();
 
   // رمز منتهٍ معروف سلفًا: تدويره قبل الطلب يوفّر ذهابًا وإيابًا يعود بـ401.
@@ -250,19 +318,24 @@ export async function fieldFetch<T>(
       response = await send(path, { ...options, token: session.accessToken });
     } else {
       clearAccessToken();
-
-      if (!sessionKnownLost) {
-        sessionKnownLost = true;
-        for (const listener of sessionLostListeners) listener();
-      }
+      announceSessionLost("STAFF");
     }
   }
 
-  if (!response.ok) throw await toApiError(response);
+  return finish<T>(response);
+}
 
-  if (response.status === 204) return undefined as T;
+/**
+ * فتح رابط شخصي. بلا ترويسة مصادقة: الرمز هو الاعتماد، ويُرسَل في جسم
+ * الطلب فلا يُكتب في سجل وصول.
+ */
+export async function redeemLink(token: string) {
+  const response = await send("/field/links/redeem", {
+    method: "POST",
+    body: { token },
+  });
 
-  return (await response.json()) as T;
+  return finish<FieldRedeemedLink>(response);
 }
 
 /** الصورة أثقل من طلب، وشبكة الميدان أبطأ من أن تُمهَل عشرين ثانية. */
@@ -308,8 +381,68 @@ export async function uploadPhoto(
   }
 }
 
+/**
+ * `/field/me` جوابه يتبع من يسأل. كل قراءة هنا تتحقق من `kind`: ورقة
+ * مجموعات لا تُقرأ بطاقةً ولا العكس، لو تبدّل صاحب الجهاز بين طلب وجوابه.
+ */
+async function getMe<Kind extends SessionKind>(
+  kind: Kind,
+  signal?: AbortSignal,
+) {
+  const me = await fieldFetch<FieldHome | FieldCard>("/field/me", {
+    ...(signal ? { signal } : {}),
+  });
+
+  if (me.kind !== kind) {
+    throw new FieldApiError(
+      "تبدّل صاحب الجلسة على هذا الجهاز. أعد فتح التطبيق.",
+      409,
+      "SESSION_CHANGED",
+    );
+  }
+
+  return me as Extract<FieldHome | FieldCard, { kind: Kind }>;
+}
+
 export function getFieldHome(signal?: AbortSignal) {
-  return fieldFetch<FieldHome>("/field/me", { ...(signal ? { signal } : {}) });
+  return getMe("STAFF", signal);
+}
+
+export function getFieldCard(signal?: AbortSignal) {
+  return getMe("PARTICIPANT", signal);
+}
+
+export function getFieldRecord(signal?: AbortSignal) {
+  return fieldFetch<FieldRecord>("/field/me/record", {
+    ...(signal ? { signal } : {}),
+  });
+}
+
+/**
+ * شهادة المتطوع في حملة رابطه. طلب كتابة يُقرأ به: الخادم يصدرها عند أول
+ * طلب ويعيدها هي نفسها بعده، فتكراره لا يغيّر شيئًا.
+ */
+export function issueFieldCertificate(signal?: AbortSignal) {
+  return fieldFetch<FieldCertificate>("/field/me/certificate", {
+    method: "POST",
+    ...(signal ? { signal } : {}),
+  });
+}
+
+/**
+ * طلب حذف البيانات والتراجع عنه. كلاهما يعيد البطاقة: حال الطلب تُقرأ منها.
+ * لا يمرّان بالطابور — طلبٌ كهذا يُرسَل وصاحبه يراه يُرسَل.
+ */
+export function requestFieldDeletion() {
+  return fieldFetch<FieldCard>("/field/me/deletion-request", {
+    method: "POST",
+  });
+}
+
+export function withdrawFieldDeletion() {
+  return fieldFetch<FieldCard>("/field/me/deletion-request", {
+    method: "DELETE",
+  });
 }
 
 export function getFieldSheet(groupId: string, signal?: AbortSignal) {

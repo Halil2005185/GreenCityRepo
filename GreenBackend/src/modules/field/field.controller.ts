@@ -4,8 +4,19 @@ import { errors } from '../../common/errors/app-error.js'
 import { requestTrace } from '../audit/audit.service.js'
 import * as admin from './field-admin.service.js'
 import type * as adminDto from './field-admin.schemas.js'
-import { fieldPrincipal } from './field-auth.js'
+import * as announcements from './field-announcements.service.js'
+import {
+  fieldPrincipal,
+  participantPrincipal,
+  staffPrincipal,
+} from './field-auth.js'
 import * as capture from './field-capture.service.js'
+import * as card from './field-card.service.js'
+import * as checkin from './field-checkin.service.js'
+import * as deletion from './field-deletion.service.js'
+import * as links from './field-links.service.js'
+import * as push from './field-push.service.js'
+import * as record from './field-record.service.js'
 import * as service from './field.service.js'
 import type * as dto from './field.schemas.js'
 
@@ -21,8 +32,17 @@ function readId(request: Request, key = 'id') {
 
 // ── التطبيق: القراءة ───────────────────────────────────────────────────
 
+/** الجواب يتبع من يسأل: مجموعات القائد، أو بطاقة حامل الرابط. */
 export const getHome: RequestHandler = async (request, response) => {
-  response.status(200).json(await service.loadHome(fieldPrincipal(request)))
+  const principal = fieldPrincipal(request)
+
+  response
+    .status(200)
+    .json(
+      principal.kind === 'STAFF'
+        ? await service.loadHome(principal)
+        : await card.loadCard(principal),
+    )
 }
 
 export const getSheet: RequestHandler = async (request, response) => {
@@ -32,6 +52,109 @@ export const getSheet: RequestHandler = async (request, response) => {
   )
 
   response.status(200).json(sheet)
+}
+
+// ── حامل الرابط الشخصي ─────────────────────────────────────────────────
+
+export const postLinkRedeem: RequestHandler = async (request, response) => {
+  const { token } = request.body as dto.RedeemLinkBody
+
+  response.status(200).json(await links.redeemLink(token))
+}
+
+export const postRsvp: RequestHandler = async (request, response) => {
+  const updated = await card.setRsvp(
+    participantPrincipal(request),
+    request.body as dto.RsvpBody,
+  )
+
+  response.status(200).json(updated)
+}
+
+/** الطلب والتراجع عنه يعيدان البطاقة: حال الطلب تُقرأ منها. */
+export const postDeletionRequest: RequestHandler = async (request, response) => {
+  const principal = participantPrincipal(request)
+
+  await deletion.requestDeletion(principal, requestTrace(request))
+
+  response.status(200).json(await card.loadCard(principal))
+}
+
+export const deleteDeletionRequest: RequestHandler = async (
+  request,
+  response,
+) => {
+  const principal = participantPrincipal(request)
+
+  await deletion.withdrawDeletion(principal, requestTrace(request))
+
+  response.status(200).json(await card.loadCard(principal))
+}
+
+// ── الإشعارات ──────────────────────────────────────────────────────────
+
+export const getPushKey: RequestHandler = (_request, response) => {
+  response.status(200).json(push.pushKey())
+}
+
+export const postPushSubscription: RequestHandler = async (
+  request,
+  response,
+) => {
+  const state = await push.subscribe(
+    fieldPrincipal(request),
+    request.body as dto.PushSubscribeBody,
+    request.header('user-agent'),
+  )
+
+  response.status(200).json(state)
+}
+
+export const postPushUnsubscribe: RequestHandler = async (
+  request,
+  response,
+) => {
+  const state = await push.unsubscribe(
+    fieldPrincipal(request),
+    request.body as dto.PushUnsubscribeBody,
+  )
+
+  response.status(200).json(state)
+}
+
+export const getRecord: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json(await record.loadRecord(participantPrincipal(request)))
+}
+
+export const postCertificate: RequestHandler = async (request, response) => {
+  const certificate = await record.issueCertificate(
+    participantPrincipal(request),
+    requestTrace(request),
+  )
+
+  response.status(200).json(certificate)
+}
+
+export const getVerifiedCertificate: RequestHandler = async (
+  request,
+  response,
+) => {
+  const { code } = request.validatedParams as dto.CertificateCodeParams
+
+  // مغلَّف بـ`data` كبقية السطح العام: الموقع يقرؤه بالقارئ نفسه.
+  response.status(200).json({ data: await record.verifyCertificate(code) })
+}
+
+export const postSelfCheckin: RequestHandler = async (request, response) => {
+  const updated = await checkin.selfCheckIn(
+    participantPrincipal(request),
+    request.body as dto.SelfCheckinBody,
+    requestTrace(request),
+  )
+
+  response.status(200).json(updated)
 }
 
 // ── التطبيق: الكتابة ───────────────────────────────────────────────────
@@ -65,7 +188,7 @@ export const postImpact: RequestHandler = async (request, response) => {
   const entry = await capture.recordImpact(
     readId(request),
     request.body as dto.FieldImpactBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -76,7 +199,7 @@ export const postPhotoSign: RequestHandler = async (request, response) => {
   const signed = await capture.signPhotoUpload(
     readId(request),
     request.body as dto.SignPhotoBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
   )
 
   response.status(200).json({ data: signed })
@@ -86,7 +209,7 @@ export const postPhoto: RequestHandler = async (request, response) => {
   const photo = await capture.registerPhoto(
     readId(request),
     request.body as dto.RegisterPhotoBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -97,7 +220,7 @@ export const postTaskStatus: RequestHandler = async (request, response) => {
   const task = await capture.changeTaskStatusFromField(
     readId(request),
     request.body as dto.FieldTaskStatusBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -108,7 +231,7 @@ export const postTaskComment: RequestHandler = async (request, response) => {
   const task = await capture.commentOnTask(
     readId(request),
     request.body as dto.FieldTaskCommentBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -119,7 +242,7 @@ export const patchSite: RequestHandler = async (request, response) => {
   const site = await capture.changeSiteStatus(
     readId(request),
     request.body as dto.FieldSiteStatusBody,
-    fieldPrincipal(request),
+    staffPrincipal(request),
     requestTrace(request),
   )
 
@@ -134,6 +257,10 @@ export const getInitiativeField: RequestHandler = async (request, response) => {
 
 export const getLeadCandidates: RequestHandler = async (_request, response) => {
   response.status(200).json({ data: await admin.listLeadCandidates() })
+}
+
+export const getPartnerOptions: RequestHandler = async (_request, response) => {
+  response.status(200).json({ data: await admin.listPartnerOptions() })
 }
 
 export const postGroup: RequestHandler = async (request, response) => {
@@ -219,6 +346,106 @@ export const deleteMember: RequestHandler = async (request, response) => {
   )
 
   response.status(200).json(members)
+}
+
+// ── المنسّق: الروابط والإعدادات ────────────────────────────────────────
+
+export const postLinks: RequestHandler = async (request, response) => {
+  const issued = await links.createLinks(
+    readId(request),
+    request.body as adminDto.CreateLinksBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(issued)
+}
+
+export const postLinksRevoke: RequestHandler = async (request, response) => {
+  const result = await links.revokeLinks(
+    readId(request),
+    request.body as adminDto.RevokeLinksBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(result)
+}
+
+export const getFeedbackForms: RequestHandler = async (_request, response) => {
+  response.status(200).json({ data: await admin.listFeedbackForms() })
+}
+
+export const putSettings: RequestHandler = async (request, response) => {
+  const field = await admin.updateSettings(
+    readId(request),
+    request.body as adminDto.UpdateSettingsBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(field)
+}
+
+// ── المنسّق: الإعلانات ─────────────────────────────────────────────────
+
+export const getAnnouncements: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json(await announcements.listAnnouncements(readId(request)))
+}
+
+export const postAnnouncement: RequestHandler = async (request, response) => {
+  const list = await announcements.createAnnouncement(
+    readId(request),
+    request.body as adminDto.CreateAnnouncementBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(201).json(list)
+}
+
+export const deleteAnnouncement: RequestHandler = async (request, response) => {
+  const list = await announcements.deleteAnnouncement(
+    readId(request),
+    readId(request, 'announcementId'),
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(list)
+}
+
+// ── المنسّق: طلبات حذف البيانات ────────────────────────────────────────
+
+export const getDeletionRequests: RequestHandler = async (request, response) => {
+  response
+    .status(200)
+    .json(await deletion.listDeletionRequests(readId(request)))
+}
+
+export const postDeletionApprove: RequestHandler = async (request, response) => {
+  const list = await deletion.approveDeletion(
+    readId(request),
+    readId(request, 'requestId'),
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(list)
+}
+
+export const postDeletionReject: RequestHandler = async (request, response) => {
+  const list = await deletion.rejectDeletion(
+    readId(request),
+    readId(request, 'requestId'),
+    request.body as adminDto.RejectDeletionBody,
+    request.auth!,
+    requestTrace(request),
+  )
+
+  response.status(200).json(list)
 }
 
 export const getSources: RequestHandler = async (_request, response) => {

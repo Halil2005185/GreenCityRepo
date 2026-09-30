@@ -1,14 +1,23 @@
 "use client";
 
-import { CloudOff, LogIn, ShieldAlert, Sprout, Users } from "lucide-react";
+import {
+  CloudOff,
+  LogIn,
+  ShieldAlert,
+  ShieldCheck,
+  Sprout,
+  Users,
+} from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import {
   FieldNotice,
   FieldSkeleton,
   PageTitle,
 } from "@/components/field/states";
-import { buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/field/button";
 import {
   FieldApiError,
   type FieldGroupCard,
@@ -16,6 +25,7 @@ import {
   OfflineError,
 } from "@/lib/field/api";
 import { FIELD_APP_NAME, FIELD_ROUTES } from "@/lib/field/config";
+import { markDeletionDone, useDeletionDone } from "@/lib/field/deletion";
 import { useFieldSession, useOnline } from "@/lib/field/session";
 import { fieldActions, useGroupSheet } from "@/lib/field/sheet";
 import { cn } from "@/lib/utils";
@@ -45,24 +55,44 @@ export type SheetView = {
 export function SheetGate({
   title,
   heading,
+  assistants = false,
   children,
 }: {
   /** عنوان التبويب في وضع المتصفح؛ في التطبيق يحمله الشريط المرسوم. */
   title: string;
   /** عنوان غير اسم التبويب متى عُرفت المجموعة — «اليوم» يحمل اسمها. */
   heading?: (group: FieldGroupCard) => { title: string; description: string };
+  /** التبويب مفتوح لمساعد القائد: «الحضور» وحده. */
+  assistants?: boolean;
   children: (view: SheetView) => React.ReactNode;
 }) {
+  const router = useRouter();
   const { status, identity } = useFieldSession();
   const online = useOnline();
-  const { home, group, select, query, sheet } = useGroupSheet();
+  const { home, source, groups, group, select, query, sheet } = useGroupSheet();
 
-  if (status === "loading") return <FieldSkeleton />;
+  const volunteer =
+    identity?.kind === "PARTICIPANT" &&
+    (status === "authenticated" || status === "offline");
+
+  /**
+   * تبويبات المجموعة للقائد، و«الحضور» لمساعده أيضًا. حامل رابط شخصي فتح
+   * عنوانًا ليس له يعود إلى بطاقته: تبويبًا للقائد وحده، أو «الحضور» وهو
+   * ليس مساعدًا في مجموعة.
+   */
+  const misplaced =
+    volunteer && (!assistants || (groups !== undefined && groups.length === 0));
+
+  useEffect(() => {
+    if (misplaced) router.replace(FIELD_ROUTES.home);
+  }, [misplaced, router]);
+
+  if (status === "loading" || misplaced) return <FieldSkeleton />;
 
   if (status === "anonymous") return <Welcome />;
 
-  if (!home.data) {
-    if (home.isError) return <HomeError error={home.error} />;
+  if (!source.data) {
+    if (source.isError) return <HomeError error={source.error} />;
 
     return (
       <>
@@ -76,6 +106,9 @@ export function SheetGate({
   }
 
   if (!group) {
+    // المساعد بلا مجموعة أُعيد إلى بطاقته أعلاه؛ من يصل هنا عضو فريق.
+    if (!home.data) return <FieldSkeleton />;
+
     const { canLead, canManage, user } = home.data;
 
     return (
@@ -107,9 +140,9 @@ export function SheetGate({
         })}
       />
 
-      {home.data.groups.length > 1 ? (
+      {groups && groups.length > 1 ? (
         <GroupSwitcher
-          groups={home.data.groups}
+          groups={groups}
           currentId={group.id}
           onSelect={select}
         />
@@ -123,7 +156,7 @@ export function SheetGate({
             sheet.initiative.acceptsEntries && sheet.site.status !== "CANCELLED",
           // من الجهاز متى تعذّر سؤال الخادم، بأي وجه عُرف ذلك.
           stale:
-            query.isError || home.isError || !online || status === "offline",
+            query.isError || source.isError || !online || status === "offline",
           refreshing: query.isFetching,
           refresh: () => void query.refetch(),
         })
@@ -136,20 +169,52 @@ export function SheetGate({
   );
 }
 
+/**
+ * ما يراه من حُذفت بياناته بطلبه حين يُرفض رابطه. يبقى حتى يقرأه: الإشعار
+ * العابر يزول في ثوانٍ، وهذا خبرٌ عن أمر لا يعود.
+ */
+function Farewell() {
+  return (
+    <FieldNotice
+      icon={ShieldCheck}
+      title="حُذفت بياناتك كما طلبت"
+      description="مُحي اسمك ووسيلة تواصلك من سجل المشروع، ومُسح ما حُفظ منها على هذا الهاتف. رابطك لم يعد يفتح بطاقة. شكرًا لمشاركتك."
+    >
+      <Button
+        variant="outline"
+        className="w-full"
+        onClick={() => markDeletionDone(false)}
+      >
+        حسنًا
+      </Button>
+    </FieldNotice>
+  );
+}
+
 function Welcome() {
+  const deleted = useDeletionDone();
+
+  if (deleted) return <Farewell />;
+
   return (
     <FieldNotice
       icon={Sprout}
       title={FIELD_APP_NAME}
       description="لقادة المجموعات في حملات المدن الخضراء: ورقة يوم مجموعتك، وحضور متطوعيها، وأعداد موقعها وصوره — في هاتفك، ولو ضعفت الشبكة."
     >
-      <Link
-        href={FIELD_ROUTES.login}
-        className={cn(buttonVariants({ size: "lg" }), "w-full")}
-      >
-        <LogIn aria-hidden />
-        تسجيل الدخول
-      </Link>
+      <div className="w-full space-y-4">
+        <Link
+          href={FIELD_ROUTES.login}
+          className={cn(buttonVariants({ size: "lg" }), "w-full")}
+        >
+          <LogIn aria-hidden />
+          تسجيل الدخول
+        </Link>
+        <p className="text-sm leading-relaxed text-foreground">
+          متطوع؟ افتح رابطك الشخصي الذي وصلك من منسّق الحملة: فيه موعدك وموقعك،
+          بلا حساب ولا كلمة مرور.
+        </p>
+      </div>
     </FieldNotice>
   );
 }
@@ -203,7 +268,7 @@ function SheetError({ error }: { error: Error }) {
       title={gone ? "هذه المجموعة لم تعد لك" : "تعذّر تحميل ورقة اليوم"}
       description={
         gone
-          ? "أعفاك المنسّق من قيادتها أو حُذفت. حدّث الصفحة لترى مجموعاتك."
+          ? "أعفاك المنسّق منها أو حُذفت. حدّث الصفحة لترى مجموعاتك."
           : error.message
       }
     />
@@ -239,7 +304,7 @@ function GroupSwitcher({
             "shrink-0 rounded-full border px-4 py-2 text-sm font-semibold transition-colors",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             group.id === currentId
-              ? "border-accent-ink bg-accent-ink text-background"
+              ? "border-accent-ink bg-accent-ink text-[var(--brand-warm-beige)]"
               : "border-border bg-card text-foreground hover:bg-accent",
           )}
         >

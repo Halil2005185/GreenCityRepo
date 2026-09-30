@@ -245,6 +245,15 @@ export function publishCharterVersion(id: string, effectiveFrom?: string) {
 
 // ── بوابة الشريك ───────────────────────────────────────────────────────
 
+export type PartnerFieldTeam = components["schemas"]["PartnerFieldTeam"];
+
+/** فرق الجهة في الميدان بأعدادها — لا أسماء ولا وسائل تواصل. */
+export function getMyFieldTeams() {
+  return apiFetch<{ data: PartnerFieldTeam[] }>("/partner/me/field-teams").then(
+    (response) => response.data,
+  );
+}
+
 export function getMyOrganization() {
   return apiFetch<PartnerSelf>("/partner/me");
 }

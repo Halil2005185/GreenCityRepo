@@ -14,7 +14,7 @@ import { ClosedNotice } from "@/components/field/closed-notice";
 import { CheckRow, Field, INPUT_CLASS } from "@/components/field/form";
 import { SheetGate, type SheetView } from "@/components/field/sheet-gate";
 import { FieldCard, FieldNotice } from "@/components/field/states";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button, buttonVariants } from "@/components/field/button";
 import type { FieldSheet } from "@/lib/field/api";
 import { formatAge } from "@/lib/field/labels";
 import { discard, readBlob, retry, useOutbox } from "@/lib/field/outbox";

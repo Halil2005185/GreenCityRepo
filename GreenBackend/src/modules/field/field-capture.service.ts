@@ -20,13 +20,14 @@ import {
   changeTaskStatus,
   transitionPath,
 } from '../work/work.service.js'
-import type { FieldPrincipal } from './field-auth.js'
+import type { FieldPrincipal, StaffPrincipal } from './field-auth.js'
 import type * as dto from './field.schemas.js'
 import { loadSheetTasks, serializePhoto } from './field.service.js'
 import {
   type AccessibleGroup,
   clientMoment,
   damascusDay,
+  recorderOf,
   requireWritableGroup,
 } from './field.shared.js'
 import { resolveParticipant } from './participants.service.js'
@@ -83,6 +84,8 @@ async function findAttendance(
  * آمن التكرار من وجهين. `clientId` يعيد الصف نفسه حين يُعاد الطلب بعد
  * انقطاع. والحضور القائم في اليوم يعيد نفسه حين ينقر القائد الاسم مرتين
  * من جهازين — فالمطلوب «فلان حاضر»، وهو حاضر.
+ *
+ * يسجّله قائد المجموعة أو مساعده، ويُنسب إلى من سجّله.
  */
 export async function recordAttendance(
   groupId: string,
@@ -98,7 +101,8 @@ export async function recordAttendance(
 
   const checkedInAt = clientMoment(input.checkedInAt)
   const attendedOn = damascusDay(checkedInAt)
-  const actorUserId = principal.auth.userId
+  const recorder = recorderOf(principal)
+  const actorUserId = recorder.userId
 
   let attendanceId: string
 
@@ -166,7 +170,8 @@ export async function recordAttendance(
           participantId: resolved.id,
           attendedOn,
           checkedInAt,
-          checkedInById: actorUserId,
+          checkedInById: recorder.userId,
+          checkedInByParticipantId: recorder.participantId,
           method: input.walkIn ? 'WALK_IN' : 'LEAD_TAP',
           clientId: input.clientId,
         })
@@ -191,6 +196,10 @@ export async function recordAttendance(
             participantId: resolved.id,
             attendedOn,
             newParticipant: resolved.created,
+            // مساعد القائد مشارك لا حساب: يُعرف هنا، فالسجل لا يعرفه فاعلًا.
+            ...(recorder.participantId
+              ? { byAssistantParticipantId: recorder.participantId }
+              : {}),
           },
           ...trace,
         },
@@ -231,6 +240,7 @@ export async function undoAttendance(
   trace: RequestTrace,
 ) {
   const { group } = await requireWritableGroup(groupId, principal)
+  const recorder = recorderOf(principal)
 
   const target = await findAttendance(
     and(
@@ -248,14 +258,18 @@ export async function undoAttendance(
   await db.transaction(async (tx) => {
     await tx
       .update(attendance)
-      .set({ undoneAt: new Date(), undoneById: principal.auth.userId })
+      .set({
+        undoneAt: new Date(),
+        undoneById: recorder.userId,
+        undoneByParticipantId: recorder.participantId,
+      })
       .where(and(eq(attendance.id, target.id), isNull(attendance.undoneAt)))
 
     await recordAudit(
       {
         action: 'field.attendance_undone',
         severity: 'NOTICE',
-        actorUserId: principal.auth.userId,
+        actorUserId: recorder.userId,
         entityType: 'attendance',
         entityId: target.id,
         entityLabel: group.nameAr,
@@ -264,6 +278,9 @@ export async function undoAttendance(
           groupId: group.id,
           participantId: target.participantId,
           attendedOn: target.attendedOn,
+          ...(recorder.participantId
+            ? { byAssistantParticipantId: recorder.participantId }
+            : {}),
         },
         ...trace,
       },
@@ -290,7 +307,7 @@ export async function undoAttendance(
 export async function recordImpact(
   groupId: string,
   input: dto.FieldImpactBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const { site } = await requireWritableGroup(groupId, principal)
@@ -316,7 +333,7 @@ export async function recordImpact(
 export async function signPhotoUpload(
   groupId: string,
   input: dto.SignPhotoBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   await requireWritableGroup(groupId, principal)
 
@@ -366,7 +383,7 @@ async function requireSheetTask(taskId: string, row: AccessibleGroup) {
 export async function registerPhoto(
   groupId: string,
   input: dto.RegisterPhotoBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const row = await requireWritableGroup(groupId, principal)
@@ -478,7 +495,7 @@ export async function registerPhoto(
 export async function changeTaskStatusFromField(
   taskId: string,
   input: dto.FieldTaskStatusBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const row = await requireWritableGroup(input.groupId, principal)
@@ -516,7 +533,7 @@ export async function changeTaskStatusFromField(
 export async function commentOnTask(
   taskId: string,
   input: dto.FieldTaskCommentBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const row = await requireWritableGroup(input.groupId, principal)
@@ -537,7 +554,7 @@ export async function commentOnTask(
 async function loadFieldTask(
   taskId: string,
   row: AccessibleGroup,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
 ) {
   const tasks = await loadSheetTasks(
     {
@@ -579,7 +596,7 @@ const SITE_STATUS_LABELS: Record<SiteStatus, string> = {
 export async function changeSiteStatus(
   groupId: string,
   input: dto.FieldSiteStatusBody,
-  principal: FieldPrincipal,
+  principal: StaffPrincipal,
   trace: RequestTrace,
 ) {
   const { group, site } = await requireWritableGroup(groupId, principal)

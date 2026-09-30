@@ -132,5 +132,55 @@ registry.registerPath({
   },
 })
 
+export const partnerFieldTeamSchema = registry.register(
+  'PartnerFieldTeam',
+  z
+    .object({
+      groupId: z.uuid(),
+      groupNameAr: z.string(),
+      initiativeNameAr: z.string(),
+      initiativeStatus: z.string(),
+      siteNameAr: z.string(),
+      areaNameAr: z.string().nullable(),
+      meetsAt: z.iso.datetime().nullable(),
+      memberCount: z.number().int(),
+      comingCount: z.number().int().openapi({
+        description: 'من أكّدوا حضورهم من بطاقاتهم.',
+      }),
+      attendedCount: z.number().int().openapi({
+        description: 'من حضر من الفريق يومًا واحدًا على الأقل.',
+      }),
+      attendanceDays: z.number().int().openapi({
+        description: 'مجموع أيام الحضور: شخص حضر يومين يُعدّ يومين.',
+      }),
+      lastAttendedOn: z.iso.date().nullable(),
+    })
+    .openapi({
+      description:
+        'فريق ميداني منسوب إلى الجهة، بأعداده وحدها. لا أسماء ولا وسائل تواصل: المتطوعون أعطوا بياناتهم للمشروع لا للجهة.',
+    }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/field-teams'),
+  tags: ['Partner Portal'],
+  summary: 'فرق جهتي في الميدان',
+  description:
+    'المجموعات الميدانية المنسوبة إلى الجهة في المبادرات التي بدأ تنفيذها، بأعداد الحضور. النطاق من الجلسة.',
+  security,
+  responses: {
+    200: {
+      description: 'الفرق، الأحدث موعدًا أولًا',
+      content: {
+        'application/json': {
+          schema: z.object({ data: z.array(partnerFieldTeamSchema) }),
+        },
+      },
+    },
+    403: problemResponse('الحساب لا يمثل جهة'),
+  },
+})
+
 export type UpdateSelfBody = z.infer<typeof updateSelfBodySchema>
 export type DisplayConsentBody = z.infer<typeof displayConsentBodySchema>

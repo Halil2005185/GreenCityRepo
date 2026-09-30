@@ -9,6 +9,7 @@ import {
   type ActionDef,
   useVisibleActions,
 } from "@/components/ui/actions";
+import { Alert } from "@/components/ui/card";
 import { DescriptionList } from "@/components/ui/description-list";
 import {
   Sheet,
@@ -23,6 +24,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
+  REDACTED_SUBMISSION_LABEL,
   getSubmission,
   setSubmissionStatus,
   type SubmissionStatus,
@@ -125,7 +127,11 @@ export function SubmissionSheet({
     <Sheet open={Boolean(submissionId)} onOpenChange={(open) => (open ? null : onClose())}>
       <SheetContent side="end" width="md">
         <SheetHeader>
-          <SheetTitle>{data?.applicantNameAr ?? "الطلب"}</SheetTitle>
+          <SheetTitle>
+            {data?.redactedAt
+              ? REDACTED_SUBMISSION_LABEL
+              : (data?.applicantNameAr ?? "الطلب")}
+          </SheetTitle>
           <SheetDescription>
             {data ? `الإصدار ${data.formVersion} · ${formatDateTime(data.submittedAt)}` : " "}
           </SheetDescription>
@@ -176,7 +182,13 @@ export function SubmissionSheet({
                 <h3 id="submission-answers" className="text-sm font-semibold">
                   الإجابات
                 </h3>
-                {(data.answers ?? []).length === 0 ? (
+                {data.redactedAt ? (
+                  <Alert variant="info">
+                    مُحيت إجابات هذا الطلب واسم صاحبه في{" "}
+                    {formatDateTime(data.redactedAt)}، بطلبه حذفَ بياناته. الطلب
+                    يبقى في عدد الطلبات بحاله.
+                  </Alert>
+                ) : (data.answers ?? []).length === 0 ? (
                   <p className="text-sm text-muted-foreground">لا إجابات مسجّلة.</p>
                 ) : (
                   <dl className="divide-y divide-border rounded-xl border border-border bg-card">

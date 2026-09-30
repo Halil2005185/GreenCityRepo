@@ -11,11 +11,13 @@ import { ApiError } from "@/lib/api/client";
 import {
   createFieldGroup,
   listLeadCandidates,
+  listPartnerOptions,
   updateFieldGroup,
   type FieldGroup,
   type InitiativeField,
 } from "@/lib/api/field";
 import type { InitiativeDetail } from "@/lib/api/initiatives";
+import { ORGANIZATION_KIND_LABELS } from "@/lib/api/partners";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -47,6 +49,25 @@ const schema = z.object({
   siteId: z.string().min(1, "اختر الموقع."),
   nameAr: z.string().trim().min(2, "اسم المجموعة مطلوب.").max(160, "الاسم طويل جدًا."),
   leadUserId: z.string(),
+  partnerId: z.string(),
+  contactPhone: z
+    .string()
+    .trim()
+    .refine(
+      (value) => value === "" || /^[+]?[0-9\s()-]{6,32}$/.test(value),
+      "اكتب الرقم بأرقامه، مثل 0944123456.",
+    ),
+  // نصٌّ لا رقم: الحقل الفارغ «لم تُحدَّد»، وليس صفرًا.
+  hoursPerDay: z
+    .string()
+    .trim()
+    .refine((value) => {
+      if (value === "") return true;
+
+      const hours = Number(value);
+
+      return hours >= 0.5 && hours <= 24 && Number.isInteger(hours * 2);
+    }, "اكتب الساعات بأنصافها، بين نصف ساعة و24: مثل 4 أو 5.5."),
   meetsAt: z.string(),
   meetingPointAr: z.string().trim().max(300, "وصف نقطة اللقاء طويل جدًا."),
   instructionsAr: z.string().trim().max(4000, "التعليمات طويلة جدًا."),
@@ -58,6 +79,9 @@ const EMPTY: Values = {
   siteId: "",
   nameAr: "",
   leadUserId: "",
+  partnerId: "",
+  contactPhone: "",
+  hoursPerDay: "",
   meetsAt: "",
   meetingPointAr: "",
   instructionsAr: "",
@@ -78,6 +102,13 @@ export function GroupDialog({
   const candidates = useQuery({
     queryKey: ["field-lead-candidates"],
     queryFn: () => listLeadCandidates(initiative.id),
+    enabled: props.open,
+    staleTime: 60_000,
+  });
+
+  const partners = useQuery({
+    queryKey: ["field-partner-options"],
+    queryFn: () => listPartnerOptions(initiative.id),
     enabled: props.open,
     staleTime: 60_000,
   });
@@ -114,6 +145,10 @@ export function GroupDialog({
               siteId: group.siteId,
               nameAr: group.nameAr,
               leadUserId: group.leadUserId ?? "",
+              partnerId: group.partnerId ?? "",
+              contactPhone: group.contactPhone ?? "",
+              hoursPerDay:
+                group.hoursPerDay === null ? "" : String(group.hoursPerDay),
               meetsAt: toLocalInput(group.meetsAt),
               meetingPointAr: group.meetingPointAr ?? "",
               instructionsAr: group.instructionsAr ?? "",
@@ -126,6 +161,9 @@ export function GroupDialog({
           siteId: values.siteId,
           nameAr: values.nameAr,
           leadUserId: values.leadUserId || null,
+          partnerId: values.partnerId || null,
+          contactPhone: values.contactPhone || null,
+          hoursPerDay: values.hoursPerDay ? Number(values.hoursPerDay) : null,
           meetsAt: fromLocalInput(values.meetsAt),
           meetingPointAr: values.meetingPointAr || null,
           instructionsAr: values.instructionsAr || null,
@@ -137,13 +175,17 @@ export function GroupDialog({
       }}
       successMessage={group ? "حُفظت المجموعة." : "أُضيفت المجموعة."}
       onSuccess={apply}
-      // 409 هنا تعارض اسم، و422 عن القائد تخصّ حقله.
+      // 409 هنا تعارض اسم، و422 عن القائد أو الجهة تخصّ حقلها.
       fieldForError={(error: ApiError) =>
         error.status === 409
           ? "nameAr"
-          : error.status === 422 && error.message.includes("قيادة")
-            ? "leadUserId"
-            : null
+          : error.status !== 422
+            ? null
+            : error.message.includes("قيادة")
+              ? "leadUserId"
+              : error.message.includes("الجهة")
+                ? "partnerId"
+                : null
       }
     >
       <SelectField
@@ -179,6 +221,39 @@ export function GroupDialog({
             : undefined
         }
       />
+      <SelectField
+        control={form.control}
+        name="partnerId"
+        label="الجهة الشريكة (اختيارية)"
+        hint="لفريق تأتي به جهة شريكة: شركة بموظفيها، أو جمعية بمتطوعيها. يظهر في بوابة الجهة بأعداد حضوره، بلا أسماء."
+        clearable
+        placeholder="ليست فريق جهة"
+        options={(partners.data ?? []).map((partner) => ({
+          value: partner.id,
+          label: partner.displayNameAr,
+          description:
+            ORGANIZATION_KIND_LABELS[
+              partner.organizationKind as keyof typeof ORGANIZATION_KIND_LABELS
+            ] ?? undefined,
+        }))}
+        loading={partners.isPending && props.open}
+        selectedOption={
+          group?.partnerId
+            ? { value: group.partnerId, label: group.partnerNameAr ?? "الجهة الحالية" }
+            : undefined
+        }
+      />
+      <TextField
+        control={form.control}
+        name="contactPhone"
+        label="رقم للتواصل (اختياري)"
+        hint="يظهر للمتطوعين في بطاقاتهم ليتصلوا إن تأخروا أو ضلّوا الطريق: هاتف القائد إن رضي، أو رقم المنسّق."
+        type="tel"
+        inputMode="tel"
+        dir="ltr"
+        className="text-end"
+        maxLength={32}
+      />
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField
           control={form.control}
@@ -195,6 +270,19 @@ export function GroupDialog({
           maxLength={300}
         />
       </div>
+      <TextField
+        control={form.control}
+        name="hoursPerDay"
+        label="ساعات العمل في اليوم (اختيارية)"
+        hint="منها تُحسب ساعات التطوع في سجل المتطوع وشهادته: يوم حضور بساعاته. بلا ساعات تذكر الشهادة الأيام وحدها."
+        type="number"
+        inputMode="decimal"
+        min={0.5}
+        max={24}
+        step={0.5}
+        dir="ltr"
+        className="text-end"
+      />
       <TextareaField
         control={form.control}
         name="instructionsAr"

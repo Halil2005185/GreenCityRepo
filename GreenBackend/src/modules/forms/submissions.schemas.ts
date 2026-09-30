@@ -28,6 +28,10 @@ export const submissionSummarySchema = registry.register(
      */
     answers: z.record(z.string(), z.unknown()),
     submittedAt: z.iso.datetime(),
+    redactedAt: z.iso.datetime().nullable().openapi({
+      description:
+        'مُحيت بياناته بطلب صاحبه حذفَ بياناته: لا اسم ولا وسيلة تواصل ولا إجابات. الطلب يبقى عددًا في استمارته.',
+    }),
   }),
 )
 

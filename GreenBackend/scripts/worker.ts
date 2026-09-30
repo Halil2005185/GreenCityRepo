@@ -1,12 +1,17 @@
 import { env } from '../src/config/env.js'
 import { closeDatabaseConnection } from '../src/db/client.js'
 import {
+  processPushBatch,
+  pushEnabled,
+  requeueStuckPushJobs,
+} from '../src/modules/field/field-push.service.js'
+import {
   processOutboxBatch,
   requeueStuckJobs,
 } from '../src/modules/mail/outbox.service.js'
 
 /**
- * عامل الصادر — عملية مستقلة عن الـAPI.
+ * عامل الصادر — عملية مستقلة عن الـAPI. يرسل البريد وإشعارات الميدان.
  *
  * فصلها يعني أن إعادة نشر الـAPI لا توقف الإرسال، وأن بطء المزوّد لا
  * يشغل خيط الطلبات. وفي Compose تُشغَّل كخدمة `worker` مستقلة.
@@ -22,6 +27,9 @@ async function tick() {
     await requeueStuckJobs().catch((error) =>
       console.error('[worker:requeue]', error),
     )
+    await requeueStuckPushJobs().catch((error) =>
+      console.error('[worker:requeue-push]', error),
+    )
   }
 
   cycles += 1
@@ -31,13 +39,37 @@ async function tick() {
   if (result.claimed > 0) {
     console.info('[worker:batch]', result)
   }
+
+  await pushTick()
+}
+
+/** دفعات الإشعار في الدورة الواحدة: إعلان لمئات يُفرَّغ في دقيقة لا في عشر. */
+const PUSH_ROUNDS = 20
+
+/**
+ * الإشعارات في الدورة نفسها، وفشلها لا يوقف البريد. تُفرَّغ دفعةً بعد دفعة
+ * ما دامت الدفعة ممتلئة: «تغيّر الموعد» لمئتي متطوع لا ينتظر عشرين دورة.
+ */
+async function pushTick() {
+  if (!pushEnabled()) return
+
+  try {
+    for (let round = 0; round < PUSH_ROUNDS && !stopping; round += 1) {
+      const result = await processPushBatch()
+
+      if (result.claimed > 0) console.info('[worker:push]', result)
+      if (result.claimed < env.OUTBOX_BATCH_SIZE) break
+    }
+  } catch (error) {
+    console.error('[worker:push]', error)
+  }
 }
 
 async function loop() {
   console.info(
     `[worker:ready] polling every ${env.OUTBOX_POLL_MS}ms · mail ${
       env.MAIL_ENABLED ? 'enabled' : 'disabled (logging only)'
-    }`,
+    } · push ${pushEnabled() ? 'enabled' : 'disabled (no VAPID keys)'}`,
   )
 
   while (!stopping) {

@@ -4,6 +4,7 @@ import type { components } from "./types.gen";
 export type InitiativeField = components["schemas"]["InitiativeField"];
 export type FieldGroup = components["schemas"]["FieldGroup"];
 export type FieldLeadCandidate = components["schemas"]["FieldLeadCandidate"];
+export type FieldPartnerOption = components["schemas"]["FieldPartnerOption"];
 export type FieldGroupMember = components["schemas"]["FieldGroupMember"];
 export type FieldGroupMembers = components["schemas"]["FieldGroupMembers"];
 export type FieldAddMembersResult = components["schemas"]["FieldAddMembersResult"];
@@ -13,6 +14,17 @@ export type FieldParticipant = components["schemas"]["FieldParticipant"];
 export type FieldAttendanceDay = components["schemas"]["FieldAttendanceDay"];
 export type FieldAttendanceImpact = components["schemas"]["FieldAttendanceImpact"];
 export type FieldManagedPhoto = components["schemas"]["FieldManagedPhoto"];
+export type FieldIssuedLink = components["schemas"]["FieldIssuedLink"];
+export type FieldIssuedLinks = components["schemas"]["FieldIssuedLinks"];
+export type FieldFeedbackForm = components["schemas"]["FieldFeedbackForm"];
+export type FieldSettings = components["schemas"]["FieldSettings"];
+export type FieldAnnouncements = components["schemas"]["FieldAnnouncements"];
+export type FieldManagedAnnouncement =
+  components["schemas"]["FieldManagedAnnouncement"];
+export type AnnouncementAudience = FieldManagedAnnouncement["audience"];
+export type FieldDeletionRequest = components["schemas"]["FieldDeletionRequest"];
+export type FieldDeletionRequests =
+  components["schemas"]["FieldDeletionRequests"];
 
 export type FieldMemberRole = FieldGroupMember["role"];
 
@@ -25,6 +37,12 @@ export const MEMBER_ROLE_LABELS: Record<FieldMemberRole, string> = {
   ASSISTANT: "مساعد القائد",
 };
 
+export const RSVP_LABELS: Record<FieldGroupMember["rsvp"], string> = {
+  UNKNOWN: "لم يُجب",
+  COMING: "سيحضر",
+  NOT_COMING: "اعتذر",
+};
+
 export const ATTENDANCE_METHOD_LABELS: Record<
   NonNullable<FieldGroupMember["attendance"]>["method"],
   string
@@ -32,6 +50,12 @@ export const ATTENDANCE_METHOD_LABELS: Record<
   LEAD_TAP: "سجّله القائد",
   WALK_IN: "حضر بلا تسجيل",
   SELF: "سجّل نفسه",
+};
+
+export const AUDIENCE_LABELS: Record<AnnouncementAudience, string> = {
+  ALL: "القادة والمتطوعون",
+  LEADS: "القادة",
+  VOLUNTEERS: "المتطوعون",
 };
 
 const base = (initiativeId: string) => `/admin/initiatives/${initiativeId}/field`;
@@ -63,10 +87,23 @@ export function listLeadCandidates(initiativeId: string) {
   ).then((response) => response.data);
 }
 
+/**
+ * الجهات النشطة التي تُنسب إليها مجموعة. مسار خاص كمسار القادة: المنسّق
+ * يختار من أسمائها، ولا يقرأ سجل الشركاء.
+ */
+export function listPartnerOptions(initiativeId: string) {
+  return apiFetch<{ data: FieldPartnerOption[] }>(
+    `${base(initiativeId)}/partner-options`,
+  ).then((response) => response.data);
+}
+
 export type FieldGroupInput = {
   siteId: string;
   nameAr: string;
   leadUserId: string | null;
+  partnerId: string | null;
+  contactPhone: string | null;
+  hoursPerDay: number | null;
   meetsAt: string | null;
   meetingPointAr: string | null;
   instructionsAr: string | null;
@@ -185,6 +222,122 @@ export function searchParticipants(
     `${base(initiativeId)}/participants${query({ q: search })}`,
     { ...(signal ? { signal } : {}) },
   ).then((response) => response.data);
+}
+
+// ── الروابط الشخصية ────────────────────────────────────────────────────
+
+/**
+ * رابط لكل متطوع، يعود **في هذا الجواب وحده**: الخادم يحفظ بصمته لا نصّه.
+ * توليد جديد يُبطل رابطه السابق في المبادرة.
+ */
+export function createLinks(
+  initiativeId: string,
+  body: {
+    groupId?: string;
+    participantIds?: string[];
+    ttlDays?: number;
+    email?: boolean;
+  },
+) {
+  return apiFetch<FieldIssuedLinks>(`${base(initiativeId)}/links`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function revokeLinks(initiativeId: string, participantIds: string[]) {
+  return apiFetch<{ initiativeId: string; revoked: number }>(
+    `${base(initiativeId)}/links/revoke`,
+    { method: "POST", body: { participantIds } },
+  );
+}
+
+// ── إعدادات الميدان ────────────────────────────────────────────────────
+
+export function listFeedbackForms(initiativeId: string) {
+  return apiFetch<{ data: FieldFeedbackForm[] }>(
+    `${base(initiativeId)}/feedback-forms`,
+  ).then((response) => response.data);
+}
+
+export type FieldSettingsInput = {
+  feedbackFormId: string | null;
+  certificatesEnabled: boolean;
+  certificateSignerNameAr: string | null;
+  certificateSignerTitleAr: string | null;
+};
+
+export function updateFieldSettings(
+  initiativeId: string,
+  body: FieldSettingsInput,
+) {
+  return apiFetch<InitiativeField>(`${base(initiativeId)}/settings`, {
+    method: "PUT",
+    body,
+  });
+}
+
+// ── الإعلانات ──────────────────────────────────────────────────────────
+
+export function listAnnouncements(initiativeId: string) {
+  return apiFetch<FieldAnnouncements>(`${base(initiativeId)}/announcements`);
+}
+
+/**
+ * الإعلان يظهر في التطبيق لكل من يفتحه، ويُرسَل إشعارًا لمن فعّل الإشعارات.
+ * الإشعار لا يُستردّ بعد إرساله.
+ */
+export function createAnnouncement(
+  initiativeId: string,
+  body: {
+    groupId?: string;
+    audience: AnnouncementAudience;
+    titleAr: string;
+    bodyAr: string;
+  },
+) {
+  return apiFetch<FieldAnnouncements>(`${base(initiativeId)}/announcements`, {
+    method: "POST",
+    body,
+  });
+}
+
+export function deleteAnnouncement(initiativeId: string, announcementId: string) {
+  return apiFetch<FieldAnnouncements>(
+    `${base(initiativeId)}/announcements/${announcementId}`,
+    { method: "DELETE" },
+  );
+}
+
+// ── طلبات حذف البيانات ─────────────────────────────────────────────────
+
+const deletionRequests = (initiativeId: string) =>
+  `${base(initiativeId)}/deletion-requests`;
+
+export function listDeletionRequests(initiativeId: string) {
+  return apiFetch<FieldDeletionRequests>(deletionRequests(initiativeId));
+}
+
+/**
+ * يمحو بيانات المشارك حيث كانت ويبقي حضوره عددًا. لا يُتراجع عنه: الخادم لا
+ * يحفظ نسخة قبل المحو.
+ */
+export function approveDeletionRequest(initiativeId: string, requestId: string) {
+  return apiFetch<FieldDeletionRequests>(
+    `${deletionRequests(initiativeId)}/${requestId}/approve`,
+    { method: "POST" },
+  );
+}
+
+export function rejectDeletionRequest(
+  initiativeId: string,
+  requestId: string,
+  body: { noteAr: string },
+) {
+  return apiFetch<FieldDeletionRequests>(
+    `${deletionRequests(initiativeId)}/${requestId}/reject`,
+    { method: "POST", body },
+  );
 }
 
 // ── الحضور ─────────────────────────────────────────────────────────────

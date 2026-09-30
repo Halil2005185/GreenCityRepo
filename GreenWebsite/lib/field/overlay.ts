@@ -1,6 +1,14 @@
-import type { FieldSheet } from "./api";
+import type { FieldCard, FieldSheet } from "./api";
 import { damascusDay } from "./labels";
-import { type OutboxItem, pendingId } from "./outbox-types";
+import {
+  type CardItem,
+  type OutboxItem,
+  type RsvpItem,
+  type SelfCheckinItem,
+  type SheetItem,
+  isCardItem,
+  pendingId,
+} from "./outbox-types";
 import { withReading } from "./targets";
 
 /**
@@ -15,12 +23,14 @@ export function isCurrentShape(
 ): sheet is FieldSheet {
   return (
     sheet !== undefined &&
+    Array.isArray(sheet.announcements) &&
     Array.isArray(sheet.members) &&
     Array.isArray(sheet.photos) &&
     Array.isArray(sheet.targets) &&
     Array.isArray(sheet.tasks) &&
     typeof sheet.day === "string" &&
-    typeof sheet.permissions === "object"
+    typeof sheet.permissions === "object" &&
+    typeof sheet.checkin === "object"
   );
 }
 
@@ -47,7 +57,7 @@ export function forDay(sheet: FieldSheet, day: string): FieldSheet {
  * الطابور هو مصدر ما لم يُرسَل، وحين يُرسَل الفعل يُثبَّت أثره بهذه الدالة
  * نفسها ثم يُسأل الخادم عن حقيقته.
  */
-export function applyItem(sheet: FieldSheet, item: OutboxItem): FieldSheet {
+export function applyItem(sheet: FieldSheet, item: SheetItem): FieldSheet {
   switch (item.kind) {
     case "attendance":
       // حضور يومٍ آخر لم يُرسَل بعد: يُرسَل ليومه، ولا يُعرض حضورًا لهذا اليوم.
@@ -175,7 +185,66 @@ export function overlay(
 ): FieldSheet {
   return items
     .filter(
-      (item) => item.groupId === sheet.group.id && item.status === "pending",
+      (item): item is SheetItem =>
+        !isCardItem(item) &&
+        item.groupId === sheet.group.id &&
+        item.status === "pending",
     )
     .reduce(applyItem, forDay(sheet, today));
+}
+
+/** أثر تأكيد حضورٍ لم يُرسَل بعد على بطاقة المتطوع. */
+export function applyRsvp(card: FieldCard, item: RsvpItem): FieldCard {
+  return {
+    ...card,
+    memberships: card.memberships.map((membership) =>
+      membership.memberId === item.payload.memberId
+        ? {
+            ...membership,
+            rsvp: item.payload.coming
+              ? ("COMING" as const)
+              : ("NOT_COMING" as const),
+          }
+        : membership,
+    ),
+  };
+}
+
+/**
+ * أثر تسجيلٍ ذاتي لم يُرسَل بعد: حضورٌ في يوم كتابة الرمز. الخادم قد يرفض
+ * الرمز حين يصله؛ حتى ذلك الحين البطاقة تقول ما سجّله صاحبها.
+ */
+export function applySelfCheckin(
+  card: FieldCard,
+  item: SelfCheckinItem,
+): FieldCard {
+  const day = damascusDay(item.payload.scannedAt);
+
+  return {
+    ...card,
+    memberships: card.memberships.map((membership) =>
+      membership.group.id === item.groupId &&
+      !membership.attendedOn.includes(day)
+        ? { ...membership, attendedOn: [...membership.attendedOn, day].sort() }
+        : membership,
+    ),
+  };
+}
+
+export function applyCardItem(card: FieldCard, item: CardItem): FieldCard {
+  return item.kind === "rsvp"
+    ? applyRsvp(card, item)
+    : applySelfCheckin(card, item);
+}
+
+/** البطاقة وعليها ما ينتظر الإرسال؛ آخر تأكيد يغلب ما قبله. */
+export function overlayCard(
+  card: FieldCard,
+  items: readonly OutboxItem[],
+): FieldCard {
+  return items
+    .filter(
+      (item): item is CardItem => isCardItem(item) && item.status === "pending",
+    )
+    .reduce(applyCardItem, card);
 }

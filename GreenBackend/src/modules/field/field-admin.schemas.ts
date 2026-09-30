@@ -34,16 +34,56 @@ export const fieldGroupSchema = registry.register(
     nameAr: z.string(),
     leadUserId: z.uuid().nullable(),
     leadNameAr: z.string().nullable(),
+    partnerId: z.uuid().nullable().openapi({
+      description:
+        'الجهة الشريكة التي تُنسب إليها المجموعة، فتظهر في بوابتها بأعدادها.',
+    }),
+    partnerNameAr: z.string().nullable(),
+    contactPhone: z.string().nullable().openapi({
+      description:
+        'وسيلة التواصل التي تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق.',
+    }),
+    hoursPerDay: z.number().nullable().openapi({
+      description:
+        'ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله وشهادته.',
+    }),
     meetsAt: z.iso.datetime().nullable(),
     meetingPointAr: z.string().nullable(),
     instructionsAr: z.string().nullable(),
     displayOrder: z.number().int(),
     memberCount: z.number().int(),
+    comingCount: z.number().int().openapi({
+      description: 'من أكّدوا حضورهم من بطاقاتهم.',
+    }),
+    linkedCount: z.number().int().openapi({
+      description: 'أعضاء لهم رابط شخصي قائم لم ينتهِ.',
+    }),
     attendedCount: z.number().int().openapi({
       description: 'من حضر من المجموعة يومًا واحدًا على الأقل.',
     }),
     photoCount: z.number().int(),
     createdAt: z.iso.datetime(),
+  }),
+)
+
+export const fieldSettingsSchema = registry.register(
+  'FieldSettings',
+  z.object({
+    feedbackFormId: z.uuid().nullable(),
+    feedbackFormNameAr: z.string().nullable(),
+    feedbackFormUrl: z.string().nullable().openapi({
+      description:
+        'رابط الاستمارة على الموقع العام كما يصل المتطوع. `null` إن لم تُختر، أو اختيرت وهي غير منشورة أو لا تستقبل.',
+    }),
+    certificatesEnabled: z.boolean().openapi({
+      description:
+        'هل تصدر شهادات مشاركة لمتطوعي هذه المبادرة من بطاقاتهم.',
+    }),
+    certificateSignerNameAr: z.string().nullable(),
+    certificateSignerTitleAr: z.string().nullable(),
+    certificateCount: z.number().int().openapi({
+      description: 'الشهادات التي صدرت في هذه المبادرة.',
+    }),
   }),
 )
 
@@ -53,6 +93,7 @@ export const initiativeFieldSchema = registry.register(
     .object({
       initiativeId: z.uuid(),
       groups: z.array(fieldGroupSchema),
+      settings: fieldSettingsSchema,
     })
     .openapi({
       description:
@@ -113,8 +154,56 @@ registry.registerPath({
   },
 })
 
+export const fieldPartnerOptionSchema = registry.register(
+  'FieldPartnerOption',
+  z
+    .object({
+      id: z.uuid(),
+      displayNameAr: z.string(),
+      organizationKind: z.string(),
+    })
+    .openapi({
+      description:
+        'جهة شريكة نشطة تُنسب إليها مجموعة. اسمها ونوعها وحدهما: سجل الشركاء لمن يحمل صلاحيته.',
+    }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/partner-options'),
+  tags: ['Field'],
+  summary: 'الجهات التي تُنسب إليها مجموعة',
+  description:
+    'الجهات النشطة غير المعلّقة. مسار خاص لأن المنسّق لا يحمل بالضرورة `partners.view`.',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: {
+      description: 'الجهات',
+      ...json(z.object({ data: z.array(fieldPartnerOptionSchema) })),
+    },
+  },
+})
+
 const meetingFields = {
   leadUserId: z.uuid().nullable().optional(),
+  partnerId: z.uuid().nullable().optional().openapi({
+    description: 'جهة شريكة نشطة. `null` يعيد المجموعة بلا جهة.',
+  }),
+  contactPhone: z
+    .string()
+    .trim()
+    .regex(PHONE_PATTERN, 'صيغة رقم الهاتف غير صحيحة.')
+    .nullable()
+    .optional(),
+  hoursPerDay: z
+    .number()
+    .min(0.5)
+    .max(24)
+    .multipleOf(0.5)
+    .nullable()
+    .optional()
+    .openapi({ description: 'بأنصاف الساعات. `null` يمحوها.' }),
   meetsAt: z.iso.datetime().nullable().optional(),
   meetingPointAr: z.string().max(300).nullable().optional(),
   instructionsAr: z.string().max(4000).nullable().optional(),
@@ -138,7 +227,7 @@ registry.registerPath({
     201: { description: 'أُضيفت', ...json(initiativeFieldSchema) },
     409: problemResponse('في الموقع مجموعة بالاسم نفسه'),
     422: problemResponse(
-      'الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو المبادرة نقطة خضراء',
+      'الموقع من مبادرة أخرى أو ملغى، أو القائد لا يحمل `field.lead`، أو الجهة ليست شريكًا نشطًا، أو المبادرة نقطة خضراء',
     ),
   },
 })
@@ -197,6 +286,21 @@ export const groupMemberSchema = registry.register(
     }),
     attendedDays: z.number().int(),
     lastAttendedOn: z.iso.date().nullable(),
+    rsvpAt: z.iso.datetime().nullable(),
+    link: z
+      .object({
+        status: z.enum(['ACTIVE', 'EXPIRED']),
+        expiresAt: z.iso.datetime(),
+        lastUsedAt: z.iso.datetime().nullable().openapi({
+          description: 'آخر فتح للبطاقة بهذا الرابط. `null` إن لم يُفتح بعد.',
+        }),
+        emailedAt: z.iso.datetime().nullable(),
+      })
+      .nullable()
+      .openapi({
+        description:
+          'رابطه الشخصي القائم في هذه المبادرة. الرابط نفسه لا يُعرض هنا: يظهر مرة واحدة عند توليده.',
+      }),
     attendance: z
       .object({
         id: z.uuid(),
@@ -329,6 +433,155 @@ registry.registerPath({
   responses: {
     200: { description: 'أُخرج', ...json(groupMembersSchema) },
     404: problemResponse('العضو غير موجود في هذه المجموعة'),
+  },
+})
+
+// ── الروابط الشخصية ────────────────────────────────────────────────────
+
+export const createLinksBodySchema = z
+  .object({
+    groupId: z.uuid().optional().openapi({
+      description: 'كل أعضاء هذه المجموعة.',
+    }),
+    participantIds: z.array(z.uuid()).max(500).default([]),
+    ttlDays: z.number().int().min(1).max(365).optional().openapi({
+      description: 'عمر الرابط بالأيام. الافتراضي من إعداد الخادم.',
+    }),
+    email: z.boolean().default(false).openapi({
+      description: 'إرسال الرابط بالبريد لمن له بريد. غيره يُنسخ رابطه.',
+    }),
+  })
+  .refine(
+    (value) => Boolean(value.groupId) || value.participantIds.length > 0,
+    { message: 'اختر مجموعة أو مشاركين.', path: ['participantIds'] },
+  )
+
+export const issuedLinkSchema = registry.register(
+  'FieldIssuedLink',
+  z.object({
+    participantId: z.uuid(),
+    fullNameAr: z.string(),
+    phone: z.string().nullable(),
+    email: z.string().nullable(),
+    groupNameAr: z.string(),
+    url: z.string().openapi({
+      description:
+        'الرابط الشخصي. يظهر في هذا الجواب وحده: الخادم يحفظ بصمته لا نصّه.',
+    }),
+    messageAr: z.string().openapi({
+      description: 'نص جاهز للصق في واتساب، وفيه الرابط.',
+    }),
+    whatsappUrl: z.string().nullable().openapi({
+      description:
+        'يفتح محادثة واتساب مع صاحب الرقم والنص مكتوب فيها. `null` حين لا يُعرف الرقم دوليًا.',
+    }),
+    emailed: z.boolean(),
+  }),
+)
+
+export const createLinksResultSchema = registry.register(
+  'FieldIssuedLinks',
+  z.object({
+    initiativeId: z.uuid(),
+    expiresAt: z.iso.datetime(),
+    links: z.array(issuedLinkSchema),
+  }),
+)
+
+registry.registerPath({
+  method: 'post',
+  path: path('/links'),
+  tags: ['Field'],
+  summary: 'توليد روابط شخصية للمتطوعين',
+  description:
+    'رابط لكل مشارك، يُعرض مرة واحدة. توليد جديد يُبطل رابطه السابق في هذه المبادرة.',
+  security,
+  request: { params: initiativeParamsSchema, body: json(createLinksBodySchema) },
+  responses: {
+    200: { description: 'وُلّدت', ...json(createLinksResultSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+    409: problemResponse('المبادرة ملغاة'),
+    422: problemResponse('مشارك ليس عضوًا في مجموعة من هذه المبادرة'),
+  },
+})
+
+export const revokeLinksBodySchema = z.object({
+  participantIds: z.array(z.uuid()).min(1).max(500),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/links/revoke'),
+  tags: ['Field'],
+  summary: 'إبطال روابط شخصية',
+  description: 'البطاقة تُغلق فورًا على كل جهاز فتحها. ما أُبطل سلفًا يبقى كما هو.',
+  security,
+  request: { params: initiativeParamsSchema, body: json(revokeLinksBodySchema) },
+  responses: {
+    200: {
+      description: 'أُبطلت',
+      ...json(z.object({ initiativeId: z.uuid(), revoked: z.number().int() })),
+    },
+    404: problemResponse('المبادرة غير موجودة'),
+  },
+})
+
+// ── إعدادات الميدان ────────────────────────────────────────────────────
+
+export const feedbackFormSchema = registry.register(
+  'FieldFeedbackForm',
+  z.object({
+    formId: z.uuid(),
+    nameAr: z.string(),
+    slug: z.string(),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/feedback-forms'),
+  tags: ['Field'],
+  summary: 'استمارات تصلح للتقييم',
+  description:
+    'المنشورة التي تستقبل. مسار خاص كمسار المصادر: المنسّق يرى اسم الاستمارة لا أسئلتها.',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: {
+      description: 'الاستمارات',
+      ...json(z.object({ data: z.array(feedbackFormSchema) })),
+    },
+  },
+})
+
+export const updateSettingsBodySchema = z
+  .object({
+    feedbackFormId: z.uuid().nullable(),
+    certificatesEnabled: z.boolean().optional(),
+    certificateSignerNameAr: z.string().trim().max(160).nullable().optional(),
+    certificateSignerTitleAr: z.string().trim().max(160).nullable().optional(),
+  })
+  .openapi({
+    description:
+      'حقول الشهادة اختيارية في الطلب: ما لم يُرسَل يبقى على حاله.',
+  })
+
+registry.registerPath({
+  method: 'put',
+  path: path('/settings'),
+  tags: ['Field'],
+  summary: 'إعدادات ميدان المبادرة',
+  security,
+  request: {
+    params: initiativeParamsSchema,
+    body: json(updateSettingsBodySchema),
+  },
+  responses: {
+    200: { description: 'حُفظت', ...json(initiativeFieldSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+    422: problemResponse(
+      'الاستمارة غير موجودة، أو فُعّلت الشهادات بلا اسم من يوقّعها',
+    ),
   },
 })
 
@@ -594,11 +847,231 @@ registry.registerPath({
   },
 })
 
+// ── الإعلانات ──────────────────────────────────────────────────────────
+
+export const announcementAudienceEnum = z.enum(['ALL', 'LEADS', 'VOLUNTEERS'])
+
+export const managedAnnouncementSchema = registry.register(
+  'FieldManagedAnnouncement',
+  z.object({
+    id: z.uuid(),
+    groupId: z.uuid().nullable(),
+    groupNameAr: z.string().nullable(),
+    audience: announcementAudienceEnum,
+    titleAr: z.string(),
+    bodyAr: z.string(),
+    createdByNameAr: z.string().nullable(),
+    createdAt: z.iso.datetime(),
+    devices: z
+      .object({
+        targeted: z.number().int().openapi({
+          description: 'الأجهزة المشتركة ساعة الإعلان.',
+        }),
+        sent: z.number().int(),
+        pending: z.number().int(),
+        failed: z.number().int().openapi({
+          description: 'لم يصلها: اشتراك زال، أو خدمة الإشعار رفضت.',
+        }),
+      })
+      .openapi({
+        description:
+          'إيصال الإشعار. الإعلان نفسه يظهر في التطبيق لكل من يفتحه، اشترك أم لا.',
+      }),
+  }),
+)
+
+export const announcementsSchema = registry.register(
+  'FieldAnnouncements',
+  z.object({
+    initiativeId: z.uuid(),
+    pushEnabled: z.boolean().openapi({
+      description:
+        'هل هيّأ الخادم مفاتيح الإشعارات. بدونها يظهر الإعلان في التطبيق ولا يُرسَل إشعار.',
+    }),
+    announcements: z.array(managedAnnouncementSchema),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/announcements'),
+  tags: ['Field'],
+  summary: 'إعلانات الميدان',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: { description: 'الإعلانات، الأحدث أولًا', ...json(announcementsSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+  },
+})
+
+export const createAnnouncementBodySchema = z.object({
+  groupId: z.uuid().optional().openapi({
+    description: 'مجموعة بعينها. بدونه يذهب الإعلان إلى مجموعات المبادرة كلها.',
+  }),
+  audience: announcementAudienceEnum.default('ALL'),
+  titleAr: z.string().trim().min(2).max(120),
+  bodyAr: z.string().trim().min(2).max(600),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/announcements'),
+  tags: ['Field'],
+  summary: 'إعلان جديد للميدان',
+  description:
+    'يظهر في ورقة القائد وبطاقة المتطوع، ويُدرج إشعار لكل جهاز مشترك من المستهدفين. الإشعار لا يُستردّ بعد إرساله.',
+  security,
+  request: {
+    params: initiativeParamsSchema,
+    body: json(createAnnouncementBodySchema),
+  },
+  responses: {
+    201: { description: 'أُعلن', ...json(announcementsSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+    422: problemResponse('المجموعة ليست من هذه المبادرة'),
+  },
+})
+
+export const announcementParamsSchema = z.object({
+  id: z.uuid(),
+  announcementId: z.uuid(),
+})
+
+registry.registerPath({
+  method: 'delete',
+  path: path('/announcements/{announcementId}'),
+  tags: ['Field'],
+  summary: 'حذف إعلان',
+  description:
+    'يزيله من التطبيق ويوقف ما لم يُرسَل من إشعاراته. ما وصل هاتفًا لا يُستردّ.',
+  security,
+  request: { params: announcementParamsSchema },
+  responses: {
+    200: { description: 'حُذف', ...json(announcementsSchema) },
+    404: problemResponse('الإعلان غير موجود في هذه المبادرة'),
+  },
+})
+
+// ── طلبات حذف البيانات ─────────────────────────────────────────────────
+
+export const deletionRequestSchema = registry.register(
+  'FieldDeletionRequest',
+  z
+    .object({
+      id: z.uuid(),
+      status: z.enum(['PENDING', 'DONE', 'REJECTED']),
+      requestedAt: z.iso.datetime(),
+      decidedAt: z.iso.datetime().nullable(),
+      decidedByNameAr: z.string().nullable(),
+      decisionNoteAr: z.string().nullable(),
+      participant: z.object({
+        id: z.uuid(),
+        anonymized: z.boolean().openapi({
+          description: 'نُفّذ الحذف: الاسم بعده «مشارك محذوف»، ولا وسيلة تواصل.',
+        }),
+      }),
+      fullNameAr: z.string(),
+      phone: z.string().nullable(),
+      email: z.string().nullable(),
+      groupNamesAr: z.array(z.string()).openapi({
+        description: 'مجموعاته في هذه المبادرة.',
+      }),
+      attendedDays: z.number().int().openapi({
+        description: 'أيام حضوره القائمة في الحملات كلها. تبقى بعد التنفيذ بلا اسم.',
+      }),
+      initiativeCount: z.number().int().openapi({
+        description: 'المبادرات التي هو عضو في مجموعاتها: التنفيذ يخرجه منها كلها.',
+      }),
+      certificateCount: z.number().int(),
+      submissionCount: z.number().int().openapi({
+        description:
+          'طلبات الاستمارات التي تعود له — الطلب الذي جاء منه، وما طابقه اسمًا مع هاتفه أو بريده. التنفيذ يمحو ما كُتب فيها. يُحسب لما ينتظر قرارًا وحده.',
+      }),
+    })
+    .openapi({
+      description:
+        'طلب متطوع حذف بياناته، وما يمسّه تنفيذه. الحذف على الشخص كله لا على حملة.',
+    }),
+)
+
+export const deletionRequestsSchema = registry.register(
+  'FieldDeletionRequests',
+  z.object({
+    initiativeId: z.uuid(),
+    pendingCount: z.number().int(),
+    requests: z.array(deletionRequestSchema),
+  }),
+)
+
+registry.registerPath({
+  method: 'get',
+  path: path('/deletion-requests'),
+  tags: ['Field'],
+  summary: 'طلبات حذف البيانات',
+  description: 'ما وصل من روابط هذه المبادرة، القائم أولًا.',
+  security,
+  request: { params: initiativeParamsSchema },
+  responses: {
+    200: { description: 'الطلبات', ...json(deletionRequestsSchema) },
+    404: problemResponse('المبادرة غير موجودة'),
+  },
+})
+
+export const deletionRequestParamsSchema = z.object({
+  id: z.uuid(),
+  requestId: z.uuid(),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/deletion-requests/{requestId}/approve'),
+  tags: ['Field'],
+  summary: 'تنفيذ طلب حذف البيانات',
+  description:
+    'يمحو اسم المشارك ووسيلة التواصل وطلب استمارته وعضوياته وروابطه واشتراكات إشعاره وشهاداته، واسمه في سجل التدقيق. يبقى حضوره عددًا بلا اسم. لا يُتراجع عنه.',
+  security,
+  request: { params: deletionRequestParamsSchema },
+  responses: {
+    200: { description: 'نُفّذ', ...json(deletionRequestsSchema) },
+    404: problemResponse('الطلب غير موجود في هذه المبادرة'),
+    409: problemResponse('سبق أن قُرّر هذا الطلب'),
+  },
+})
+
+export const rejectDeletionBodySchema = z.object({
+  noteAr: z.string().trim().min(3).max(500).openapi({
+    description: 'يقرؤها صاحب الطلب في بطاقته: ما الذي يلزمه، أو بمن يتصل.',
+  }),
+})
+
+registry.registerPath({
+  method: 'post',
+  path: path('/deletion-requests/{requestId}/reject'),
+  tags: ['Field'],
+  summary: 'رفض طلب حذف البيانات',
+  security,
+  request: {
+    params: deletionRequestParamsSchema,
+    body: json(rejectDeletionBodySchema),
+  },
+  responses: {
+    200: { description: 'رُفض', ...json(deletionRequestsSchema) },
+    404: problemResponse('الطلب غير موجود في هذه المبادرة'),
+    409: problemResponse('سبق أن قُرّر هذا الطلب'),
+  },
+})
+
+export type RejectDeletionBody = z.infer<typeof rejectDeletionBodySchema>
 export type CreateGroupBody = z.infer<typeof createGroupBodySchema>
 export type UpdateGroupBody = z.infer<typeof updateGroupBodySchema>
+export type CreateAnnouncementBody = z.infer<typeof createAnnouncementBodySchema>
 export type MembersQuery = z.infer<typeof membersQuerySchema>
 export type AddMembersBody = z.infer<typeof addMembersBodySchema>
 export type UpdateMemberBody = z.infer<typeof updateMemberBodySchema>
+export type CreateLinksBody = z.infer<typeof createLinksBodySchema>
+export type RevokeLinksBody = z.infer<typeof revokeLinksBodySchema>
+export type UpdateSettingsBody = z.infer<typeof updateSettingsBodySchema>
 export type ApplicantsQuery = z.infer<typeof applicantsQuerySchema>
 export type ParticipantsQuery = z.infer<typeof participantsQuerySchema>
 export type AttendanceImpactBody = z.infer<typeof attendanceImpactBodySchema>

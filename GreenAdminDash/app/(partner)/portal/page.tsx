@@ -7,6 +7,7 @@ import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { FieldTeamsSection } from "@/components/partners/field-teams-section";
 import { Badge } from "@/components/ui/badge";
 import { Alert } from "@/components/ui/card";
 import { useConfirm } from "@/components/ui/confirm-dialog";
@@ -136,7 +137,7 @@ function ProfileDialog({
 
 /**
  * بوابة الشريك بعمود واحد: ترويسة بفعل تعديل الملف، وملخص الجهة، ثم أقسام
- * موافقة الإظهار والشراكات وجهات الاتصال والإقرار. كانت بطاقتين متجاورتين
+ * فرقها في الميدان وموافقة الإظهار والشراكات وجهات الاتصال والإقرار. كانت بطاقتين متجاورتين
  * وأزرار «منح/سحب» تحفظ فورًا بلا إشعار؛ السحب الآن بتأكيد يشرح أثره.
  */
 export default function PartnerPortalPage() {
@@ -359,6 +360,8 @@ export default function PartnerPortalPage() {
           { label: "نبذة", wide: true, value: data.summaryAr },
         ]}
       />
+
+      <FieldTeamsSection />
 
       <Section
         title="موافقة الإظهار"

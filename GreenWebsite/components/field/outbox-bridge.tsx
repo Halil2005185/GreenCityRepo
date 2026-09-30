@@ -24,7 +24,7 @@ export function OutboxBridge() {
   // الهوية تكفي بلا شبكة: ما سُجّل أمس يُقرأ اليوم ولو لم يُتحقَّق من الجلسة بعد.
   const ownerId =
     status === "authenticated" || status === "offline"
-      ? (identity?.userId ?? null)
+      ? (identity?.ownerId ?? null)
       : null;
 
   useEffect(() => {

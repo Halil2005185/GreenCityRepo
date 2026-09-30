@@ -6,10 +6,19 @@ import {
   requireCapability,
   requireStaff,
 } from '../../common/middleware/authorize.js'
-import { fieldWriteRateLimit } from '../../common/middleware/rate-limit.js'
+import {
+  certificateVerifyRateLimit,
+  fieldWriteRateLimit,
+  linkRedeemRateLimit,
+  selfCheckinRateLimit,
+} from '../../common/middleware/rate-limit.js'
 import { validate } from '../../common/middleware/validate.js'
 import * as adminSchemas from './field-admin.schemas.js'
-import { requireFieldAuth } from './field-auth.js'
+import {
+  requireFieldAuth,
+  requireFieldParticipant,
+  requireFieldStaff,
+} from './field-auth.js'
 import * as controller from './field.controller.js'
 import * as schemas from './field.schemas.js'
 
@@ -19,21 +28,97 @@ import * as schemas from './field.schemas.js'
  * الحارس هنا يثبت الهوية وحدها. «أي مجموعة؟» قرار الخدمة لا الموجّه:
  * `field.lead` تفتح لحاملها مجموعاته هو لا مجموعات غيره، وهذا لا يُفحص
  * باسم قدرة على مسار. كل كتابة تمرّ من `requireWritableGroup`.
+ *
+ * مبدآن يدخلان من هنا: عضو الفريق وحامل الرابط الشخصي. `/me` لهما معًا،
+ * وما تحت `/me/…` لحامل الرابط. وورقة المجموعة وحضورها للقائد ولمساعده —
+ * والمساعد حامل رابط — وما عداهما تحت `/groups` و`/tasks` للفريق وحده.
  */
 export const fieldRouter = Router()
+
+/**
+ * قبل الحارس: الرابط نفسه هو الاعتماد، ومن يفتحه لا جلسة له بعد. والرمز في
+ * جسم الطلب لا في مساره، فلا يُكتب في سجل وصول.
+ */
+fieldRouter.post(
+  '/links/redeem',
+  linkRedeemRateLimit,
+  validate({ body: schemas.redeemLinkBodySchema }),
+  controller.postLinkRedeem,
+)
 
 fieldRouter.use(requireFieldAuth)
 
 fieldRouter.get('/me', controller.getHome)
 
-fieldRouter.get(
-  '/groups/:id',
-  validate({ params: schemas.groupIdParamsSchema }),
-  controller.getSheet,
+fieldRouter.post(
+  '/me/rsvp',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  validate({ body: schemas.rsvpBodySchema }),
+  controller.postRsvp,
+)
+
+fieldRouter.post(
+  '/me/checkin',
+  requireFieldParticipant,
+  selfCheckinRateLimit,
+  validate({ body: schemas.selfCheckinBodySchema }),
+  controller.postSelfCheckin,
+)
+
+fieldRouter.get('/me/record', requireFieldParticipant, controller.getRecord)
+
+fieldRouter.post(
+  '/me/deletion-request',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  controller.postDeletionRequest,
+)
+
+fieldRouter.delete(
+  '/me/deletion-request',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  controller.deleteDeletionRequest,
+)
+
+fieldRouter.post(
+  '/me/certificate',
+  requireFieldParticipant,
+  fieldWriteRateLimit,
+  controller.postCertificate,
+)
+
+// الإشعارات للمبدأين: القائد يشترك بحسابه، والمتطوع برابطه.
+fieldRouter.get('/push/key', controller.getPushKey)
+
+fieldRouter.post(
+  '/push/subscriptions',
+  fieldWriteRateLimit,
+  validate({ body: schemas.pushSubscribeBodySchema }),
+  controller.postPushSubscription,
+)
+
+fieldRouter.post(
+  '/push/subscriptions/remove',
+  fieldWriteRateLimit,
+  validate({ body: schemas.pushUnsubscribeBodySchema }),
+  controller.postPushUnsubscribe,
 )
 
 const group = schemas.groupIdParamsSchema
 const task = schemas.taskIdParamsSchema
+
+/**
+ * الورقة والحضور قبل حارس الفريق: يدخلها مساعد القائد برابطه. «أهو مساعد
+ * هذه المجموعة؟» تسأله الخدمة (`requireAccessibleGroup`)، كما تسأل القائد
+ * «أهي مجموعتك؟».
+ */
+fieldRouter.get(
+  '/groups/:id',
+  validate({ params: group }),
+  controller.getSheet,
+)
 
 fieldRouter.post(
   '/groups/:id/attendance',
@@ -48,6 +133,9 @@ fieldRouter.post(
   validate({ params: group, body: schemas.undoAttendanceBodySchema }),
   controller.postAttendanceUndo,
 )
+
+// كل ما بعدها للفريق: حارس واحد على البادئة يرثه أي مسار يُضاف تحتها.
+fieldRouter.use(['/groups', '/tasks'], requireFieldStaff)
 
 fieldRouter.post(
   '/groups/:id/impact',
@@ -92,6 +180,20 @@ fieldRouter.post(
 )
 
 /**
+ * السطح العام للميدان — `/api/public`. بلا مصادقة، محدود المعدل.
+ *
+ * التحقق من شهادة: من يحمل الورقة يعرف ما فيها، فالجواب لا يزيد عليها.
+ */
+export const fieldPublicRouter = Router()
+
+fieldPublicRouter.get(
+  '/certificates/:code',
+  certificateVerifyRateLimit,
+  validate({ params: schemas.certificateCodeParamsSchema }),
+  controller.getVerifiedCertificate,
+)
+
+/**
  * مسارات المنسّق — `/api/admin/initiatives/:id/field`.
  *
  * موجّه مستقل يُركَّب قبل موجّه المبادرات: ذاك يحرس كل ما تحته بـ
@@ -122,6 +224,12 @@ fieldAdminRouter.get(
   '/lead-candidates',
   validate({ params: initiative }),
   controller.getLeadCandidates,
+)
+
+fieldAdminRouter.get(
+  '/partner-options',
+  validate({ params: initiative }),
+  controller.getPartnerOptions,
 )
 
 fieldAdminRouter.post(
@@ -164,6 +272,72 @@ fieldAdminRouter.delete(
   '/groups/:groupId/members/:memberId',
   validate({ params: memberOf }),
   controller.deleteMember,
+)
+
+fieldAdminRouter.post(
+  '/links',
+  validate({ params: initiative, body: adminSchemas.createLinksBodySchema }),
+  controller.postLinks,
+)
+
+fieldAdminRouter.post(
+  '/links/revoke',
+  validate({ params: initiative, body: adminSchemas.revokeLinksBodySchema }),
+  controller.postLinksRevoke,
+)
+
+fieldAdminRouter.get(
+  '/feedback-forms',
+  validate({ params: initiative }),
+  controller.getFeedbackForms,
+)
+
+fieldAdminRouter.put(
+  '/settings',
+  validate({ params: initiative, body: adminSchemas.updateSettingsBodySchema }),
+  controller.putSettings,
+)
+
+fieldAdminRouter.get(
+  '/announcements',
+  validate({ params: initiative }),
+  controller.getAnnouncements,
+)
+
+fieldAdminRouter.post(
+  '/announcements',
+  validate({
+    params: initiative,
+    body: adminSchemas.createAnnouncementBodySchema,
+  }),
+  controller.postAnnouncement,
+)
+
+fieldAdminRouter.delete(
+  '/announcements/:announcementId',
+  validate({ params: adminSchemas.announcementParamsSchema }),
+  controller.deleteAnnouncement,
+)
+
+fieldAdminRouter.get(
+  '/deletion-requests',
+  validate({ params: initiative }),
+  controller.getDeletionRequests,
+)
+
+fieldAdminRouter.post(
+  '/deletion-requests/:requestId/approve',
+  validate({ params: adminSchemas.deletionRequestParamsSchema }),
+  controller.postDeletionApprove,
+)
+
+fieldAdminRouter.post(
+  '/deletion-requests/:requestId/reject',
+  validate({
+    params: adminSchemas.deletionRequestParamsSchema,
+    body: adminSchemas.rejectDeletionBodySchema,
+  }),
+  controller.postDeletionReject,
 )
 
 fieldAdminRouter.get(

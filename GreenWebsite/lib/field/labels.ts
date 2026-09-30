@@ -63,6 +63,16 @@ export function formatDay(value: string | Date) {
   }).format(new Date(value));
 }
 
+/** «29 أيلول 2026» — التاريخ بسنته، لما يُطبع ويُقرأ بعد أعوام. */
+export function formatDate(value: string | Date) {
+  return new Intl.DateTimeFormat("ar-SY-u-nu-latn", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: TIME_ZONE,
+  }).format(new Date(value));
+}
+
 /** الساعة بأرقام لاتينية كبقية الأرقام، وبنظام 12 ساعة كما يُقال الموعد. */
 export function formatTime(value: string | Date) {
   return new Intl.DateTimeFormat("ar-SY-u-nu-latn", {

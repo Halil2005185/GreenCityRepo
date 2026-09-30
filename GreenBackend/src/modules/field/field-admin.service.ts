@@ -11,6 +11,8 @@ import {
   or,
   sql,
 } from 'drizzle-orm'
+
+import { env } from '../../config/env.js'
 import { alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
@@ -23,12 +25,16 @@ import {
   attendance,
   fieldGroupMembers,
   fieldGroups,
+  fieldSettings,
+  participantCertificates,
+  participantLinks,
   participants,
 } from '../../db/schema/field.js'
 import { formSubmissions, formVersions, forms } from '../../db/schema/forms.js'
 import { users } from '../../db/schema/identity.js'
 import { impactEntries } from '../../db/schema/metrics.js'
 import { offices, roles } from '../../db/schema/org.js'
+import { partners } from '../../db/schema/partners.js'
 import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import { workItems } from '../../db/schema/work.js'
 import {
@@ -56,6 +62,10 @@ const groupColumns = {
   nameAr: fieldGroups.nameAr,
   leadUserId: fieldGroups.leadUserId,
   leadNameAr: groupLead.fullNameAr,
+  partnerId: fieldGroups.partnerId,
+  partnerNameAr: partners.displayNameAr,
+  contactPhone: fieldGroups.contactPhone,
+  hoursPerDay: fieldGroups.hoursPerDay,
   meetsAt: fieldGroups.meetsAt,
   meetingPointAr: fieldGroups.meetingPointAr,
   instructionsAr: fieldGroups.instructionsAr,
@@ -65,6 +75,22 @@ const groupColumns = {
     select count(*)::int from ${fieldGroupMembers}
      where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
   )`.as('member_count'),
+  comingCount: sql<number>`(
+    select count(*)::int from ${fieldGroupMembers}
+     where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
+       and ${fieldGroupMembers.rsvp} = 'COMING'
+  )`.as('coming_count'),
+  linkedCount: sql<number>`(
+    select count(*)::int from ${fieldGroupMembers}
+     where ${fieldGroupMembers.groupId} = ${fieldGroups.id}
+       and exists (
+         select 1 from ${participantLinks}
+          where ${participantLinks.participantId} = ${fieldGroupMembers.participantId}
+            and ${participantLinks.initiativeId} = ${fieldGroups.initiativeId}
+            and ${participantLinks.revokedAt} is null
+            and ${participantLinks.expiresAt} > now()
+       )
+  )`.as('linked_count'),
   attendedCount: sql<number>`(
     select count(distinct ${attendance.participantId})::int from ${attendance}
      where ${attendance.groupId} = ${fieldGroups.id}
@@ -82,6 +108,7 @@ function groupQuery() {
     .from(fieldGroups)
     .innerJoin(initiativeSites, eq(fieldGroups.siteId, initiativeSites.id))
     .leftJoin(groupLead, eq(fieldGroups.leadUserId, groupLead.id))
+    .leftJoin(partners, eq(fieldGroups.partnerId, partners.id))
 }
 
 type GroupRow = Awaited<ReturnType<typeof groupQuery>>[number]
@@ -89,6 +116,8 @@ type GroupRow = Awaited<ReturnType<typeof groupQuery>>[number]
 function serializeGroup(row: GroupRow) {
   return {
     ...row,
+    // `numeric` يعود نصًّا من القاعدة.
+    hoursPerDay: row.hoursPerDay === null ? null : Number(row.hoursPerDay),
     meetsAt: row.meetsAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   }
@@ -106,20 +135,189 @@ async function requireInitiative(initiativeId: string) {
   return row
 }
 
+/**
+ * إعدادات الميدان كما تُعرض للمنسّق. رابط الاستمارة `null` ما لم تكن منشورة
+ * تستقبل: هو ما يصل المتطوع فعلًا، لا ما اختير.
+ */
+async function loadSettings(initiativeId: string) {
+  const [row] = await db
+    .select({
+      feedbackFormId: forms.id,
+      feedbackFormNameAr: forms.nameAr,
+      slug: forms.slug,
+      isAccepting: forms.isAccepting,
+      publishedVersionId: formVersions.id,
+      certificatesEnabled: fieldSettings.certificatesEnabled,
+      certificateSignerNameAr: fieldSettings.certificateSignerNameAr,
+      certificateSignerTitleAr: fieldSettings.certificateSignerTitleAr,
+    })
+    .from(fieldSettings)
+    // وصلة يسرى: إعدادات الشهادة قائمة ولو لم تُختر استمارة تقييم.
+    .leftJoin(forms, eq(fieldSettings.feedbackFormId, forms.id))
+    .leftJoin(
+      formVersions,
+      and(
+        eq(formVersions.formId, forms.id),
+        eq(formVersions.status, 'PUBLISHED'),
+      ),
+    )
+    .where(eq(fieldSettings.initiativeId, initiativeId))
+    .limit(1)
+
+  const [issued] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(participantCertificates)
+    .where(eq(participantCertificates.initiativeId, initiativeId))
+
+  const certificateCount = issued?.count ?? 0
+
+  if (!row) {
+    return {
+      feedbackFormId: null,
+      feedbackFormNameAr: null,
+      feedbackFormUrl: null,
+      certificatesEnabled: false,
+      certificateSignerNameAr: null,
+      certificateSignerTitleAr: null,
+      certificateCount,
+    }
+  }
+
+  return {
+    feedbackFormId: row.feedbackFormId,
+    feedbackFormNameAr: row.feedbackFormNameAr,
+    feedbackFormUrl:
+      row.isAccepting && row.publishedVersionId
+        ? `${env.PUBLIC_SITE_URL}/join/${row.slug}`
+        : null,
+    certificatesEnabled: row.certificatesEnabled,
+    certificateSignerNameAr: row.certificateSignerNameAr,
+    certificateSignerTitleAr: row.certificateSignerTitleAr,
+    certificateCount,
+  }
+}
+
 /** يُستدعى بعد كل تعديل ليعود ميدان المبادرة كاملًا في نداء واحد. */
 export async function loadInitiativeField(initiativeId: string) {
   await requireInitiative(initiativeId)
 
-  const rows = await groupQuery()
-    .where(eq(fieldGroups.initiativeId, initiativeId))
-    .orderBy(
-      asc(initiativeSites.displayOrder),
-      asc(initiativeSites.nameAr),
-      asc(fieldGroups.displayOrder),
-      asc(fieldGroups.nameAr),
-    )
+  const [rows, settings] = await Promise.all([
+    groupQuery()
+      .where(eq(fieldGroups.initiativeId, initiativeId))
+      .orderBy(
+        asc(initiativeSites.displayOrder),
+        asc(initiativeSites.nameAr),
+        asc(fieldGroups.displayOrder),
+        asc(fieldGroups.nameAr),
+      ),
+    loadSettings(initiativeId),
+  ])
 
-  return { initiativeId, groups: rows.map(serializeGroup) }
+  return { initiativeId, groups: rows.map(serializeGroup), settings }
+}
+
+/** الاستمارات المنشورة التي تستقبل: ما يصلح أن يُرسَل رابطه لمتطوع. */
+export async function listFeedbackForms() {
+  return db
+    .selectDistinct({
+      formId: forms.id,
+      nameAr: forms.nameAr,
+      slug: forms.slug,
+    })
+    .from(forms)
+    .innerJoin(
+      formVersions,
+      and(
+        eq(formVersions.formId, forms.id),
+        eq(formVersions.status, 'PUBLISHED'),
+      ),
+    )
+    .where(eq(forms.isAccepting, true))
+    .orderBy(asc(forms.nameAr))
+}
+
+export async function updateSettings(
+  initiativeId: string,
+  input: dto.UpdateSettingsBody,
+  actor: AuthContext,
+  trace: RequestTrace,
+) {
+  const initiative = await requireInitiative(initiativeId)
+
+  if (input.feedbackFormId) {
+    const [form] = await db
+      .select({ id: forms.id })
+      .from(forms)
+      .where(eq(forms.id, input.feedbackFormId))
+      .limit(1)
+
+    if (!form) throw errors.unprocessable('الاستمارة المختارة غير موجودة.')
+  }
+
+  const current = await loadSettings(initiativeId)
+
+  const certificate = {
+    certificatesEnabled:
+      input.certificatesEnabled ?? current.certificatesEnabled,
+    certificateSignerNameAr:
+      input.certificateSignerNameAr === undefined
+        ? current.certificateSignerNameAr
+        : input.certificateSignerNameAr || null,
+    certificateSignerTitleAr:
+      input.certificateSignerTitleAr === undefined
+        ? current.certificateSignerTitleAr
+        : input.certificateSignerTitleAr || null,
+  }
+
+  // ورقة تحمل اسم المشروع بلا من يوقّعها ليست شهادة.
+  if (certificate.certificatesEnabled && !certificate.certificateSignerNameAr) {
+    throw errors.unprocessable('سمِّ من يوقّع الشهادة قبل تفعيلها.', [
+      {
+        path: 'certificateSignerNameAr',
+        in: 'body',
+        message: 'اكتب اسم من يوقّع الشهادة.',
+      },
+    ])
+  }
+
+  await db.transaction(async (tx) => {
+    await tx
+      .insert(fieldSettings)
+      .values({
+        initiativeId,
+        feedbackFormId: input.feedbackFormId,
+        ...certificate,
+        updatedById: actor.userId,
+      })
+      .onConflictDoUpdate({
+        target: fieldSettings.initiativeId,
+        set: {
+          feedbackFormId: input.feedbackFormId,
+          ...certificate,
+          updatedById: actor.userId,
+          updatedAt: new Date(),
+        },
+      })
+
+    await recordAudit(
+      {
+        action: 'field.settings_updated',
+        actorUserId: actor.userId,
+        entityType: 'initiative',
+        entityId: initiativeId,
+        entityLabel: initiative.nameAr,
+        summaryAr: 'تعديل إعدادات الميدان',
+        metadata: {
+          feedbackFormId: input.feedbackFormId,
+          certificatesEnabled: certificate.certificatesEnabled,
+        },
+        ...trace,
+      },
+      tx,
+    )
+  })
+
+  return loadInitiativeField(initiativeId)
 }
 
 /**
@@ -263,6 +461,51 @@ async function requireGroup(initiativeId: string, groupId: string) {
   return row
 }
 
+const activePartner = and(
+  eq(partners.stage, 'ACTIVE'),
+  isNull(partners.suspendedAt),
+)
+
+/**
+ * الجهات التي تُنسب إليها مجموعة: النشطة غير المعلّقة. اسمها ونوعها وحدهما —
+ * المنسّق يختار من قائمة، ولا يقرأ سجل الشركاء.
+ */
+export async function listPartnerOptions() {
+  return db
+    .select({
+      id: partners.id,
+      displayNameAr: partners.displayNameAr,
+      organizationKind: partners.organizationKind,
+    })
+    .from(partners)
+    .where(activePartner)
+    .orderBy(asc(partners.displayNameAr))
+}
+
+/**
+ * جهة تُنسب إليها مجموعة جديدة: شريك نشط. ما نُسب قبل أن تُعلَّق الجهة أو
+ * تنتهي شراكتها يبقى كما هو — هو تاريخ ما جرى.
+ */
+async function requireTeamPartner(partnerId: string) {
+  const [row] = await db
+    .select({ id: partners.id, displayNameAr: partners.displayNameAr })
+    .from(partners)
+    .where(and(eq(partners.id, partnerId), activePartner))
+    .limit(1)
+
+  if (!row) {
+    throw errors.unprocessable('الجهة ليست شريكًا نشطًا.', [
+      {
+        path: 'partnerId',
+        in: 'body',
+        message: 'اختر جهة شريكة نشطة غير معلّقة.',
+      },
+    ])
+  }
+
+  return row
+}
+
 /**
  * الفهرس الفريد هو الحَكَم حين يتسابق منسّقان على الاسم نفسه؛ ترجمته هنا
  * تُبقي الجواب تعارضًا مفهومًا بدل خطأ داخلي.
@@ -291,6 +534,9 @@ export async function createGroup(
 
   const site = await requireLiveSite(initiativeId, input.siteId)
   const leader = input.leadUserId ? await requireLead(input.leadUserId) : null
+  const partner = input.partnerId
+    ? await requireTeamPartner(input.partnerId)
+    : null
   const nameAr = normalizeText(input.nameAr)
 
   await guardName(() =>
@@ -302,6 +548,10 @@ export async function createGroup(
           siteId: site.id,
           nameAr,
           leadUserId: leader?.userId ?? null,
+          partnerId: partner?.id ?? null,
+          contactPhone: input.contactPhone?.trim() || null,
+          hoursPerDay:
+            input.hoursPerDay == null ? null : String(input.hoursPerDay),
           meetsAt: input.meetsAt ? new Date(input.meetsAt) : null,
           meetingPointAr: input.meetingPointAr
             ? normalizeText(input.meetingPointAr)
@@ -327,6 +577,7 @@ export async function createGroup(
             initiativeId,
             siteId: site.id,
             leadUserId: leader?.userId ?? null,
+            partnerId: partner?.id ?? null,
           },
           ...trace,
         },
@@ -359,10 +610,27 @@ export async function updateGroup(
   const leader =
     leadChanged && input.leadUserId ? await requireLead(input.leadUserId) : null
 
+  const partnerChanged =
+    input.partnerId !== undefined && input.partnerId !== existing.partnerId
+
+  if (partnerChanged && input.partnerId) {
+    await requireTeamPartner(input.partnerId)
+  }
+
   const changes = {
+    ...(partnerChanged ? { partnerId: input.partnerId ?? null } : {}),
     ...(input.siteId ? { siteId: input.siteId } : {}),
     ...(input.nameAr ? { nameAr: normalizeText(input.nameAr) } : {}),
     ...(leadChanged ? { leadUserId: input.leadUserId ?? null } : {}),
+    ...(input.contactPhone !== undefined
+      ? { contactPhone: input.contactPhone?.trim() || null }
+      : {}),
+    ...(input.hoursPerDay !== undefined
+      ? {
+          hoursPerDay:
+            input.hoursPerDay === null ? null : String(input.hoursPerDay),
+        }
+      : {}),
     ...(input.meetsAt !== undefined
       ? { meetsAt: input.meetsAt ? new Date(input.meetsAt) : null }
       : {}),
@@ -413,6 +681,12 @@ export async function updateGroup(
                 ? {
                     previousLeadUserId: existing.leadUserId,
                     leadUserId: input.leadUserId ?? null,
+                  }
+                : {}),
+              ...(partnerChanged
+                ? {
+                    previousPartnerId: existing.partnerId,
+                    partnerId: input.partnerId ?? null,
                   }
                 : {}),
             },
@@ -482,6 +756,7 @@ export async function deleteGroup(
 // ── الأعضاء ────────────────────────────────────────────────────────────
 
 const todayAttendance = alias(attendance, 'member_day_attendance')
+const memberLink = alias(participantLinks, 'member_link')
 
 /**
  * أعضاء المجموعة للمنسّق: وسيلة التواصل كاملة، وحضور اليوم المطلوب، وعدد
@@ -503,7 +778,11 @@ export async function listGroupMembers(
       email: participants.email,
       role: fieldGroupMembers.role,
       rsvp: fieldGroupMembers.rsvp,
+      rsvpAt: fieldGroupMembers.rsvpAt,
       sourceSubmissionId: participants.sourceSubmissionId,
+      linkExpiresAt: memberLink.expiresAt,
+      linkLastUsedAt: memberLink.lastUsedAt,
+      linkEmailedAt: memberLink.emailedAt,
       attendanceId: todayAttendance.id,
       checkedInAt: todayAttendance.checkedInAt,
       method: todayAttendance.method,
@@ -525,6 +804,15 @@ export async function listGroupMembers(
       participants,
       eq(fieldGroupMembers.participantId, participants.id),
     )
+    // الفهرس الفريد يضمن رابطًا غير ملغى واحدًا للمشارك في المبادرة.
+    .leftJoin(
+      memberLink,
+      and(
+        eq(memberLink.participantId, fieldGroupMembers.participantId),
+        eq(memberLink.initiativeId, initiativeId),
+        isNull(memberLink.revokedAt),
+      ),
+    )
     .leftJoin(
       todayAttendance,
       and(
@@ -536,6 +824,8 @@ export async function listGroupMembers(
     )
     .where(eq(fieldGroupMembers.groupId, groupId))
     .orderBy(asc(participants.nameKey), asc(participants.createdAt))
+
+  const now = new Date()
 
   return {
     groupId,
@@ -551,6 +841,18 @@ export async function listGroupMembers(
       fromForm: row.sourceSubmissionId !== null,
       attendedDays: row.attendedDays,
       lastAttendedOn: row.lastAttendedOn,
+      rsvpAt: row.rsvpAt?.toISOString() ?? null,
+      link: row.linkExpiresAt
+        ? {
+            status:
+              row.linkExpiresAt.getTime() > now.getTime()
+                ? ('ACTIVE' as const)
+                : ('EXPIRED' as const),
+            expiresAt: row.linkExpiresAt.toISOString(),
+            lastUsedAt: row.linkLastUsedAt?.toISOString() ?? null,
+            emailedAt: row.linkEmailedAt?.toISOString() ?? null,
+          }
+        : null,
       attendance:
         row.attendanceId && row.checkedInAt && row.method
           ? {
@@ -601,7 +903,13 @@ export async function addGroupMembers(
       ? await db
           .select({ id: participants.id })
           .from(participants)
-          .where(inArray(participants.id, input.participantIds))
+          .where(
+            and(
+              inArray(participants.id, input.participantIds),
+              // من حُذفت بياناته بطلبه لا يعود إلى مجموعة.
+              isNull(participants.anonymizedAt),
+            ),
+          )
       : []
 
   if (known.length !== new Set(input.participantIds).size) {
@@ -917,9 +1225,14 @@ export async function searchParticipants(
     })
     .from(participants)
     .where(
-      or(
-        sql`${participants.nameKey} like ${`%${name}%`}`,
-        phone ? sql`${participants.phoneKey} like ${`%${phone}%`}` : undefined,
+      and(
+        isNull(participants.anonymizedAt),
+        or(
+          sql`${participants.nameKey} like ${`%${name}%`}`,
+          phone
+            ? sql`${participants.phoneKey} like ${`%${phone}%`}`
+            : undefined,
+        ),
       ),
     )
     .orderBy(asc(participants.nameKey))

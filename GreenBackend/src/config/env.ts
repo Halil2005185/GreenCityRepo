@@ -18,6 +18,16 @@ const databaseUrl = z.string().min(1).refine(
   { message: 'Must be a valid PostgreSQL connection URL' },
 )
 
+/**
+ * نص اختياري. السطر الفارغ في `.env` (`KEY=`) غياب لا قيمة، والمسافات
+ * حوله من لصقٍ لا من قصد.
+ */
+const optionalText = z.preprocess(
+  (value) =>
+    typeof value === 'string' && value.trim() === '' ? undefined : value,
+  z.string().trim().optional(),
+)
+
 const envSchema = z.object({
   NODE_ENV: z
     .enum(['development', 'test', 'production'])
@@ -69,6 +79,38 @@ const envSchema = z.object({
 
   /** يُستخدم لبناء روابط الدعوة واستعادة كلمة المرور في البريد. */
   ADMIN_APP_URL: z.string().url().default('http://localhost:3001'),
+
+  /**
+   * عنوان الموقع العام: منه تُبنى روابط المتطوعين الشخصية (`/app/link`)
+   * ورابط استمارة التقييم. بلا شرطة أخيرة.
+   */
+  PUBLIC_SITE_URL: z
+    .string()
+    .url()
+    .default('http://localhost:3001')
+    .transform((value) => value.replace(/\/+$/, '')),
+
+  /** عمر الرابط الشخصي حين لا يحدّده المنسّق: يغطي الحملة وما بعدها بأسابيع. */
+  FIELD_LINK_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(45),
+
+  // ───────────────────────── إشعارات الميدان ─────────────────────────
+  //
+  // مفاتيح VAPID اختيارية: بدونها يعمل النظام كاملًا، والإعلانات تظهر في
+  // التطبيق ولا تُرسَل إشعارات. تُولَّد مرة: `npx web-push generate-vapid-keys`.
+  //
+  // الخاص سرّ يبقى في `.env` على الخادم. والعام يعطيه الخادم للتطبيق
+  // (`/field/push/key`) ولا يُكتب في بيئة الموقع: مفتاحان في مكانين يفترقان
+  // عند أول تدوير، فيشترك الهاتف بمفتاح ويوقّع الخادم بآخر.
+  //
+  // صيغتها تُفحص حيث تُستعمل (`pushConfig`) لا هنا: مفتاح لُصق خطأً يعطّل
+  // الإشعارات بتحذير، ولا يمنع الخادم كله من الإقلاع.
+  VAPID_PUBLIC_KEY: optionalText,
+  VAPID_PRIVATE_KEY: optionalText,
+  /** من تراسله خدمة الإشعار إن أُسيء استعمالها: `mailto:` أو رابط HTTPS. */
+  VAPID_SUBJECT: optionalText,
+
+  /** كم يبقى الإشعار صالحًا للإرسال: «تغيّر الموعد» بعد الموعد ضجيج. */
+  PUSH_TTL_MINUTES: z.coerce.number().int().min(5).max(1440).default(240),
 
   // ───────────────────────────── البريد ─────────────────────────────
   //

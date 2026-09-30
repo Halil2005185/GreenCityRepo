@@ -13,10 +13,16 @@ import {
 } from 'drizzle-orm/pg-core'
 
 import { createdAtOnly, timestamps, tsColumn, uuidColumn } from './columns.js'
-import { attendanceMethod, fieldMemberRole, fieldRsvp } from './enums.js'
-import { formSubmissions } from './forms.js'
+import {
+  attendanceMethod,
+  deletionRequestStatus,
+  fieldMemberRole,
+  fieldRsvp,
+} from './enums.js'
+import { formSubmissions, forms } from './forms.js'
 import { users } from './identity.js'
 import { impactEntries } from './metrics.js'
+import { partners } from './partners.js'
 import { initiativeSites, initiatives } from './programs.js'
 import { workItems } from './work.js'
 
@@ -58,9 +64,26 @@ export const participants = pgTable(
       onDelete: 'set null',
     }),
 
+    /**
+     * حُذفت بياناته بطلبه. الصف يبقى بلا اسم ولا وسيلة تواصل: حضوره يُعدّ
+     * في أرقام أُعلنت، وحذف الصف يمحوه معها.
+     */
+    anonymizedAt: tsColumn('anonymized_at'),
+
     ...timestamps,
   },
   (table) => [
+    // من حُذفت بياناته لا يعود إليه ما يعرّف به، ولو بتعديل لاحق.
+    check(
+      'participants_anonymized_is_empty',
+      sql`${table.anonymizedAt} is null or (
+        ${table.phone} is null
+        and ${table.phoneKey} is null
+        and ${table.email} is null
+        and ${table.notesAr} is null
+        and ${table.sourceSubmissionId} is null
+      )`,
+    ),
     // طلب واحد يصير مشاركًا واحدًا، مهما أُعيد تحويله.
     uniqueIndex('participants_submission_unique')
       .on(table.sourceSubmissionId)
@@ -107,11 +130,42 @@ export const fieldGroups = pgTable(
       onDelete: 'set null',
     }),
 
+    /**
+     * فريق جهة شريكة: شركة تأتي بموظفيها، أو جمعية بمتطوعيها. به تظهر
+     * المجموعة في بوابة الجهة بأعدادها. وانتهاء الشراكة لا يمحو المجموعة
+     * ولا حضورها: تبقى بلا جهة.
+     */
+    partnerId: uuidColumn('partner_id').references(() => partners.id, {
+      onDelete: 'set null',
+    }),
+
+    /**
+     * وسيلة تواصل واحدة تُعرض لأعضاء المجموعة في بطاقاتهم، يختارها المنسّق:
+     * هاتف القائد إن رضي، أو رقم المنسّق. ليست هاتف القائد من حسابه — ذاك
+     * لم يُعطَ ليُنشر على مئة متطوع.
+     */
+    contactPhone: varchar('contact_phone', { length: 32 }),
+
     meetsAt: tsColumn('meets_at'),
     meetingPointAr: varchar('meeting_point_ar', { length: 300 }),
     /** ما يحضره المتطوع وما ينتبه له — يُقرأ في الميدان، فهو نص لا حقول. */
     instructionsAr: text('instructions_ar'),
     displayOrder: integer('display_order').default(0).notNull(),
+
+    /**
+     * ساعات العمل في يوم المجموعة. منها تُحسب ساعات المتطوع في سجله
+     * وشهادته: يوم حضور في المجموعة يساوي هذه الساعات. الحضور يُسجَّل عند
+     * الوصول وحده ولا وقت انصراف له، فالساعات ما قرره المنسّق ليوم العمل
+     * لا ما قاسته ساعة.
+     */
+    hoursPerDay: numeric('hours_per_day', { precision: 3, scale: 1 }),
+
+    /**
+     * سرّ رمز الحضور الذاتي: منه يحسب هاتف القائد رمزًا يتبدّل كل دقيقة،
+     * بلا شبكة، ويتحقق الخادم منه حين يكتبه المتطوع. يُولَّد عند أول فتح
+     * لورقة المجموعة، ولا يخرج إلا إلى قائدها ومساعديه.
+     */
+    checkinSecret: varchar('checkin_secret', { length: 64 }),
 
     ...timestamps,
   },
@@ -120,6 +174,12 @@ export const fieldGroups = pgTable(
     uniqueIndex('field_groups_site_name_unique').on(table.siteId, table.nameAr),
     index('field_groups_initiative_idx').on(table.initiativeId),
     index('field_groups_lead_idx').on(table.leadUserId),
+    index('field_groups_partner_idx').on(table.partnerId),
+    check(
+      'field_groups_hours_range',
+      sql`${table.hoursPerDay} is null
+          or (${table.hoursPerDay} > 0 and ${table.hoursPerDay} <= 24)`,
+    ),
   ],
 )
 
@@ -160,6 +220,179 @@ export const fieldGroupMembers = pgTable(
 )
 
 /**
+ * الرابط الشخصي — اعتماد المتطوع الوحيد. لا حساب ولا كلمة مرور.
+ *
+ * يُحفظ مجزّأً كرموز الجلسات: من قرأ القاعدة لا يفتح بطاقة أحد. ونطاقه
+ * مبادرة واحدة، فمن شارك رابطه أعطى بطاقته في تلك الحملة لا أكثر.
+ *
+ * رابط قائم واحد للمشارك في المبادرة: توليد جديد يُبطل ما قبله، فلا يبقى
+ * رابط قديم في محادثة منسيّة يفتح البطاقة بعد أن ظُنّ أنه استُبدل.
+ */
+export const participantLinks = pgTable(
+  'participant_links',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    participantId: uuidColumn('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    initiativeId: uuidColumn('initiative_id')
+      .notNull()
+      .references(() => initiatives.id, { onDelete: 'cascade' }),
+
+    tokenHash: varchar('token_hash', { length: 64 }).notNull(),
+    expiresAt: tsColumn('expires_at').notNull(),
+
+    firstUsedAt: tsColumn('first_used_at'),
+    lastUsedAt: tsColumn('last_used_at'),
+    /** أُرسل بالبريد من النظام. النسخ إلى واتساب لا يُعرف هنا. */
+    emailedAt: tsColumn('emailed_at'),
+
+    revokedAt: tsColumn('revoked_at'),
+    revokedById: uuidColumn('revoked_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    createdById: uuidColumn('created_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+
+    ...timestamps,
+  },
+  (table) => [
+    uniqueIndex('participant_links_token_unique').on(table.tokenHash),
+    uniqueIndex('participant_links_active_unique')
+      .on(table.participantId, table.initiativeId)
+      .where(sql`${table.revokedAt} is null`),
+    index('participant_links_initiative_idx').on(table.initiativeId),
+    check(
+      'participant_links_hash_is_sha256',
+      sql`${table.tokenHash} ~ '^[0-9a-f]{64}$'`,
+    ),
+  ],
+)
+
+/**
+ * إعدادات ميدان المبادرة. جدول لا أعمدة على `initiatives`: الميدان قدرة
+ * أخرى (`field.manage`) وعقد آخر، ومن يدير المبادرة لا يلزمه أن يراه.
+ *
+ * استمارة التقييم تُختار من الاستمارات المنشورة — لا محرك تقييم جديد.
+ */
+export const fieldSettings = pgTable('field_settings', {
+  initiativeId: uuidColumn('initiative_id')
+    .primaryKey()
+    .references(() => initiatives.id, { onDelete: 'cascade' }),
+  feedbackFormId: uuidColumn('feedback_form_id').references(() => forms.id, {
+    onDelete: 'set null',
+  }),
+
+  /**
+   * الشهادة قرار المبادرة لا افتراض النظام: ورقة تحمل اسم المشروع وتوقيع
+   * مسؤول فيه، فلا تصدر حتى يفعّلها المنسّق ويسمّي من يوقّعها.
+   */
+  certificatesEnabled: boolean('certificates_enabled').default(false).notNull(),
+  certificateSignerNameAr: varchar('certificate_signer_name_ar', {
+    length: 160,
+  }),
+  certificateSignerTitleAr: varchar('certificate_signer_title_ar', {
+    length: 160,
+  }),
+
+  updatedById: uuidColumn('updated_by_id').references(() => users.id, {
+    onDelete: 'set null',
+  }),
+  ...timestamps,
+})
+
+/**
+ * شهادة مشاركة — رمزها وحده. ما تقوله الشهادة (الأيام والساعات) يُحسب من
+ * الحضور ساعة تُقرأ، لا يُنسخ هنا: حضور تُرجع عنه بعد الإصدار يُرى في صفحة
+ * التحقق، فلا تبقى ورقة تشهد بما لم يعد في السجل.
+ *
+ * شهادة واحدة للمشارك في المبادرة، ورمزها ثابت: من طبعها ثم حضر يومًا آخر
+ * يطبعها من جديد بالرمز نفسه.
+ */
+export const participantCertificates = pgTable(
+  'participant_certificates',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    participantId: uuidColumn('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    initiativeId: uuidColumn('initiative_id')
+      .notNull()
+      .references(() => initiatives.id, { onDelete: 'cascade' }),
+
+    /** عشرة محارف بلا ما يلتبس (0 وO، 1 وI): تُقرأ من ورقة وتُكتب باليد. */
+    code: varchar('code', { length: 16 }).notNull(),
+    issuedAt: tsColumn('issued_at').defaultNow().notNull(),
+
+    ...createdAtOnly,
+  },
+  (table) => [
+    uniqueIndex('participant_certificates_code_unique').on(table.code),
+    uniqueIndex('participant_certificates_holder_unique').on(
+      table.participantId,
+      table.initiativeId,
+    ),
+    check(
+      'participant_certificates_code_format',
+      sql`${table.code} ~ '^[2-9A-HJ-NP-Z]{10}$'`,
+    ),
+  ],
+)
+
+/**
+ * طلب حذف البيانات — يطلبه المتطوع من بطاقته، وينفّذه المنسّق من اللوحة.
+ *
+ * على الشخص لا على الحملة: التنفيذ يمحو اسمه حيث كان. و`initiativeId`
+ * مبادرة الرابط الذي جاء منه الطلب، وبها يُعرف من يراجعه.
+ *
+ * الصف يبقى بعد القرار: «طُلب ونُفّذ، ومن نفّذه» معلومة، ولا اسم فيها.
+ */
+export const participantDeletionRequests = pgTable(
+  'participant_deletion_requests',
+  {
+    id: uuidColumn('id').primaryKey().defaultRandom(),
+    participantId: uuidColumn('participant_id')
+      .notNull()
+      .references(() => participants.id, { onDelete: 'cascade' }),
+    initiativeId: uuidColumn('initiative_id')
+      .notNull()
+      .references(() => initiatives.id, { onDelete: 'cascade' }),
+
+    status: deletionRequestStatus('status').default('PENDING').notNull(),
+    requestedAt: tsColumn('requested_at').defaultNow().notNull(),
+
+    decidedAt: tsColumn('decided_at'),
+    decidedById: uuidColumn('decided_by_id').references(() => users.id, {
+      onDelete: 'set null',
+    }),
+    /** ما يقرؤه صاحب الطلب في بطاقته حين يُرفض. */
+    decisionNoteAr: text('decision_note_ar'),
+
+    ...timestamps,
+  },
+  (table) => [
+    // طلب قائم واحد للشخص: تكراره من هاتفين لا يفتح طلبين.
+    uniqueIndex('participant_deletion_requests_pending_unique')
+      .on(table.participantId)
+      .where(sql`${table.status} = 'PENDING'`),
+    index('participant_deletion_requests_initiative_idx').on(
+      table.initiativeId,
+      table.status,
+    ),
+    check(
+      'participant_deletion_requests_decision_consistency',
+      sql`(${table.status} = 'PENDING') = (${table.decidedAt} is null)`,
+    ),
+    // رفضٌ بلا سبب بابٌ مغلق لا يعرف صاحبه لماذا.
+    check(
+      'participant_deletion_requests_rejection_has_note',
+      sql`${table.status} <> 'REJECTED' or ${table.decisionNoteAr} is not null`,
+    ),
+  ],
+)
+
+/**
  * الحضور — من جاء فعلًا، في أي يوم.
  *
  * `attendedOn` يوم بتوقيت دمشق لا طابع زمني: الحملة أيام، ومجموعة واحدة
@@ -184,6 +417,13 @@ export const attendance = pgTable(
     checkedInById: uuidColumn('checked_in_by_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    /**
+     * من سجّله حين يكون مشاركًا لا عضو فريق: مساعد القائد، أو المتطوع نفسه
+     * برمز الحضور. واحد من العمودين على الأكثر.
+     */
+    checkedInByParticipantId: uuidColumn(
+      'checked_in_by_participant_id',
+    ).references(() => participants.id, { onDelete: 'set null' }),
     method: attendanceMethod('method').notNull(),
 
     /** معرّف المُرسِل: نقرة أُعيد إرسالها بعد انقطاع لا تصير حضورين. */
@@ -193,10 +433,19 @@ export const attendance = pgTable(
     undoneById: uuidColumn('undone_by_id').references(() => users.id, {
       onDelete: 'set null',
     }),
+    undoneByParticipantId: uuidColumn('undone_by_participant_id').references(
+      () => participants.id,
+      { onDelete: 'set null' },
+    ),
 
     ...createdAtOnly,
   },
   (table) => [
+    check(
+      'attendance_single_recorder',
+      sql`num_nonnulls(${table.checkedInById},
+                       ${table.checkedInByParticipantId}) <= 1`,
+    ),
     uniqueIndex('attendance_client_unique')
       .on(table.clientId)
       .where(sql`${table.clientId} is not null`),
@@ -318,6 +567,8 @@ export type NewParticipant = typeof participants.$inferInsert
 export type FieldGroup = typeof fieldGroups.$inferSelect
 export type NewFieldGroup = typeof fieldGroups.$inferInsert
 export type FieldGroupMember = typeof fieldGroupMembers.$inferSelect
+export type ParticipantLink = typeof participantLinks.$inferSelect
+export type ParticipantCertificate = typeof participantCertificates.$inferSelect
 export type Attendance = typeof attendance.$inferSelect
 export type Attachment = typeof attachments.$inferSelect
 export type NewAttachment = typeof attachments.$inferInsert

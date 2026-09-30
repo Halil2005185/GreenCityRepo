@@ -3,7 +3,7 @@
 import { Download, Share, SquarePlus, X } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/field/button";
 import { FIELD_APP_NAME } from "@/lib/field/config";
 import { useDisplayMode } from "@/lib/field/display-mode";
 
