@@ -4087,6 +4087,355 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/admin/lookups": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * تعريفات النظام
+         * @description كل التعريفات مع عدد قيمها. القراءة لكل الفريق.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description التعريفات */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            data: components["schemas"]["LookupListSummary"][];
+                        };
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/lookups/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * تعريف وقيمه
+         * @description ما تقرؤه كل قائمة منسدلة برمزها. المعطّلة خارجها إلا بـ`includeInactive`، وعدد الاستعمال لا يُحسب إلا بـ`includeUsage`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    includeInactive?: string;
+                    includeUsage?: string;
+                };
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description التعريف */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LookupList"];
+                    };
+                };
+                /** @description التعريف غير موجود */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * تعديل اسم التعريف ووصفه
+         * @description الرمز لا يتغير: الشاشات والأعمدة تشير إليه.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr?: string;
+                        descriptionAr?: string | null;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّل */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LookupList"];
+                    };
+                };
+                /** @description يحتاج `lookups.manage` */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/lookups/{code}/values": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * إضافة قيمة
+         * @description يستعمله زر «+» في القائمة المنسدلة وشاشة الإعدادات معًا. تُضاف القيمة في آخر الترتيب.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr: string;
+                        code?: string;
+                        nameEn?: string;
+                        descriptionAr?: string;
+                    };
+                };
+            };
+            responses: {
+                /** @description أُضيفت */
+                201: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LookupValue"];
+                    };
+                };
+                /** @description لا تملك تحرير هذا التعريف */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+                /** @description الاسم أو الرمز مستخدم في التعريف */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/admin/lookups/{code}/values/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * حذف قيمة لم تُستعمل
+         * @description لقيمة لم يُصنَّف بها سجل قط. المستعملة تُعطَّل بدل حذفها، والمفتاح الأجنبي يرفض حذفها ولو أخطأ العدّ.
+         */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description حُذفت */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+                /** @description القيمة مستعملة أو مقفلة */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        options?: never;
+        head?: never;
+        /**
+         * تعديل قيمة أو تعطيلها
+         * @description التعطيل يخفي القيمة من القوائم ولا يمسّ ما صُنّف بها. القيم المقفلة لا تُعطَّل.
+         */
+        patch: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                    id: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        nameAr?: string;
+                        nameEn?: string | null;
+                        descriptionAr?: string | null;
+                        isActive?: boolean;
+                    };
+                };
+            };
+            responses: {
+                /** @description عُدِّلت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LookupValue"];
+                    };
+                };
+                /** @description القيمة مقفلة أو الاسم مستخدم */
+                409: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        trace?: never;
+    };
+    "/api/admin/lookups/{code}/values/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** ترتيب القيم */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        ids: string[];
+                    };
+                };
+            };
+            responses: {
+                /** @description رُتِّبت */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LookupList"];
+                    };
+                };
+                /** @description الترتيب لا يشمل كل قيم التعريف */
+                422: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["Problem"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/admin/map/areas": {
         parameters: {
             query?: never;
@@ -4199,8 +4548,8 @@ export interface paths {
                         /** @example تشجير مدخل الحي */
                         nameAr: string;
                         contributorNameAr: string;
-                        /** @enum {string} */
-                        contributorKind?: "INDIVIDUAL" | "COMPANY" | "INSTITUTION" | "SCHOOL" | "VOLUNTEER_TEAM" | "OTHER";
+                        /** Format: uuid */
+                        contributorKindId?: string;
                         /** Format: uuid */
                         areaId?: string;
                         lat: number;
@@ -4315,8 +4664,8 @@ export interface paths {
             parameters: {
                 query?: {
                     stage?: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
-                    priority?: "HIGH" | "MEDIUM" | "LOW";
-                    horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                    priorityId?: string;
+                    horizonId?: string;
                     channelId?: string;
                     relationshipTypeId?: string;
                     accountManagerId?: string;
@@ -4371,13 +4720,10 @@ export interface paths {
                          * @enum {string}
                          */
                         stage?: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
-                        /**
-                         * @default MEDIUM
-                         * @enum {string}
-                         */
-                        priority?: "HIGH" | "MEDIUM" | "LOW";
-                        /** @enum {string} */
-                        horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                        /** Format: uuid */
+                        priorityId?: string;
+                        /** Format: uuid */
+                        horizonId?: string;
                         /** Format: uuid */
                         relationshipTypeId?: string;
                         /** @default [] */
@@ -4497,10 +4843,10 @@ export interface paths {
                         outletNameAr?: string | null;
                         /** Format: uuid */
                         partnerId?: string | null;
-                        /** @enum {string} */
-                        priority?: "HIGH" | "MEDIUM" | "LOW";
-                        /** @enum {string|null} */
-                        horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
+                        /** Format: uuid */
+                        priorityId?: string;
+                        /** Format: uuid */
+                        horizonId?: string | null;
                         /** Format: uuid */
                         relationshipTypeId?: string | null;
                         channelIds?: string[];
@@ -4672,10 +5018,10 @@ export interface paths {
                 content: {
                     "application/json": {
                         /**
-                         * @description `STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة.
-                         * @enum {string}
+                         * Format: uuid
+                         * @description من `INTERACTION_KIND`. `STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة فيُرفض هنا.
                          */
-                        kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST";
+                        kindId: string;
                         /** Format: date-time */
                         occurredAt?: string;
                         summaryAr: string;
@@ -4885,7 +5231,7 @@ export interface paths {
                         descriptionAr?: string | null;
                         /** Format: uuid */
                         officeId?: string | null;
-                        capabilities: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        capabilities: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view" | "lookups.manage")[];
                     };
                 };
             };
@@ -5085,7 +5431,7 @@ export interface paths {
                         descriptionAr?: string | null;
                         /** Format: uuid */
                         officeId?: string | null;
-                        capabilities?: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        capabilities?: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view" | "lookups.manage")[];
                     };
                 };
             };
@@ -5339,8 +5685,8 @@ export interface paths {
                     stage?: "NEW" | "CONTACTED" | "QUALIFIED" | "NEGOTIATION" | "PENDING_APPROVAL" | "ACTIVE" | "ON_HOLD" | "REJECTED" | "ENDED";
                     type?: "STRATEGIC" | "EXECUTIVE" | "TECHNICAL" | "MEDIA" | "EVENT";
                     q?: string;
-                    priority?: "HIGH" | "MEDIUM" | "LOW";
-                    horizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                    contactPriorityId?: string;
+                    engagementHorizonId?: string;
                     relationshipTypeId?: string;
                     channelId?: string;
                     staleDays?: number;
@@ -5391,23 +5737,20 @@ export interface paths {
                         legalNameAr: string;
                         displayNameAr?: string;
                         nameEn?: string;
-                        /** @enum {string} */
-                        organizationKind: "COMPANY" | "NGO" | "GOVERNMENT" | "ACADEMIC" | "VOLUNTEER_TEAM" | "COMMUNITY_INITIATIVE" | "DONOR" | "INDIVIDUAL" | "OTHER";
+                        /** Format: uuid */
+                        organizationKindId: string;
                         /** Format: uri */
                         websiteUrl?: string;
                         summaryAr?: string;
                         /** @default [] */
-                        supportForms?: ("MORAL_MEDIA" | "COMMUNITY_VOLUNTEERING" | "SPONSORSHIP_LOGISTICS" | "TECHNICAL_ACADEMIC_EXPERTISE" | "ENVIRONMENTAL_AWARENESS" | "INTERNAL_SUSTAINABILITY" | "SPACES_AND_RESOURCES")[];
+                        supportFormIds?: string[];
                         /** Format: uuid */
                         accountManagerId?: string;
                         internalNotesAr?: string;
-                        /**
-                         * @default MEDIUM
-                         * @enum {string}
-                         */
-                        contactPriority?: "HIGH" | "MEDIUM" | "LOW";
-                        /** @enum {string} */
-                        engagementHorizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF";
+                        /** Format: uuid */
+                        contactPriorityId?: string;
+                        /** Format: uuid */
+                        engagementHorizonId?: string;
                         /** Format: uuid */
                         relationshipTypeId?: string;
                         /** @default [] */
@@ -5504,26 +5847,23 @@ export interface paths {
                         legalNameAr?: string;
                         displayNameAr?: string;
                         nameEn?: string;
-                        /** @enum {string} */
-                        organizationKind?: "COMPANY" | "NGO" | "GOVERNMENT" | "ACADEMIC" | "VOLUNTEER_TEAM" | "COMMUNITY_INITIATIVE" | "DONOR" | "INDIVIDUAL" | "OTHER";
+                        /** Format: uuid */
+                        organizationKindId?: string;
                         /** Format: uri */
                         websiteUrl?: string;
                         summaryAr?: string;
                         /** Format: uuid */
                         accountManagerId?: string;
                         internalNotesAr?: string;
-                        /**
-                         * @default MEDIUM
-                         * @enum {string}
-                         */
-                        contactPriority?: "HIGH" | "MEDIUM" | "LOW";
-                        /** @enum {string|null} */
-                        engagementHorizon?: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
+                        /** Format: uuid */
+                        contactPriorityId?: string;
+                        /** Format: uuid */
+                        engagementHorizonId?: string | null;
                         /** Format: uuid */
                         relationshipTypeId?: string | null;
                         /** Format: date-time */
                         lastContactAt?: string | null;
-                        supportForms?: ("MORAL_MEDIA" | "COMMUNITY_VOLUNTEERING" | "SPONSORSHIP_LOGISTICS" | "TECHNICAL_ACADEMIC_EXPERTISE" | "ENVIRONMENTAL_AWARENESS" | "INTERNAL_SUSTAINABILITY" | "SPACES_AND_RESOURCES")[];
+                        supportFormIds?: string[];
                         mediaChannelIds?: string[];
                     };
                 };
@@ -5849,8 +6189,8 @@ export interface paths {
                         charterVersionId?: string;
                         /** Format: date-time */
                         acknowledgedAt?: string;
-                        /** @enum {string} */
-                        method: "IN_PERSON" | "EMAIL" | "PORTAL" | "DOCUMENT";
+                        /** Format: uuid */
+                        methodId: string;
                         /** Format: uuid */
                         acknowledgedByContactId?: string;
                         acknowledgedByNameAr: string;
@@ -5908,8 +6248,11 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        /** @enum {string} */
-                        kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST";
+                        /**
+                         * Format: uuid
+                         * @description من `INTERACTION_KIND`. `STAGE_CHANGE` يكتبه النظام وحده فيُرفض هنا.
+                         */
+                        kindId: string;
                         /** Format: date-time */
                         occurredAt?: string;
                         summaryAr: string;
@@ -6348,8 +6691,8 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        grants: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
-                        revokes: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view")[];
+                        grants: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view" | "lookups.manage")[];
+                        revokes: ("users.view" | "users.manage" | "invitations.manage" | "roles.manage" | "offices.manage" | "team.manage" | "team.all" | "partners.view" | "partners.manage" | "partners.approve" | "partners.consent.manage" | "partners.notes.view" | "media.view" | "media.manage" | "media.notes.view" | "relations.taxonomy.manage" | "charter.manage" | "charter.acknowledgements.record" | "programs.manage" | "initiatives.view" | "initiatives.manage" | "initiatives.launch" | "initiatives.notes.view" | "work.view" | "work.manage" | "work.approve" | "meetings.manage" | "geo.manage" | "field.lead" | "field.manage" | "contributions.view" | "contributions.manage" | "contributions.verify" | "contributions.value.view" | "metrics.manage" | "impact.view" | "impact.manage" | "files.upload" | "files.manage" | "documents.confidential.view" | "forms.view" | "forms.manage" | "forms.publish" | "reports.view" | "reports.manage" | "audit.view" | "lookups.manage")[];
                     };
                 };
             };
@@ -6677,294 +7020,6 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
-        trace?: never;
-    };
-    "/api/admin/relations/media-channels": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * أشكال العمل الإعلامي
-         * @description بأي شكل يعمل الإعلامي أو الجهة: سؤال شارع، ريبورتاج، بودكاست، تصوير. مفردات يحرّرها مكتب العلاقات دون migration.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    includeInactive?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description أشكال العمل الإعلامي */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["MediaChannel"][];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        /** إضافة شكل عمل إعلامي */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        slug: string;
-                        nameAr: string;
-                        nameEn?: string;
-                        descriptionAr?: string;
-                        /** @default 0 */
-                        displayOrder?: number;
-                    };
-                };
-            };
-            responses: {
-                /** @description أُضيف */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MediaChannel"];
-                    };
-                };
-                /** @description الـslug مستخدم */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/relations/media-channels/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * تعديل شكل عمل إعلامي
-         * @description التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        nameAr?: string;
-                        nameEn?: string;
-                        descriptionAr?: string;
-                        /** @default 0 */
-                        displayOrder?: number;
-                        isActive?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description عُدِّل */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["MediaChannel"];
-                    };
-                };
-                /** @description المفردة غير موجودة */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        trace?: never;
-    };
-    "/api/admin/relations/relationship-types": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * أنواع العلاقة
-         * @description طبيعة العلاقة عمليًا — تعاون تطوعي، تغطية، تبادل منفعة. غير نوع الشراكة الذي يحدده الميثاق.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    includeInactive?: string;
-                };
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description أنواع العلاقة */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": {
-                            data: components["schemas"]["RelationshipType"][];
-                        };
-                    };
-                };
-            };
-        };
-        put?: never;
-        /** إضافة نوع علاقة */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path?: never;
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        slug: string;
-                        nameAr: string;
-                        nameEn?: string;
-                        descriptionAr?: string;
-                        /** @default 0 */
-                        displayOrder?: number;
-                    };
-                };
-            };
-            responses: {
-                /** @description أُضيف */
-                201: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["RelationshipType"];
-                    };
-                };
-                /** @description الـslug مستخدم */
-                409: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/admin/relations/relationship-types/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /**
-         * تعديل نوع علاقة
-         * @description التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.
-         */
-        patch: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    id: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: {
-                content: {
-                    "application/json": {
-                        nameAr?: string;
-                        nameEn?: string;
-                        descriptionAr?: string;
-                        /** @default 0 */
-                        displayOrder?: number;
-                        isActive?: boolean;
-                    };
-                };
-            };
-            responses: {
-                /** @description عُدِّل */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["RelationshipType"];
-                    };
-                };
-                /** @description المفردة غير موجودة */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/problem+json": components["schemas"]["Problem"];
-                    };
-                };
-            };
-        };
         trace?: never;
     };
     "/api/admin/uploads/sign": {
@@ -10533,6 +10588,13 @@ export interface components {
             scopeNameAr: string;
             metrics: components["schemas"]["ScopeMetricProgress"][];
         };
+        LookupRef: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            nameAr: string;
+            isActive: boolean;
+        };
         Program: {
             /** Format: uuid */
             id: string;
@@ -10794,8 +10856,13 @@ export interface components {
             summaryAr: string | null;
             /** @description نص التفاصيل الطويل لصفحة المبادرة. */
             storyAr: string | null;
-            /** @enum {string|null} */
-            contributorKind: "INDIVIDUAL" | "COMPANY" | "INSTITUTION" | "SCHOOL" | "VOLUNTEER_TEAM" | "OTHER" | null;
+            contributorKind: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                nameAr: string;
+                isActive: boolean;
+            } | null;
             /** @description لا يظهر إلا لمن يملك `initiatives.notes.view`؛ غيره يراه null. */
             internalNotesAr: string | null;
             areas: components["schemas"]["InitiativeAreaLink"][];
@@ -10849,6 +10916,43 @@ export interface components {
              */
             inviteUrl: string;
         };
+        /** @enum {string} */
+        LookupCode: "ORGANIZATION_KIND" | "SUPPORT_FORM" | "CONTACT_PRIORITY" | "ENGAGEMENT_HORIZON" | "RELATIONSHIP_TYPE" | "MEDIA_CHANNEL" | "INTERACTION_KIND" | "ACKNOWLEDGEMENT_METHOD" | "CONTRIBUTOR_KIND";
+        LookupValue: {
+            /** Format: uuid */
+            id: string;
+            code: string;
+            nameAr: string;
+            nameEn: string | null;
+            descriptionAr: string | null;
+            displayOrder: number;
+            isActive: boolean;
+            /** @description يشير إليها الكود برمزها: لا تُعطَّل ولا تُحذف، وتُعاد تسميتها. */
+            isLocked: boolean;
+            /** @description يكتبها النظام وحده: لا تظهر في قوائم الاختيار ولا يقبلها الخادم من المستخدم. */
+            isSystem: boolean;
+            /** @description عدد السجلات المصنّفة بها، حين يُطلب `includeUsage`. الحذف لما عدده صفر وحده. */
+            usageCount: number | null;
+        };
+        LookupListSummary: {
+            code: components["schemas"]["LookupCode"];
+            nameAr: string;
+            descriptionAr: string | null;
+            groupAr: string;
+            /** @description هل يحرّر المستخدم الحالي قيم التعريف. الواجهة تُظهر زر «+» عليه، والخادم يفحصه مستقلًا. */
+            canEdit: boolean;
+            valueCount: number;
+            activeCount: number;
+        };
+        LookupList: {
+            code: components["schemas"]["LookupCode"];
+            nameAr: string;
+            descriptionAr: string | null;
+            groupAr: string;
+            /** @description هل يحرّر المستخدم الحالي قيم التعريف. الواجهة تُظهر زر «+» عليه، والخادم يفحصه مستقلًا. */
+            canEdit: boolean;
+            values: components["schemas"]["LookupValue"][];
+        };
         MapArea: {
             /** Format: uuid */
             id: string;
@@ -10877,11 +10981,6 @@ export interface components {
             lat: number;
             lng: number;
         };
-        CatalogRef: {
-            /** Format: uuid */
-            id: string;
-            nameAr: string;
-        };
         MediaContactSummary: {
             /** Format: uuid */
             id: string;
@@ -10896,12 +10995,22 @@ export interface components {
             phone: string | null;
             /** @enum {string} */
             stage: "NEW" | "CONTACTED" | "INTERESTED" | "COLLABORATING" | "DORMANT" | "DECLINED";
-            /** @enum {string} */
-            priority: "HIGH" | "MEDIUM" | "LOW";
-            /** @enum {string|null} */
-            horizon: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
-            relationshipTypeNameAr: string | null;
-            channels: components["schemas"]["CatalogRef"][];
+            priority: components["schemas"]["LookupRef"];
+            horizon: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                nameAr: string;
+                isActive: boolean;
+            } | null;
+            relationshipType: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                nameAr: string;
+                isActive: boolean;
+            } | null;
+            channels: components["schemas"]["LookupRef"][];
             accountManagerNameAr: string | null;
             /** Format: date-time */
             lastContactAt: string | null;
@@ -10912,8 +11021,7 @@ export interface components {
         MediaContactInteraction: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST" | "STAGE_CHANGE";
+            kind: components["schemas"]["LookupRef"];
             /** Format: date-time */
             occurredAt: string;
             summaryAr: string;
@@ -10929,8 +11037,6 @@ export interface components {
             nameEn: string | null;
             profileUrl: string | null;
             /** Format: uuid */
-            relationshipTypeId: string | null;
-            /** Format: uuid */
             accountManagerId: string | null;
             /** @description لا تخرج إلا لمن يملك `media.notes.view`؛ غيره يقرأ null. */
             internalNotesAr: string | null;
@@ -10942,10 +11048,8 @@ export interface components {
             /** Format: uuid */
             contactId: string;
             contactNameAr: string;
-            /** @enum {string} */
-            priority: "HIGH" | "MEDIUM" | "LOW";
-            /** @enum {string} */
-            kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST" | "STAGE_CHANGE";
+            priority: components["schemas"]["LookupRef"];
+            kind: components["schemas"]["LookupRef"];
             summaryAr: string;
             /** Format: date-time */
             dueAt: string;
@@ -11016,13 +11120,13 @@ export interface components {
             displayNameAr: string;
             legalNameAr: string;
             nameEn: string | null;
-            organizationKind: string;
+            organizationKind: components["schemas"]["LookupRef"];
             stage: string;
             isSuspended: boolean;
             suspensionReasonAr: string | null;
             websiteUrl: string | null;
             summaryAr: string | null;
-            supportForms: string[];
+            supportForms: components["schemas"]["LookupRef"][];
             publicNameConsent: boolean;
             publicLogoConsent: boolean;
             /** Format: date-time */
@@ -11076,8 +11180,7 @@ export interface components {
             id: string;
             displayNameAr: string;
             legalNameAr: string;
-            /** @enum {string} */
-            organizationKind: "COMPANY" | "NGO" | "GOVERNMENT" | "ACADEMIC" | "VOLUNTEER_TEAM" | "COMMUNITY_INITIATIVE" | "DONOR" | "INDIVIDUAL" | "OTHER";
+            organizationKind: components["schemas"]["LookupRef"];
             /** @enum {string} */
             stage: "NEW" | "CONTACTED" | "QUALIFIED" | "NEGOTIATION" | "PENDING_APPROVAL" | "ACTIVE" | "ON_HOLD" | "REJECTED" | "ENDED";
             isSuspended: boolean;
@@ -11086,16 +11189,22 @@ export interface components {
             primaryContactNameAr: string | null;
             publicNameConsent: boolean;
             publicLogoConsent: boolean;
-            /** @enum {string} */
-            contactPriority: "HIGH" | "MEDIUM" | "LOW";
-            /** @enum {string|null} */
-            engagementHorizon: "LONG_TERM" | "SHORT_TERM" | "ONE_OFF" | null;
-            relationshipTypeNameAr: string | null;
-            mediaChannels: {
+            contactPriority: components["schemas"]["LookupRef"];
+            engagementHorizon: {
                 /** Format: uuid */
                 id: string;
+                code: string;
                 nameAr: string;
-            }[];
+                isActive: boolean;
+            } | null;
+            relationshipType: {
+                /** Format: uuid */
+                id: string;
+                code: string;
+                nameAr: string;
+                isActive: boolean;
+            } | null;
+            mediaChannels: components["schemas"]["LookupRef"][];
             /** Format: date-time */
             lastContactAt: string | null;
             /** Format: date-time */
@@ -11151,8 +11260,7 @@ export interface components {
             charterVersion: string;
             /** Format: date-time */
             acknowledgedAt: string;
-            /** @enum {string} */
-            method: "IN_PERSON" | "EMAIL" | "PORTAL" | "DOCUMENT";
+            method: components["schemas"]["LookupRef"];
             acknowledgedByNameAr: string;
             acknowledgedByTitleAr: string | null;
             noteAr: string | null;
@@ -11160,8 +11268,7 @@ export interface components {
         PartnerInteraction: {
             /** Format: uuid */
             id: string;
-            /** @enum {string} */
-            kind: "NOTE" | "CALL" | "EMAIL" | "MEETING" | "MESSAGE" | "DOCUMENT_REQUEST" | "STAGE_CHANGE";
+            kind: components["schemas"]["LookupRef"];
             /** Format: date-time */
             occurredAt: string;
             summaryAr: string;
@@ -11183,11 +11290,9 @@ export interface components {
             slug: string | null;
             websiteUrl: string | null;
             summaryAr: string | null;
-            supportForms: ("MORAL_MEDIA" | "COMMUNITY_VOLUNTEERING" | "SPONSORSHIP_LOGISTICS" | "TECHNICAL_ACADEMIC_EXPERTISE" | "ENVIRONMENTAL_AWARENESS" | "INTERNAL_SUSTAINABILITY" | "SPACES_AND_RESOURCES")[];
+            supportForms: components["schemas"]["LookupRef"][];
             /** Format: uuid */
             accountManagerId: string | null;
-            /** Format: uuid */
-            relationshipTypeId: string | null;
             internalNotesAr: string | null;
             rejectionReasonAr: string | null;
             suspensionReasonAr: string | null;
@@ -11264,26 +11369,6 @@ export interface components {
                 /** Format: uuid */
                 id: string;
             };
-        };
-        MediaChannel: {
-            /** Format: uuid */
-            id: string;
-            slug: string;
-            nameAr: string;
-            nameEn: string | null;
-            descriptionAr: string | null;
-            displayOrder: number;
-            isActive: boolean;
-        };
-        RelationshipType: {
-            /** Format: uuid */
-            id: string;
-            slug: string;
-            nameAr: string;
-            nameEn: string | null;
-            descriptionAr: string | null;
-            displayOrder: number;
-            isActive: boolean;
         };
         SignedUpload: {
             uploadUrl: string;
@@ -11779,7 +11864,7 @@ export interface components {
             /** Format: uuid */
             id: string;
             displayNameAr: string;
-            organizationKind: string;
+            organizationKindNameAr: string;
         };
         FieldGroupMember: {
             /** Format: uuid */

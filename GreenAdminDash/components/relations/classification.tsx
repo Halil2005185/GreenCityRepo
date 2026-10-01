@@ -1,20 +1,11 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
 import type { Control, FieldPath, FieldValues } from "react-hook-form";
 
+import { LookupBadge, LookupSelectField, lookupLabel } from "@/components/lookups/lookup-select";
 import { Badge } from "@/components/ui/badge";
 import type { DescriptionItem } from "@/components/ui/description-list";
-import { SelectField } from "@/components/ui/form-fields";
-import type { SelectOption } from "@/components/ui/select";
-import { StatusBadge } from "@/components/ui/status-badge";
-import {
-  HORIZON_LABELS,
-  type ContactPriority,
-  type EngagementHorizon,
-} from "@/lib/api/media";
-import { listMediaChannels, listRelationshipTypes } from "@/lib/api/relations";
-import { statusOptions } from "@/lib/status";
+import type { LookupRef } from "@/lib/api/lookups";
 import { countAr } from "@/lib/text/plural-ar";
 import { formatDate } from "@/lib/utils";
 
@@ -23,44 +14,23 @@ import { formatDate } from "@/lib/utils";
  *
  * تكرار الحقول في الشاشتين كان سيسمح لهما بالانحراف — قائمة أولويات هنا
  * وأخرى هناك — وهو ما طلب مكتب العلاقات عكسه حين طلب المحاور نفسها على
- * الجهات والأشخاص معًا.
+ * الجهات والأشخاص معًا. والمحاور الأربعة تعريفات في «الإعدادات ← تعريفات
+ * النظام»، فقيمة يضيفها المكتب تظهر في الشاشتين معًا.
  */
-
-/** المرجعيات تُطلب مرة وتُشارَك بين الشاشات عبر مخزن الاستعلامات. */
-export function useMediaChannels() {
-  return useQuery({
-    queryKey: ["relations", "media-channels"],
-    queryFn: () => listMediaChannels(),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-export function useRelationshipTypes() {
-  return useQuery({
-    queryKey: ["relations", "relationship-types"],
-    queryFn: () => listRelationshipTypes(),
-    staleTime: 5 * 60 * 1000,
-  });
-}
-
-const HORIZON_OPTIONS: SelectOption[] = Object.entries(HORIZON_LABELS).map(
-  ([value, label]) => ({ value, label }),
-);
 
 /**
  * حقول التصنيف داخل نموذج react-hook-form. أسماء الحقول تختلف بين الجهة
- * (`contactPriority`، `engagementHorizon`، `mediaChannelIds`) والشخص
- * (`priority`، `horizon`، `channelIds`) لأنها أسماء جسم الطلب نفسه، فتُمرَّر
- * هنا ولا يُترجَم بينها — فتصل أخطاء الخادم إلى حقولها كما هي.
+ * (`contactPriorityId`، `engagementHorizonId`، `mediaChannelIds`) والشخص
+ * (`priorityId`، `horizonId`، `channelIds`) لأنها أسماء جسم الطلب نفسه،
+ * فتُمرَّر هنا ولا يُترجَم بينها — فتصل أخطاء الخادم إلى حقولها كما هي.
  *
- * الخيارات من المرجعيات النشطة وحدها؛ تسمية مرجع عُطّل بعد أن صُنّف به
- * السجل تأتي من السجل نفسه (`selected*`) كي لا يظهر «…» مكانها.
+ * `selected` قيم السجل كما هي: تسمية قيمة عُطّلت بعد أن صُنّف بها السجل
+ * تأتي منه، فلا يظهر «…» مكانها.
  */
 export function ClassificationFormFields<T extends FieldValues>({
   control,
   names,
-  selectedRelationshipType,
-  selectedChannels,
+  selected,
 }: {
   control: Control<T>;
   names: {
@@ -69,62 +39,56 @@ export function ClassificationFormFields<T extends FieldValues>({
     relationshipTypeId: FieldPath<T>;
     channelIds: FieldPath<T>;
   };
-  selectedRelationshipType?: SelectOption | null;
-  selectedChannels?: readonly SelectOption[];
+  selected?: {
+    priority?: LookupRef | null;
+    horizon?: LookupRef | null;
+    relationshipType?: LookupRef | null;
+    channels?: readonly LookupRef[];
+  };
 }) {
-  const channels = useMediaChannels();
-  const relationshipTypes = useRelationshipTypes();
-
   return (
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-2">
-        <SelectField
+        <LookupSelectField
           control={control}
           name={names.priority}
+          code="CONTACT_PRIORITY"
           label="أولوية التواصل"
           hint="من نبدأ به حين يضيق الوقت."
-          options={statusOptions("contactPriority")}
+          selected={selected?.priority ?? null}
         />
-        <SelectField
+        <LookupSelectField
           control={control}
           name={names.horizon}
+          code="ENGAGEMENT_HORIZON"
           label="أفق العلاقة"
           hint="محور مستقل عن الأولوية: عاجل لمرة، أو مهم على المدى الطويل."
           placeholder="غير محدد"
           clearable
-          options={HORIZON_OPTIONS}
+          selected={selected?.horizon ?? null}
         />
       </div>
 
-      <SelectField
+      <LookupSelectField
         control={control}
         name={names.relationshipTypeId}
+        code="RELATIONSHIP_TYPE"
         label="نوع العلاقة"
         placeholder="غير محدد"
         clearable
-        loading={relationshipTypes.isPending}
-        selectedOption={selectedRelationshipType}
-        options={(relationshipTypes.data ?? []).map((type) => ({
-          value: type.id,
-          label: type.nameAr,
-        }))}
+        selected={selected?.relationshipType ?? null}
       />
 
-      <SelectField
+      <LookupSelectField
         control={control}
         name={names.channelIds}
+        code="MEDIA_CHANNEL"
         label="شكل العمل الإعلامي"
         hint="بأي شكل يعمل — سؤال شارع، ريبورتاج، تصوير. يمكن اختيار أكثر من شكل."
         placeholder="اختر شكلًا أو أكثر"
-        emptyText="لا توجد أشكال بعد. تُضاف من شاشة مرجعيات العلاقات."
         multiple
         clearable
-        loading={channels.isPending}
-        selectedOptions={selectedChannels}
-        options={(channels.data ?? []).map((channel) => ({
-          value: channel.id,
-          label: channel.nameAr,
-        }))}
+        selected={selected?.channels ?? []}
       />
     </div>
   );
@@ -148,23 +112,23 @@ export function LastContact({ value }: { value: string | null }) {
 export function classificationItems({
   priority,
   horizon,
-  relationshipTypeNameAr,
+  relationshipType,
   channels,
   lastContactAt,
 }: {
-  priority: ContactPriority;
-  horizon: EngagementHorizon | null;
-  relationshipTypeNameAr: string | null;
-  channels: readonly { id: string; nameAr: string }[];
+  priority: LookupRef;
+  horizon: LookupRef | null;
+  relationshipType: LookupRef | null;
+  channels: readonly LookupRef[];
   lastContactAt: string | null;
 }): DescriptionItem[] {
   return [
     {
       label: "أولوية التواصل",
-      value: <StatusBadge kind="contactPriority" value={priority} />,
+      value: <LookupBadge code="CONTACT_PRIORITY" value={priority} />,
     },
-    { label: "أفق العلاقة", value: horizon ? HORIZON_LABELS[horizon] : null },
-    { label: "نوع العلاقة", value: relationshipTypeNameAr },
+    { label: "أفق العلاقة", value: horizon ? lookupLabel(horizon) : null },
+    { label: "نوع العلاقة", value: relationshipType ? lookupLabel(relationshipType) : null },
     {
       label: "شكل العمل الإعلامي",
       value:
@@ -172,7 +136,7 @@ export function classificationItems({
           <span className="flex flex-wrap gap-1">
             {channels.map((channel) => (
               <Badge key={channel.id} tone="accent">
-                {channel.nameAr}
+                {lookupLabel(channel)}
               </Badge>
             ))}
           </span>

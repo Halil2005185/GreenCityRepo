@@ -7,16 +7,15 @@ import { type DefaultValues, useForm, useWatch } from "react-hook-form";
 import { z } from "zod";
 
 import { Alert } from "@/components/ui/card";
+import { LookupSelectField } from "@/components/lookups/lookup-select";
 import { FormDialog, FormSection } from "@/components/ui/form-dialog";
 import {
   ImageFormField,
-  SelectField,
   TextField,
   TextareaField,
 } from "@/components/ui/form-fields";
 import { listMetrics } from "@/lib/api/initiatives";
 import {
-  CONTRIBUTOR_KIND_LABELS,
   type MapArea,
   type MapPoint,
   createGreenPoint,
@@ -37,7 +36,7 @@ const schema = z.object({
     .trim()
     .min(2, "اسم المنفّذ يجب ألا يقل عن حرفين.")
     .max(200, "اسم المنفّذ طويل جدًا."),
-  contributorKind: z.string().min(1, "اختر صفة المنفّذ."),
+  contributorKindId: z.string(),
   trees: z
     .string()
     .trim()
@@ -54,16 +53,11 @@ type Values = z.infer<typeof schema>;
 const DEFAULTS = {
   nameAr: "",
   contributorNameAr: "",
-  contributorKind: "INDIVIDUAL",
+  contributorKindId: "",
   trees: "",
   coverImageUrl: "",
   storyAr: "",
 } satisfies Omit<Values, "location">;
-
-const KIND_OPTIONS = Object.entries(CONTRIBUTOR_KIND_LABELS).map(([value, label]) => ({
-  value,
-  label,
-}));
 
 /** أسماء حقول الخادم التي لا تطابق حقول النموذج. */
 function fieldOf(path: string): keyof Values | null {
@@ -123,7 +117,7 @@ export function GreenPointDialog({
         return createGreenPoint({
           nameAr: values.nameAr,
           contributorNameAr: values.contributorNameAr,
-          contributorKind: values.contributorKind as keyof typeof CONTRIBUTOR_KIND_LABELS,
+          ...(values.contributorKindId ? { contributorKindId: values.contributorKindId } : {}),
           lat: values.location.lat,
           lng: values.location.lng,
           ...(area ? { areaId: area.id } : {}),
@@ -163,11 +157,13 @@ export function GreenPointDialog({
           <TextField control={form.control} name="contributorNameAr" label="من نفّذها" />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField
+          <LookupSelectField
             control={form.control}
-            name="contributorKind"
+            name="contributorKindId"
+            code="CONTRIBUTOR_KIND"
             label="صفة المنفّذ"
-            options={KIND_OPTIONS}
+            placeholder="غير محددة"
+            clearable
           />
           {/* بلا مؤشر يقيس بالشجرة لا مكان يُسجَّل فيه العدد، فلا يُطلب. */}
           {treeMetric || metrics.isPending ? (

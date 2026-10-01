@@ -9,9 +9,6 @@ export type MediaInteraction =
 export type MediaFollowUp = components["schemas"]["MediaFollowUp"];
 
 export type MediaStage = MediaContactSummary["stage"];
-export type ContactPriority = MediaContactSummary["priority"];
-export type EngagementHorizon = NonNullable<MediaContactSummary["horizon"]>;
-export type InteractionKind = MediaInteraction["kind"];
 
 /** ترتيب العرض هو ترتيب الخط: من لم يُكلَّم بعد أولًا، والاعتذار آخرًا. */
 export const MEDIA_STAGES = [
@@ -23,41 +20,10 @@ export const MEDIA_STAGES = [
   "DECLINED",
 ] as const satisfies readonly MediaStage[];
 
-/**
- * التسميات العربية للقيم المجمّدة تعيش في الواجهة لا في القاعدة — القاعدة
- * نفسها المتبعة في سجل الشركاء، والمراحل منها في `lib/status.ts`.
- * المفردات المتغيّرة (شكل العمل، نوع العلاقة) تأتي من المرجعيات لا من هنا.
- */
-export const HORIZON_LABELS: Record<EngagementHorizon, string> = {
-  LONG_TERM: "مدى طويل",
-  SHORT_TERM: "مدى قصير",
-  ONE_OFF: "تعاون لمرة",
-};
-
-export const INTERACTION_KIND_LABELS: Record<InteractionKind, string> = {
-  NOTE: "ملاحظة",
-  CALL: "مكالمة",
-  EMAIL: "بريد",
-  MEETING: "اجتماع",
-  MESSAGE: "رسالة",
-  DOCUMENT_REQUEST: "طلب مستند",
-  STAGE_CHANGE: "تغيير مرحلة",
-};
-
-/** ما يسجّله المستخدم يدويًا؛ `STAGE_CHANGE` يكتبه النظام وحده. */
-export const LOGGABLE_KINDS = [
-  "CALL",
-  "MESSAGE",
-  "EMAIL",
-  "MEETING",
-  "NOTE",
-  "DOCUMENT_REQUEST",
-] as const satisfies readonly InteractionKind[];
-
 export type MediaFilters = {
   stage?: string;
-  priority?: string;
-  horizon?: string;
+  priorityId?: string;
+  horizonId?: string;
   channelId?: string;
   relationshipTypeId?: string;
   q?: string;
@@ -111,8 +77,8 @@ export type MediaContactInput = {
   outletNameAr?: string;
   partnerId?: string;
   stage?: MediaStage;
-  priority?: ContactPriority;
-  horizon?: EngagementHorizon;
+  priorityId?: string;
+  horizonId?: string;
   relationshipTypeId?: string;
   channelIds?: string[];
   accountManagerId?: string;
@@ -148,7 +114,7 @@ export function changeMediaStage(id: string, stage: MediaStage, noteAr?: string)
 export function recordMediaInteraction(
   id: string,
   body: {
-    kind: InteractionKind;
+    kindId: string;
     summaryAr: string;
     bodyAr?: string;
     occurredAt?: string;

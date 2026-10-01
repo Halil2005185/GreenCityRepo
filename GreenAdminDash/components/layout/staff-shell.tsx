@@ -10,6 +10,7 @@ import {
   Map,
   Megaphone,
   ScrollText,
+  Settings2,
   ShieldCheck,
   Sprout,
   Users,
@@ -95,6 +96,21 @@ const NAV_ITEMS: readonly NavItem[] = [
     label: "الدعوات",
     icon: Mail,
     requires: [CAPABILITIES.invitationsManage],
+  },
+  {
+    href: "/dashboard/settings",
+    label: "الإعدادات",
+    icon: Settings2,
+    // من يحرّر قيم تعريف ما يصل إليه من هنا أيضًا، لا حامل `lookups.manage`
+    // وحده — المحرّرون أنفسهم المسجّلون في `lookups.registry.ts` على الخادم.
+    requires: [
+      CAPABILITIES.lookupsManage,
+      CAPABILITIES.partnersManage,
+      CAPABILITIES.mediaManage,
+      CAPABILITIES.relationsTaxonomyManage,
+      CAPABILITIES.charterAcknowledgementsRecord,
+      CAPABILITIES.initiativesManage,
+    ],
   },
 ];
 

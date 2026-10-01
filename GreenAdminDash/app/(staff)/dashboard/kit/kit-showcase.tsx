@@ -291,7 +291,7 @@ export function KitShowcase() {
           items={[
             { label: "الاسم القانوني", value: "مؤسسة أسامة للتنمية" },
             { label: "نوع الجهة", value: "جمعية أو منظمة أهلية" },
-            { label: "أولوية التواصل", value: <StatusBadge kind="contactPriority" value="HIGH" /> },
+            { label: "أولوية التواصل", value: <Badge tone="danger">عالية</Badge> },
             { label: "آخر تواصل", value: "منذ 12 يومًا" },
             { label: "مسؤول العلاقة", value: null },
             { label: "الموقع الإلكتروني", value: <span dir="ltr">example.org</span> },

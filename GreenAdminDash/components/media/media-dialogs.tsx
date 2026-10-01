@@ -6,20 +6,16 @@ import { useRouter } from "next/navigation";
 import { type Control, type FieldValues, type Path, useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { LookupSelectField, useLookupDefault } from "@/components/lookups/lookup-select";
 import { ClassificationFormFields } from "@/components/relations/classification";
 import { FormDialog, FormSection } from "@/components/ui/form-dialog";
 import { SelectField, TextField, TextareaField } from "@/components/ui/form-fields";
 import {
-  INTERACTION_KIND_LABELS,
-  LOGGABLE_KINDS,
   MEDIA_STAGES,
   changeMediaStage,
   createMediaContact,
   recordMediaInteraction,
   updateMediaContact,
-  type ContactPriority,
-  type EngagementHorizon,
-  type InteractionKind,
   type MediaContactDetail,
   type MediaContactSummary,
   type MediaStage,
@@ -134,8 +130,8 @@ const createSchema = z
   .object({
     ...basicShape,
     stage: z.string().min(1, "اختر المرحلة."),
-    priority: z.string(),
-    horizon: z.string(),
+    priorityId: z.string(),
+    horizonId: z.string(),
     relationshipTypeId: z.string(),
     channelIds: z.array(z.string()),
   })
@@ -152,8 +148,8 @@ const CREATE_DEFAULTS: CreateValues = {
   profileUrl: "",
   internalNotesAr: "",
   stage: "NEW",
-  priority: "MEDIUM",
-  horizon: "",
+  priorityId: "",
+  horizonId: "",
   relationshipTypeId: "",
   channelIds: [],
 };
@@ -166,6 +162,7 @@ export function MediaContactCreateDialog({ open, onOpenChange }: DialogProps) {
     resolver: zodResolver(createSchema),
     defaultValues: CREATE_DEFAULTS,
   });
+  useLookupDefault(form, "priorityId", "CONTACT_PRIORITY", "MEDIUM", open);
 
   return (
     <FormDialog
@@ -181,15 +178,15 @@ export function MediaContactCreateDialog({ open, onOpenChange }: DialogProps) {
         createMediaContact({
           fullNameAr: values.fullNameAr,
           stage: values.stage as MediaStage,
-          priority: values.priority as ContactPriority,
           channelIds: values.channelIds,
+          ...(values.priorityId ? { priorityId: values.priorityId } : {}),
           ...(values.jobTitleAr ? { jobTitleAr: values.jobTitleAr } : {}),
           ...(values.outletNameAr ? { outletNameAr: values.outletNameAr } : {}),
           ...(values.email ? { email: values.email } : {}),
           ...(values.phone ? { phone: values.phone } : {}),
           ...(values.profileUrl ? { profileUrl: values.profileUrl } : {}),
           ...(values.internalNotesAr ? { internalNotesAr: values.internalNotesAr } : {}),
-          ...(values.horizon ? { horizon: values.horizon as EngagementHorizon } : {}),
+          ...(values.horizonId ? { horizonId: values.horizonId } : {}),
           ...(values.relationshipTypeId ? { relationshipTypeId: values.relationshipTypeId } : {}),
         })
       }
@@ -219,8 +216,8 @@ export function MediaContactCreateDialog({ open, onOpenChange }: DialogProps) {
         <ClassificationFormFields
           control={form.control}
           names={{
-            priority: "priority",
-            horizon: "horizon",
+            priority: "priorityId",
+            horizon: "horizonId",
             relationshipTypeId: "relationshipTypeId",
             channelIds: "channelIds",
           }}
@@ -301,7 +298,7 @@ export function MediaContactEditDialog({
 // ── تسجيل تواصل ─────────────────────────────────────────────────────────
 
 const interactionSchema = z.object({
-  kind: z.string().min(1, "اختر نوع التواصل."),
+  kindId: z.string().min(1, "اختر نوع التواصل."),
   summaryAr: z
     .string()
     .trim()
@@ -314,16 +311,11 @@ const interactionSchema = z.object({
 type InteractionValues = z.infer<typeof interactionSchema>;
 
 const INTERACTION_DEFAULTS: InteractionValues = {
-  kind: "CALL",
+  kindId: "",
   summaryAr: "",
   bodyAr: "",
   dueAt: "",
 };
-
-const KIND_OPTIONS = LOGGABLE_KINDS.map((kind) => ({
-  value: kind,
-  label: INTERACTION_KIND_LABELS[kind],
-}));
 
 export function LogInteractionDialog({
   contact,
@@ -346,7 +338,7 @@ export function LogInteractionDialog({
       submitLabel="تسجيل التواصل"
       onSubmit={(values) =>
         recordMediaInteraction(contact.id, {
-          kind: values.kind as InteractionKind,
+          kindId: values.kindId,
           summaryAr: values.summaryAr,
           ...(values.bodyAr ? { bodyAr: values.bodyAr } : {}),
           // حقل التاريخ يعطي يومًا بلا وقت؛ منتصف اليوم يجعله يقع في اليوم
@@ -358,7 +350,13 @@ export function LogInteractionDialog({
       onSuccess={apply}
     >
       <div className="grid gap-4 sm:grid-cols-[12rem_1fr]">
-        <SelectField control={form.control} name="kind" label="النوع" options={KIND_OPTIONS} />
+        {/* «تغيير مرحلة» قيمة نظام: لا تظهر هنا، والخادم يرفضها لو أُرسلت. */}
+        <LookupSelectField
+          control={form.control}
+          name="kindId"
+          code="INTERACTION_KIND"
+          label="النوع"
+        />
         <TextField
           control={form.control}
           name="summaryAr"
@@ -444,8 +442,8 @@ export function MediaStageDialog({
 // ── تعديل التصنيف ───────────────────────────────────────────────────────
 
 const classificationSchema = z.object({
-  priority: z.string(),
-  horizon: z.string(),
+  priorityId: z.string().min(1, "اختر الأولوية."),
+  horizonId: z.string(),
   relationshipTypeId: z.string(),
   channelIds: z.array(z.string()),
 });
@@ -459,7 +457,7 @@ export function MediaClassificationDialog({
   const apply = useMediaCache();
   const form = useForm<ClassificationValues>({
     resolver: zodResolver(classificationSchema),
-    defaultValues: { priority: "MEDIUM", horizon: "", relationshipTypeId: "", channelIds: [] },
+    defaultValues: { priorityId: "", horizonId: "", relationshipTypeId: "", channelIds: [] },
   });
 
   return (
@@ -469,16 +467,16 @@ export function MediaClassificationDialog({
       title={`تصنيف «${contact.fullNameAr}»`}
       form={form}
       values={{
-        priority: contact.priority,
-        horizon: contact.horizon ?? "",
-        relationshipTypeId: contact.relationshipTypeId ?? "",
+        priorityId: contact.priority.id,
+        horizonId: contact.horizon?.id ?? "",
+        relationshipTypeId: contact.relationshipType?.id ?? "",
         channelIds: contact.channels.map((channel) => channel.id),
       }}
       submitLabel="حفظ التصنيف"
       onSubmit={(values) =>
         updateMediaContact(contact.id, {
-          priority: values.priority,
-          horizon: values.horizon || null,
+          priorityId: values.priorityId,
+          horizonId: values.horizonId || null,
           relationshipTypeId: values.relationshipTypeId || null,
           channelIds: values.channelIds,
         })
@@ -489,20 +487,17 @@ export function MediaClassificationDialog({
       <ClassificationFormFields
         control={form.control}
         names={{
-          priority: "priority",
-          horizon: "horizon",
+          priority: "priorityId",
+          horizon: "horizonId",
           relationshipTypeId: "relationshipTypeId",
           channelIds: "channelIds",
         }}
-        selectedRelationshipType={
-          contact.relationshipTypeId
-            ? { value: contact.relationshipTypeId, label: contact.relationshipTypeNameAr ?? "…" }
-            : null
-        }
-        selectedChannels={contact.channels.map((channel) => ({
-          value: channel.id,
-          label: channel.nameAr,
-        }))}
+        selected={{
+          priority: contact.priority,
+          horizon: contact.horizon,
+          relationshipType: contact.relationshipType,
+          channels: contact.channels,
+        }}
       />
     </FormDialog>
   );

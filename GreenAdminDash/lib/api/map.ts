@@ -9,15 +9,6 @@ export const POINT_KIND_LABELS = {
   GREEN_POINT: "نقطة خضراء",
 } as const;
 
-export const CONTRIBUTOR_KIND_LABELS = {
-  INDIVIDUAL: "فرد",
-  COMPANY: "شركة",
-  INSTITUTION: "مؤسسة",
-  SCHOOL: "مدرسة أو جامعة",
-  VOLUNTEER_TEAM: "فريق تطوعي",
-  OTHER: "أخرى",
-} as const;
-
 export function listMapAreas() {
   return apiFetch<{ data: MapArea[]; attribution: string }>("/admin/map/areas");
 }
@@ -46,7 +37,7 @@ export function deleteGreenPoint(siteId: string) {
 export function createGreenPoint(body: {
   nameAr: string;
   contributorNameAr: string;
-  contributorKind?: keyof typeof CONTRIBUTOR_KIND_LABELS;
+  contributorKindId?: string;
   areaId?: string;
   lat: number;
   lng: number;

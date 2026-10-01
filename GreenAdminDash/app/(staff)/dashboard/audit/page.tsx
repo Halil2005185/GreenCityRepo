@@ -40,6 +40,8 @@ const ENTITY_LABELS: Record<string, string> = {
   area: "منطقة",
   media_contact: "شخص في الشبكة الإعلامية",
   media_channel: "شكل عمل إعلامي",
+  lookup_list: "تعريف نظام",
+  lookup_value: "قيمة في تعريفات النظام",
   user: "عضو",
   role: "دور",
   invitation: "دعوة",

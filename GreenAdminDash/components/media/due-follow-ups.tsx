@@ -5,12 +5,12 @@ import { Check } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 
+import { lookupLabel } from "@/components/lookups/lookup-select";
 import { useMediaCache } from "@/components/media/media-dialogs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Section } from "@/components/ui/section";
 import {
-  INTERACTION_KIND_LABELS,
   listFollowUps,
   setFollowUpCompletion,
   type MediaFollowUp,
@@ -91,7 +91,7 @@ export function DueFollowUps() {
                   {item.contactNameAr}
                 </Link>
                 <span className="min-w-0 text-muted-foreground">
-                  {INTERACTION_KIND_LABELS[item.kind]}: {item.summaryAr}
+                  {lookupLabel(item.kind)}: {item.summaryAr}
                 </span>
               </p>
               <span

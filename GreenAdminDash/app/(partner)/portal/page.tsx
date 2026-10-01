@@ -25,16 +25,13 @@ import { Section } from "@/components/ui/section";
 import { DetailSkeleton, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import {
-  ORGANIZATION_KIND_LABELS,
   PARTNERSHIP_TYPE_LABELS,
-  SUPPORT_FORM_LABELS,
   getMyOrganization,
   updateMyDisplayConsent,
   updateMyOrganization,
   type Partnership as AdminPartnership,
   type PartnerSelf,
   type PartnershipType,
-  type SupportForm,
 } from "@/lib/api/partners";
 import { useApiMutation } from "@/lib/api/use-api-mutation";
 import { useAuth } from "@/lib/auth/auth-context";
@@ -331,7 +328,7 @@ export default function PartnerPortalPage() {
           { label: "الاسم القانوني", value: data.legalNameAr },
           {
             label: "نوع الجهة",
-            value: ORGANIZATION_KIND_LABELS[data.organizationKind as keyof typeof ORGANIZATION_KIND_LABELS] ?? null,
+            value: data.organizationKind.nameAr,
           },
           { label: "شريك منذ", value: data.activatedAt ? formatDate(data.activatedAt) : null },
           {
@@ -354,7 +351,7 @@ export default function PartnerPortalPage() {
             wide: true,
             value:
               data.supportForms.length > 0
-                ? data.supportForms.map((form) => SUPPORT_FORM_LABELS[form as SupportForm] ?? form).join("، ")
+                ? data.supportForms.map((form) => form.nameAr).join("، ")
                 : null,
           },
           { label: "نبذة", wide: true, value: data.summaryAr },

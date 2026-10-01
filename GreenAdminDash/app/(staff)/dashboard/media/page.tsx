@@ -4,14 +4,11 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Plus, Settings2 } from "lucide-react";
 import { useMemo } from "react";
 
+import { LookupBadge, LookupSelect, lookupLabel } from "@/components/lookups/lookup-select";
 import { DueFollowUps } from "@/components/media/due-follow-ups";
 import { MediaContactCreateDialog } from "@/components/media/media-dialogs";
 import { useMediaActions } from "@/components/media/use-media-actions";
-import {
-  sinceLabel,
-  useMediaChannels,
-  useRelationshipTypes,
-} from "@/components/relations/classification";
+import { sinceLabel } from "@/components/relations/classification";
 import { Badge } from "@/components/ui/badge";
 import {
   DataTable,
@@ -24,7 +21,6 @@ import { Select, type SelectOption } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { FilterChips, SearchInput, Toolbar } from "@/components/ui/toolbar";
 import {
-  HORIZON_LABELS,
   MEDIA_STAGES,
   listMediaContacts,
   type MediaContactSummary,
@@ -69,8 +65,6 @@ export default function MediaPage() {
     new: "",
   });
   const mediaActions = useMediaActions();
-  const channels = useMediaChannels();
-  const relationshipTypes = useRelationshipTypes();
 
   const contacts = useQuery({
     queryKey: [
@@ -90,7 +84,7 @@ export default function MediaPage() {
       listMediaContacts({
         q: filters.q,
         stage: filters.stage,
-        priority: filters.priority,
+        priorityId: filters.priority,
         channelId: filters.channel,
         relationshipTypeId: filters.relationship,
         hasOpenFollowUp: filters.followUp === "1",
@@ -127,14 +121,14 @@ export default function MediaPage() {
           header: "الأولوية",
           enableSorting: false,
           cell: (info) => {
-            const { relationshipTypeNameAr, horizon } = info.row.original;
-            const detail = [relationshipTypeNameAr, horizon && HORIZON_LABELS[horizon]]
-              .filter(Boolean)
+            const { relationshipType, horizon } = info.row.original;
+            const detail = [relationshipType, horizon]
+              .flatMap((ref) => (ref ? [lookupLabel(ref)] : []))
               .join(" · ");
 
             return (
               <div className="min-w-24 space-y-1">
-                <StatusBadge kind="contactPriority" value={info.getValue()} />
+                <LookupBadge code="CONTACT_PRIORITY" value={info.getValue()} />
                 {detail ? <p className="text-xs text-muted-foreground">{detail}</p> : null}
               </div>
             );
@@ -148,7 +142,7 @@ export default function MediaPage() {
               <div className="flex max-w-56 flex-wrap gap-1">
                 {info.getValue().map((channel) => (
                   <Badge key={channel.id} tone="accent">
-                    {channel.nameAr}
+                    {lookupLabel(channel)}
                   </Badge>
                 ))}
               </div>
@@ -228,10 +222,10 @@ export default function MediaPage() {
         secondaryActions={[
           {
             key: "taxonomy",
-            label: "المرجعيات",
+            label: "التعريفات",
             icon: Settings2,
-            href: "/dashboard/media/taxonomy",
-            requires: [CAPABILITIES.relationsTaxonomyManage],
+            href: "/dashboard/settings/lookups",
+            requires: [CAPABILITIES.relationsTaxonomyManage, CAPABILITIES.lookupsManage],
           },
         ]}
       />
@@ -271,43 +265,38 @@ export default function MediaPage() {
             value={filters.stage || null}
             onChange={(stage) => setFilters({ stage })}
           />
-          <Select
+          <LookupSelect
+            code="CONTACT_PRIORITY"
             size="sm"
             label="الأولوية"
             placeholder="الكل"
             className="w-40"
             clearable
-            options={statusOptions("contactPriority")}
+            creatable={false}
             value={filters.priority || null}
-            onChange={(priority) => setFilters({ priority })}
+            onChange={(priority) => setFilters({ priority: priority ?? "" })}
           />
-          <Select
+          <LookupSelect
+            code="MEDIA_CHANNEL"
             size="sm"
             label="شكل العمل"
             placeholder="الكل"
             className="w-44"
             clearable
-            loading={channels.isPending}
-            options={(channels.data ?? []).map((channel) => ({
-              value: channel.id,
-              label: channel.nameAr,
-            }))}
+            creatable={false}
             value={filters.channel || null}
-            onChange={(channel) => setFilters({ channel })}
+            onChange={(channel) => setFilters({ channel: channel ?? "" })}
           />
-          <Select
+          <LookupSelect
+            code="RELATIONSHIP_TYPE"
             size="sm"
             label="نوع العلاقة"
             placeholder="الكل"
             className="w-44"
             clearable
-            loading={relationshipTypes.isPending}
-            options={(relationshipTypes.data ?? []).map((type) => ({
-              value: type.id,
-              label: type.nameAr,
-            }))}
+            creatable={false}
             value={filters.relationship || null}
-            onChange={(relationship) => setFilters({ relationship })}
+            onChange={(relationship) => setFilters({ relationship: relationship ?? "" })}
           />
           <Select
             size="sm"

@@ -17,7 +17,6 @@ import {
   type InitiativeField,
 } from "@/lib/api/field";
 import type { InitiativeDetail } from "@/lib/api/initiatives";
-import { ORGANIZATION_KIND_LABELS } from "@/lib/api/partners";
 
 type DialogProps = { open: boolean; onOpenChange: (open: boolean) => void };
 
@@ -231,10 +230,7 @@ export function GroupDialog({
         options={(partners.data ?? []).map((partner) => ({
           value: partner.id,
           label: partner.displayNameAr,
-          description:
-            ORGANIZATION_KIND_LABELS[
-              partner.organizationKind as keyof typeof ORGANIZATION_KIND_LABELS
-            ] ?? undefined,
+          description: partner.organizationKindNameAr,
         }))}
         loading={partners.isPending && props.open}
         selectedOption={

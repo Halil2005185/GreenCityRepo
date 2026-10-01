@@ -232,7 +232,17 @@ export function FormDialog<TValues extends FieldValues, TResult>({
   };
 
   const content = (
-    <form onSubmit={submit} noValidate className="flex min-h-0 flex-1 flex-col">
+    <form
+      onSubmit={(event) => {
+        // نافذة داخل نافذة — «＋ إضافة قيمة» من قائمة في نموذج جهة — ترسم
+        // نموذجها في بوابة، وأحداث React تعبر البوابة صعودًا إلى النموذج
+        // الخارجي. بلا هذا يُرسل حفظُ القيمة الجديدة النموذجَ الخارجي معه.
+        event.stopPropagation();
+        void submit(event);
+      }}
+      noValidate
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <parts.Header>
         <parts.Title>{title}</parts.Title>
         {description ? <parts.Description>{description}</parts.Description> : null}
