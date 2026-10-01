@@ -13,15 +13,18 @@ import {
   fieldGroups,
 } from '../../db/schema/field.js'
 import { areas } from '../../db/schema/geo.js'
+import { lookupValues } from '../../db/schema/lookups.js'
 import {
   partnerConsentEvents,
   partnerContacts,
   partnerPartnerships,
+  partnerSupportForms,
   partners,
 } from '../../db/schema/partners.js'
 import { initiativeSites, initiatives } from '../../db/schema/programs.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
+import { lookupRefs, requireRef } from '../lookups/lookups.service.js'
 import type { DisplayConsentBody, UpdateSelfBody } from './portal.schemas.js'
 
 /**
@@ -49,7 +52,8 @@ export async function loadSelf(context: AuthContext) {
 
   if (!row) throw errors.notFound('الجهة غير موجودة.')
 
-  const [partnerships, contacts, acknowledgements] = await Promise.all([
+  const [partnerships, contacts, acknowledgements, supportForms, refs] =
+    await Promise.all([
     db
       .select({
         type: partnerPartnerships.type,
@@ -95,6 +99,20 @@ export async function loadSelf(context: AuthContext) {
       )
       .where(eq(charterAcknowledgements.partnerId, partnerId))
       .orderBy(desc(charterAcknowledgements.acknowledgedAt)),
+
+    db
+      .select({
+        id: lookupValues.id,
+        code: lookupValues.code,
+        nameAr: lookupValues.nameAr,
+        isActive: lookupValues.isActive,
+      })
+      .from(partnerSupportForms)
+      .innerJoin(lookupValues, eq(partnerSupportForms.valueId, lookupValues.id))
+      .where(eq(partnerSupportForms.partnerId, partnerId))
+      .orderBy(lookupValues.displayOrder),
+
+    lookupRefs([row.organizationKindId]),
   ])
 
   return {
@@ -102,13 +120,13 @@ export async function loadSelf(context: AuthContext) {
     displayNameAr: row.displayNameAr,
     legalNameAr: row.legalNameAr,
     nameEn: row.nameEn,
-    organizationKind: row.organizationKind,
+    organizationKind: requireRef(refs, row.organizationKindId),
     stage: row.stage,
     isSuspended: row.suspendedAt !== null,
     suspensionReasonAr: row.suspensionReasonAr,
     websiteUrl: row.websiteUrl,
     summaryAr: row.summaryAr,
-    supportForms: row.supportForms,
+    supportForms,
     publicNameConsent: row.publicNameConsent,
     publicLogoConsent: row.publicLogoConsent,
     activatedAt: row.activatedAt?.toISOString() ?? null,

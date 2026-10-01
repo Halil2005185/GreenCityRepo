@@ -2,6 +2,7 @@ import { env } from '../../config/env.js'
 import { bearerAuth, problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
 import { areaLevelEnum } from '../geo/geo.schemas.js'
+import { optionalLookupRefSchema } from '../lookups/lookup-ref.schema.js'
 import { metricAggregationEnum } from '../metrics/metrics.schemas.js'
 import { targetRollupEnum } from '../programs/programs.schemas.js'
 import {
@@ -228,9 +229,7 @@ export const initiativeDetailSchema = registry.register(
     storyAr: z.string().nullable().openapi({
       description: 'نص التفاصيل الطويل لصفحة المبادرة.',
     }),
-    contributorKind: z
-      .enum(['INDIVIDUAL','COMPANY','INSTITUTION','SCHOOL','VOLUNTEER_TEAM','OTHER'])
-      .nullable(),
+    contributorKind: optionalLookupRefSchema,
     internalNotesAr: z.string().nullable().openapi({
       description:
         'لا يظهر إلا لمن يملك `initiatives.notes.view`؛ غيره يراه null.',

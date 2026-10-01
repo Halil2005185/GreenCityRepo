@@ -91,7 +91,7 @@ export const CAPABILITY_CATALOG = [
   },
   {
     key: 'relations.taxonomy.manage',
-    nameAr: 'إدارة مرجعيات العلاقات — وسائل الإعلام وأنواع العلاقة',
+    nameAr: 'إدارة تعريفات العلاقات — أشكال العمل الإعلامي وأنواع العلاقة والأولوية',
     group: 'media',
     scope: 'STAFF',
   },
@@ -173,6 +173,9 @@ export const CAPABILITY_CATALOG = [
   { key: 'reports.view', nameAr: 'عرض التقارير', group: 'reports', scope: 'STAFF' },
   { key: 'reports.manage', nameAr: 'إنشاء التقارير ونشرها', group: 'reports', scope: 'STAFF' },
   { key: 'audit.view', nameAr: 'الاطلاع على سجل التدقيق', group: 'system', scope: 'STAFF', tier: 'ADMIN' },
+  // قيم كل تعريف يحرّرها أيضًا من يعدّل سجلاته (`lookups.registry.ts`)؛ هذه
+  // لمن يدير التعريفات كلها من «الإعدادات».
+  { key: 'lookups.manage', nameAr: 'إدارة تعريفات النظام وقيمها', group: 'system', scope: 'STAFF' },
 
   // ── بوابة الشريك ─────────────────────────────────────────────────────
   { key: 'partner.profile.manage', nameAr: 'تحديث ملف الجهة وبيانات الاتصال', group: 'partnerPortal', scope: 'PARTNER' },

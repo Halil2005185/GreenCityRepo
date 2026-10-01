@@ -17,8 +17,8 @@ import {
   mediaContactStage,
 } from './enums.js'
 import { users } from './identity.js'
+import { lookupValues } from './lookups.js'
 import { partners } from './partners.js'
-import { mediaChannels, relationshipTypes } from './relations.js'
 
 /**
  * صانع المحتوى أو الإعلامي — سجل أشخاص مستقل عن سجل الشركاء.
@@ -58,11 +58,19 @@ export const mediaContacts = pgTable(
     }),
 
     stage: mediaContactStage('stage').default('NEW').notNull(),
-    priority: contactPriority('priority').default('MEDIUM').notNull(),
-    horizon: engagementHorizon('horizon'),
+    /**
+     * محاور التصنيف نفسها التي على `partners`، من التعريفات نفسها:
+     * `CONTACT_PRIORITY` و`ENGAGEMENT_HORIZON` و`RELATIONSHIP_TYPE`.
+     */
+    priorityId: uuidColumn('priority_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
+    horizonId: uuidColumn('horizon_id').references(() => lookupValues.id, {
+      onDelete: 'restrict',
+    }),
     relationshipTypeId: uuidColumn('relationship_type_id').references(
-      () => relationshipTypes.id,
-      { onDelete: 'set null' },
+      () => lookupValues.id,
+      { onDelete: 'restrict' },
     ),
 
     /** مسؤول العلاقة من المكتب — من يُسأل عن هذا الشخص. */
@@ -84,11 +92,16 @@ export const mediaContacts = pgTable(
     /** لا يخرج من الـAPI إلا لمن يملك `media.notes.view`. */
     internalNotesAr: text('internal_notes_ar'),
 
+    /** لقطة ما قبل «تعريفات النظام» — راجع `partners.legacyOrganizationKind`. */
+    legacyPriority: contactPriority('priority'),
+    legacyHorizon: engagementHorizon('horizon'),
+
     ...timestamps,
   },
   (table) => [
     index('media_contacts_stage_idx').on(table.stage),
-    index('media_contacts_priority_idx').on(table.priority),
+    index('media_contacts_priority_idx').on(table.priorityId),
+    index('media_contacts_relationship_type_idx').on(table.relationshipTypeId),
     index('media_contacts_manager_idx').on(table.accountManagerId),
     index('media_contacts_partner_idx').on(table.partnerId),
     index('media_contacts_last_contact_idx').on(table.lastContactAt),
@@ -116,7 +129,7 @@ export const mediaContacts = pgTable(
 )
 
 /**
- * أشكال العمل الإعلامي لهذا الشخص — متعدد لا مفرد.
+ * أشكال العمل الإعلامي لهذا الشخص — متعدد لا مفرد، من تعريف `MEDIA_CHANNEL`.
  *
  * مصوّر يصنع «سؤال شارع» ويحرّر ريبورتاجات شخص واحد بشكلين، وحصره في
  * عمود واحد يجبر المكتب على اختيار أيهما «الأصح» — وهو سؤال بلا جواب.
@@ -129,7 +142,7 @@ export const mediaContactChannels = pgTable(
       .references(() => mediaContacts.id, { onDelete: 'cascade' }),
     channelId: uuidColumn('channel_id')
       .notNull()
-      .references(() => mediaChannels.id, { onDelete: 'restrict' }),
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
   },
   (table) => [
     primaryKey({ columns: [table.contactId, table.channelId] }),
@@ -153,7 +166,12 @@ export const mediaContactInteractions = pgTable(
       .notNull()
       .references(() => mediaContacts.id, { onDelete: 'cascade' }),
 
-    kind: interactionKind('kind').notNull(),
+    /** من تعريف `INTERACTION_KIND`، كما في `partner_interactions`. */
+    kindId: uuidColumn('kind_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
+    /** لقطة ما قبل «تعريفات النظام» — راجع `partners.legacyOrganizationKind`. */
+    legacyKind: interactionKind('kind'),
     occurredAt: tsColumn('occurred_at').notNull(),
     summaryAr: varchar('summary_ar', { length: 300 }).notNull(),
     bodyAr: text('body_ar'),
@@ -172,6 +190,7 @@ export const mediaContactInteractions = pgTable(
       table.contactId,
       table.occurredAt,
     ),
+    index('media_contact_interactions_kind_idx').on(table.kindId),
     // فهرس جزئي على المستحق وحده: قائمة المتابعات تسأل عن الصفوف المفتوحة
     // فقط، وهي أقلية دائمة مهما نما الأرشيف.
     index('media_contact_interactions_open_idx')

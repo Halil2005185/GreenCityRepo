@@ -11,6 +11,7 @@ import {
 import { createdAtOnly, timestamps, tsColumn, uuidColumn } from './columns.js'
 import { acknowledgementMethod } from './enums.js'
 import { users } from './identity.js'
+import { lookupValues } from './lookups.js'
 import { partnerContacts, partners } from './partners.js'
 
 /**
@@ -83,7 +84,12 @@ export const charterAcknowledgements = pgTable(
       .references(() => charterVersions.id, { onDelete: 'restrict' }),
 
     acknowledgedAt: tsColumn('acknowledged_at').notNull(),
-    method: acknowledgementMethod('method').notNull(),
+    /** كيف وصل الإقرار، من تعريف `ACKNOWLEDGEMENT_METHOD`. */
+    methodId: uuidColumn('method_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
+    /** لقطة ما قبل «تعريفات النظام» — راجع `partners.legacyOrganizationKind`. */
+    legacyMethod: acknowledgementMethod('method'),
 
     acknowledgedByContactId: uuidColumn(
       'acknowledged_by_contact_id',
@@ -106,6 +112,7 @@ export const charterAcknowledgements = pgTable(
       table.acknowledgedAt,
     ),
     index('charter_acknowledgements_version_idx').on(table.charterVersionId),
+    index('charter_acknowledgements_method_idx').on(table.methodId),
   ],
 )
 

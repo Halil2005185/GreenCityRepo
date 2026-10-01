@@ -3,11 +3,16 @@ import { fileURLToPath } from 'node:url'
 
 import { and, eq, inArray, isNull } from 'drizzle-orm'
 
+import {
+  LOOKUP_CODES,
+  isLockedValue,
+  lookupDefinition,
+} from '../modules/lookups/lookups.registry.js'
 import { db } from './client.js'
 import { areas } from './schema/geo.js'
+import { lookupLists, lookupValues } from './schema/lookups.js'
 import { metrics } from './schema/metrics.js'
 import { programs } from './schema/programs.js'
-import { mediaChannels, relationshipTypes } from './schema/relations.js'
 import { workTemplates } from './schema/work.js'
 import {
   GOVERNORATE_SEEDS,
@@ -15,11 +20,6 @@ import {
   PROGRAM_SEEDS,
   TREE_PLANTING_TEMPLATE,
 } from './seed-operational.js'
-import {
-  type CatalogSeed,
-  MEDIA_CHANNEL_SEEDS,
-  RELATIONSHIP_TYPE_SEEDS,
-} from './seed-relations.js'
 
 /**
  * بذر البيانات المرجعية للتشغيل. يُشغَّل بعد الترحيل في كل نشر، فالقاعدة
@@ -27,18 +27,14 @@ import {
  *
  * - ما لا تحرّره اللوحة — حدود المحافظات من ملف البيانات — يملكه الكود،
  *   فيُحدَّث عند التعارض وتصل أي تصحيحات إلى الإنتاج بالدمج وحده.
- * - ما تحرّره اللوحة — البرامج والمؤشرات ومرجعيات العلاقات — تملكه القاعدة
+ * - ما تحرّره اللوحة — البرامج والمؤشرات وتعريفات النظام — تملكه القاعدة
  *   بعد إنشائه، فيُدرج الناقص منه ولا يُمَس الموجود. التحديث عند التعارض
  *   كان سيمحو في كل نشر ما عدّله الفريق من اسم أو ترتيب، بصمت.
  *
  * تصحيح اسم مرجعي موجود مكانه اللوحة لا هذا الملف.
  */
 
-type OwnedByDatabase =
-  | typeof programs
-  | typeof metrics
-  | typeof mediaChannels
-  | typeof relationshipTypes
+type OwnedByDatabase = typeof programs | typeof metrics
 
 /**
  * معرّفات الصفوف بالـslug بعد إدراج الناقص.
@@ -231,37 +227,82 @@ export async function seedTreePlantingTemplates(programId: string, officeIds: Ma
 }
 
 /**
- * مرجعيات العلاقات — الجدولان متطابقا الشكل، فدالة واحدة تخدمهما.
+ * تعريفات النظام. التعريف الناقص يُنشأ مع قيم بدايته في معاملة واحدة، وقيم
+ * التعريف القائم لا تُمسّ: قيمة حذفها الفريق أو أعاد تسميتها تبقى كما
+ * تركها، ولا تعود في النشر التالي.
  *
- * يحرّرهما مكتب العلاقات من شاشة المرجعيات، فتُدرج المفردة الناقصة ولا
- * يُمَس الموجود: لا اسم أعاد المكتب صياغته، ولا مفردة عطّلها قصدًا.
+ * الاستثناء القيم المقفلة: الكود يكتبها برمزها، فإن أضاف إصدارٌ قيمة مقفلة
+ * جديدة إلى تعريف قائم أُدرجت هنا — غيابها يُسقط الإدراج الذي يعتمد عليها.
  */
-async function seedCatalog(
-  table: typeof mediaChannels | typeof relationshipTypes,
-  seeds: readonly CatalogSeed[],
-) {
-  await db
-    .insert(table)
-    .values(
-      seeds.map((seed) => ({
-        slug: seed.slug,
-        nameAr: seed.nameAr,
-        nameEn: seed.nameEn,
-        displayOrder: seed.displayOrder,
-        ...(seed.descriptionAr ? { descriptionAr: seed.descriptionAr } : {}),
-      })),
-    )
-    .onConflictDoNothing({ target: table.slug })
+async function seedLookups() {
+  for (const code of LOOKUP_CODES) {
+    const definition = lookupDefinition(code)
 
-  return idsBySlug(table, seeds)
+    await db.transaction(async (tx) => {
+      const [created] = await tx
+        .insert(lookupLists)
+        .values({
+          code,
+          nameAr: definition.nameAr,
+          descriptionAr: definition.descriptionAr,
+        })
+        .onConflictDoNothing({ target: lookupLists.code })
+        .returning({ id: lookupLists.id })
+
+      const listId =
+        created?.id ??
+        (
+          await tx
+            .select({ id: lookupLists.id })
+            .from(lookupLists)
+            .where(eq(lookupLists.code, code))
+            .limit(1)
+        )[0]?.id
+
+      if (!listId) throw new Error(`Lookup list ${code} missing after insert.`)
+
+      const seeds = created
+        ? definition.seeds
+        : definition.seeds.filter((seed) => isLockedValue(code, seed.code))
+
+      if (seeds.length === 0) return
+
+      await tx
+        .insert(lookupValues)
+        .values(
+          seeds.map((seed) => ({
+            listId,
+            code: seed.code,
+            nameAr: seed.nameAr,
+            displayOrder: (definition.seeds.indexOf(seed) + 1) * 10,
+            ...(seed.nameEn ? { nameEn: seed.nameEn } : {}),
+            ...(seed.descriptionAr ? { descriptionAr: seed.descriptionAr } : {}),
+          })),
+        )
+        .onConflictDoNothing({
+          target: [lookupValues.listId, lookupValues.code],
+        })
+    })
+  }
+
+  const rows = await db
+    .select({
+      list: lookupLists.code,
+      code: lookupValues.code,
+      id: lookupValues.id,
+    })
+    .from(lookupValues)
+    .innerJoin(lookupLists, eq(lookupLists.id, lookupValues.listId))
+
+  return new Map(rows.map((row) => [`${row.list}.${row.code}`, row.id]))
 }
 
 export type ReferenceSeedResult = {
   areaIds: Map<string, string>
   programIds: Map<string, string>
   metricIds: Map<string, string>
-  mediaChannelIds: Map<string, string>
-  relationshipTypeIds: Map<string, string>
+  /** معرّفات القيم بمفتاح `LIST.CODE`، مثل `MEDIA_CHANNEL.PODCAST`. */
+  lookupValueIds: Map<string, string>
   templateCount: number
 }
 
@@ -271,11 +312,7 @@ export async function seedReferenceData(
   const areaIds = await seedGovernorates()
   const programIds = await seedPrograms()
   const metricIds = await seedMetrics()
-  const mediaChannelIds = await seedCatalog(mediaChannels, MEDIA_CHANNEL_SEEDS)
-  const relationshipTypeIds = await seedCatalog(
-    relationshipTypes,
-    RELATIONSHIP_TYPE_SEEDS,
-  )
+  const lookupValueIds = await seedLookups()
 
   const treePlantingId = programIds.get('tree-planting')
   const templateCount = treePlantingId
@@ -286,8 +323,7 @@ export async function seedReferenceData(
     areaIds,
     programIds,
     metricIds,
-    mediaChannelIds,
-    relationshipTypeIds,
+    lookupValueIds,
     templateCount,
   }
 }

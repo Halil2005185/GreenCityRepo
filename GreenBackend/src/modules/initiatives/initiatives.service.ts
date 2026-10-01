@@ -21,6 +21,7 @@ import { workItems } from '../../db/schema/work.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { loadInitiativeProgress } from '../impact/impact.service.js'
+import { lookupRefs, optionalRef } from '../lookups/lookups.service.js'
 import {
   type Executor,
   instantiateProgramTemplates,
@@ -480,7 +481,10 @@ export async function loadInitiativeDetail(
     programNameAr: head.programNameAr,
     kind: row.kind,
     contributorNameAr: row.contributorNameAr,
-    contributorKind: row.contributorKind,
+    contributorKind: optionalRef(
+      await lookupRefs([row.contributorKindId]),
+      row.contributorKindId,
+    ),
     coverImageUrl: row.coverImageUrl,
     storyAr: row.storyAr,
     slug: row.slug,

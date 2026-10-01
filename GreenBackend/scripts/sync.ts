@@ -16,10 +16,7 @@ try {
   console.info(`[sync] roles: ${result.roleIds.size}`)
   console.info(`[sync] programs: ${result.reference.programIds.size}`)
   console.info(`[sync] metrics: ${result.reference.metricIds.size}`)
-  console.info(
-    `[sync] relations: ${result.reference.mediaChannelIds.size} media channels, ` +
-      `${result.reference.relationshipTypeIds.size} relationship types`,
-  )
+  console.info(`[sync] lookup values: ${result.reference.lookupValueIds.size}`)
   console.info('[sync] done')
 } catch (error) {
   console.error('[sync] failed', error)

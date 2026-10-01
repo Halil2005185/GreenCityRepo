@@ -23,6 +23,7 @@ import {
   getHome,
   getSheet,
 } from '../helpers/field.js'
+import { lookupValueId } from '../helpers/lookups.js'
 import {
   addSite,
   createInitiative,
@@ -236,7 +237,7 @@ describe.runIf(ready)('coordinating field groups', () => {
       .send({
         nameAr: 'تشجير فناء المدرسة',
         contributorNameAr: 'مدرسة الأمل',
-        contributorKind: 'SCHOOL',
+        contributorKindId: await lookupValueId('CONTRIBUTOR_KIND', 'SCHOOL'),
         lat: 33.5,
         lng: 36.3,
       })

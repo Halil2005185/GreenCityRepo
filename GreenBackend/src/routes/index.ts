@@ -19,6 +19,7 @@ import { healthRouter } from '../modules/health/health.routes.js'
 import { impactRouter } from '../modules/impact/impact.routes.js'
 import { initiativesRouter } from '../modules/initiatives/initiatives.routes.js'
 import { invitationsRouter } from '../modules/invitations/invitations.routes.js'
+import { lookupsRouter } from '../modules/lookups/lookups.routes.js'
 import { orgRouter } from '../modules/org/org.routes.js'
 import { partnerPortalRouter } from '../modules/partner-portal/portal.routes.js'
 import { mapRouter } from '../modules/map/map.routes.js'
@@ -27,7 +28,6 @@ import { metricsRouter } from '../modules/metrics/metrics.routes.js'
 import { partnersRouter } from '../modules/partners/partners.routes.js'
 import { peopleRouter } from '../modules/people/people.routes.js'
 import { programsRouter } from '../modules/programs/programs.routes.js'
-import { relationsRouter } from '../modules/relations/relations.routes.js'
 import { uploadsRouter } from '../modules/uploads/uploads.routes.js'
 import { workRouter } from '../modules/work/work.routes.js'
 import { buildOpenApiDocument } from '../openapi/openapi.service.js'
@@ -58,7 +58,7 @@ apiRouter.use('/admin/uploads', uploadsRouter)
 apiRouter.use('/admin/areas', geoRouter)
 apiRouter.use('/admin/programs', programsRouter)
 apiRouter.use('/admin/metrics', metricsRouter)
-apiRouter.use('/admin/relations', relationsRouter)
+apiRouter.use('/admin/lookups', lookupsRouter)
 
 // التشغيل: المبادرات ومواقعها وأهدافها، والعمل، ودفتر الأثر.
 //

@@ -5,21 +5,30 @@ import { errors } from '../../common/errors/app-error.js'
 import { normalizeEmail, normalizeText } from '../../common/utils/text.js'
 import { db } from '../../db/client.js'
 import { users } from '../../db/schema/identity.js'
+import { lookupValues } from '../../db/schema/lookups.js'
 import {
   mediaContactChannels,
   mediaContactInteractions,
   mediaContacts,
 } from '../../db/schema/media.js'
 import { partners } from '../../db/schema/partners.js'
-import { mediaChannels, relationshipTypes } from '../../db/schema/relations.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
+import type { LookupRef } from '../lookups/lookup-ref.schema.js'
+import {
+  assertLookupValues,
+  lookupRefs,
+  lookupValueIdSql,
+  optionalRef,
+  requireRef,
+} from '../lookups/lookups.service.js'
 import type * as dto from './media.schemas.js'
 
 type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
 
 const accountManager = alias(users, 'media_account_manager')
 const interactionRecorder = alias(users, 'media_interaction_recorder')
+const priorityValue = alias(lookupValues, 'media_priority_value')
 
 const STAGE_LABELS = {
   NEW: 'جديد',
@@ -30,55 +39,59 @@ const STAGE_LABELS = {
   DECLINED: 'اعتذر',
 } as const
 
-const KIND_LABELS = {
-  NOTE: 'ملاحظة',
-  CALL: 'مكالمة',
-  EMAIL: 'بريد',
-  MEETING: 'اجتماع',
-  MESSAGE: 'رسالة',
-  DOCUMENT_REQUEST: 'طلب مستند',
-  STAGE_CHANGE: 'تغيير مرحلة',
-} as const
-
 /**
  * أولوية عالية أولًا ثم الأقدم تواصلًا.
  *
  * الترتيب هو المنتج نفسه لا تفصيلًا: الشاشة تجيب على «من أكلّم اليوم؟»،
  * فالفرز بتاريخ الإنشاء كان سيدفن من أهملناه شهرًا تحت من أضفناه أمس.
  * `nulls first` مقصود: من لم يُسجَّل له تواصل قط هو الأولى بالمكالمة.
+ *
+ * الأهمية هي ترتيب القيم في تعريف `CONTACT_PRIORITY`، لا رموز مكتوبة هنا:
+ * أولوية «حرجة» يضيفها المكتب فوق «عالية» تتقدّم في الفرز بلا تعديل كود.
  */
 const listOrdering = [
-  sql`case ${mediaContacts.priority}
-        when 'HIGH' then 0 when 'MEDIUM' then 1 else 2 end`,
+  asc(priorityValue.displayOrder),
   sql`${mediaContacts.lastContactAt} asc nulls first`,
 ]
 
-/** الأشكال والمتابعات المفتوحة في استعلامين، كما في سجل الشركاء. */
-async function decorate(rows: { id: string }[]) {
+/**
+ * الأشكال والمتابعات المفتوحة في استعلامين، كما في سجل الشركاء، ومراجع
+ * القيم المفردة (الأولوية والأفق ونوع العلاقة) في ثالث.
+ */
+async function decorate(
+  rows: {
+    id: string
+    priorityId: string
+    horizonId: string | null
+    relationshipTypeId: string | null
+  }[],
+) {
   if (rows.length === 0) {
     return {
-      channels: new Map<string, { id: string; nameAr: string }[]>(),
+      channels: new Map<string, LookupRef[]>(),
       openFollowUps: new Map<string, number>(),
+      refs: new Map<string, LookupRef>(),
     }
   }
 
   const ids = rows.map((row) => row.id)
 
-  const [channelRows, followUpRows] = await Promise.all([
+  const [channelRows, followUpRows, refs] = await Promise.all([
     db
       .select({
         contactId: mediaContactChannels.contactId,
-        id: mediaChannels.id,
-        nameAr: mediaChannels.nameAr,
-        displayOrder: mediaChannels.displayOrder,
+        id: lookupValues.id,
+        code: lookupValues.code,
+        nameAr: lookupValues.nameAr,
+        isActive: lookupValues.isActive,
       })
       .from(mediaContactChannels)
       .innerJoin(
-        mediaChannels,
-        eq(mediaContactChannels.channelId, mediaChannels.id),
+        lookupValues,
+        eq(mediaContactChannels.channelId, lookupValues.id),
       )
       .where(inArray(mediaContactChannels.contactId, ids))
-      .orderBy(asc(mediaChannels.displayOrder)),
+      .orderBy(asc(lookupValues.displayOrder)),
 
     db
       .select({
@@ -94,15 +107,19 @@ async function decorate(rows: { id: string }[]) {
         ),
       )
       .groupBy(mediaContactInteractions.contactId),
+
+    lookupRefs(
+      rows.flatMap((row) => [row.priorityId, row.horizonId, row.relationshipTypeId]),
+    ),
   ])
 
-  const channels = new Map<string, { id: string; nameAr: string }[]>()
+  const channels = new Map<string, LookupRef[]>()
 
-  for (const row of channelRows) {
-    const list = channels.get(row.contactId) ?? []
+  for (const { contactId, ...ref } of channelRows) {
+    const list = channels.get(contactId) ?? []
 
-    list.push({ id: row.id, nameAr: row.nameAr })
-    channels.set(row.contactId, list)
+    list.push(ref)
+    channels.set(contactId, list)
   }
 
   return {
@@ -110,6 +127,7 @@ async function decorate(rows: { id: string }[]) {
     openFollowUps: new Map(
       followUpRows.map((row) => [row.contactId, row.count]),
     ),
+    refs,
   }
 }
 
@@ -118,8 +136,10 @@ async function decorate(rows: { id: string }[]) {
 export async function listContacts(filters: dto.ListContactsQuery) {
   const conditions = [
     filters.stage ? eq(mediaContacts.stage, filters.stage) : undefined,
-    filters.priority ? eq(mediaContacts.priority, filters.priority) : undefined,
-    filters.horizon ? eq(mediaContacts.horizon, filters.horizon) : undefined,
+    filters.priorityId
+      ? eq(mediaContacts.priorityId, filters.priorityId)
+      : undefined,
+    filters.horizonId ? eq(mediaContacts.horizonId, filters.horizonId) : undefined,
     filters.relationshipTypeId
       ? eq(mediaContacts.relationshipTypeId, filters.relationshipTypeId)
       : undefined,
@@ -163,17 +183,13 @@ export async function listContacts(filters: dto.ListContactsQuery) {
     .select({
       contact: mediaContacts,
       accountManagerNameAr: accountManager.fullNameAr,
-      relationshipTypeNameAr: relationshipTypes.nameAr,
       partnerNameAr: partners.displayNameAr,
     })
     .from(mediaContacts)
+    .innerJoin(priorityValue, eq(mediaContacts.priorityId, priorityValue.id))
     .leftJoin(
       accountManager,
       eq(mediaContacts.accountManagerId, accountManager.id),
-    )
-    .leftJoin(
-      relationshipTypes,
-      eq(mediaContacts.relationshipTypeId, relationshipTypes.id),
     )
     .leftJoin(partners, eq(mediaContacts.partnerId, partners.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
@@ -192,9 +208,9 @@ export async function listContacts(filters: dto.ListContactsQuery) {
     email: row.contact.email,
     phone: row.contact.phone,
     stage: row.contact.stage,
-    priority: row.contact.priority,
-    horizon: row.contact.horizon,
-    relationshipTypeNameAr: row.relationshipTypeNameAr,
+    priority: requireRef(extra.refs, row.contact.priorityId),
+    horizon: optionalRef(extra.refs, row.contact.horizonId),
+    relationshipType: optionalRef(extra.refs, row.contact.relationshipTypeId),
     channels: extra.channels.get(row.contact.id) ?? [],
     accountManagerNameAr: row.accountManagerNameAr,
     lastContactAt: row.contact.lastContactAt?.toISOString() ?? null,
@@ -211,17 +227,12 @@ export async function loadContactDetail(
     .select({
       contact: mediaContacts,
       accountManagerNameAr: accountManager.fullNameAr,
-      relationshipTypeNameAr: relationshipTypes.nameAr,
       partnerNameAr: partners.displayNameAr,
     })
     .from(mediaContacts)
     .leftJoin(
       accountManager,
       eq(mediaContacts.accountManagerId, accountManager.id),
-    )
-    .leftJoin(
-      relationshipTypes,
-      eq(mediaContacts.relationshipTypeId, relationshipTypes.id),
     )
     .leftJoin(partners, eq(mediaContacts.partnerId, partners.id))
     .where(eq(mediaContacts.id, contactId))
@@ -246,6 +257,7 @@ export async function loadContactDetail(
     .limit(100)
 
   const extra = await decorate([row])
+  const kinds = await lookupRefs(interactions.map((item) => item.row.kindId))
   const now = Date.now()
 
   /** أرقام الهواتف والملاحظات معًا صورة كاملة عن شخص؛ الملاحظة وحدها محجوبة. */
@@ -263,10 +275,9 @@ export async function loadContactDetail(
     phone: row.phone,
     profileUrl: row.profileUrl,
     stage: row.stage,
-    priority: row.priority,
-    horizon: row.horizon,
-    relationshipTypeId: row.relationshipTypeId,
-    relationshipTypeNameAr: found.relationshipTypeNameAr,
+    priority: requireRef(extra.refs, row.priorityId),
+    horizon: optionalRef(extra.refs, row.horizonId),
+    relationshipType: optionalRef(extra.refs, row.relationshipTypeId),
     channels: extra.channels.get(row.id) ?? [],
     accountManagerId: row.accountManagerId,
     accountManagerNameAr: found.accountManagerNameAr,
@@ -277,7 +288,7 @@ export async function loadContactDetail(
 
     interactions: interactions.map((item) => ({
       id: item.row.id,
-      kind: item.row.kind,
+      kind: requireRef(kinds, item.row.kindId),
       occurredAt: item.row.occurredAt.toISOString(),
       summaryAr: item.row.summaryAr,
       bodyAr: item.row.bodyAr,
@@ -301,8 +312,8 @@ export async function listFollowUps(
       id: mediaContactInteractions.id,
       contactId: mediaContacts.id,
       contactNameAr: mediaContacts.fullNameAr,
-      priority: mediaContacts.priority,
-      kind: mediaContactInteractions.kind,
+      priorityId: mediaContacts.priorityId,
+      kindId: mediaContactInteractions.kindId,
       summaryAr: mediaContactInteractions.summaryAr,
       dueAt: mediaContactInteractions.dueAt,
       recordedByNameAr: interactionRecorder.fullNameAr,
@@ -331,13 +342,14 @@ export async function listFollowUps(
     .limit(200)
 
   const now = Date.now()
+  const refs = await lookupRefs(rows.flatMap((row) => [row.priorityId, row.kindId]))
 
   return rows.map((row) => ({
     id: row.id,
     contactId: row.contactId,
     contactNameAr: row.contactNameAr,
-    priority: row.priority,
-    kind: row.kind,
+    priority: requireRef(refs, row.priorityId),
+    kind: requireRef(refs, row.kindId),
     summaryAr: row.summaryAr,
     dueAt: row.dueAt!.toISOString(),
     isOverdue: row.dueAt!.getTime() < now,
@@ -379,22 +391,6 @@ async function assertEmailFree(
   }
 }
 
-/** يمنع ربط الشخص بمفردة معطّلة أو محذوفة قبل أن يرفضها المفتاح الأجنبي. */
-async function assertChannelsExist(channelIds: string[], tx: Executor = db) {
-  if (channelIds.length === 0) return
-
-  const rows = await tx
-    .select({ id: mediaChannels.id })
-    .from(mediaChannels)
-    .where(
-      and(inArray(mediaChannels.id, channelIds), eq(mediaChannels.isActive, true)),
-    )
-
-  if (rows.length !== new Set(channelIds).size) {
-    throw errors.unprocessable('أحد أشكال العمل الإعلامي غير موجود أو معطّل.')
-  }
-}
-
 async function replaceChannels(
   tx: Executor,
   contactId: string,
@@ -413,6 +409,7 @@ async function replaceChannels(
     )
 }
 
+/** نقل المرحلة يترك أثره بنوع `STAGE_CHANGE` — قيمة نظام مقفلة. */
 async function logSystemInteraction(
   tx: Executor,
   input: {
@@ -424,7 +421,7 @@ async function logSystemInteraction(
 ) {
   await tx.insert(mediaContactInteractions).values({
     contactId: input.contactId,
-    kind: 'STAGE_CHANGE',
+    kindId: lookupValueIdSql('INTERACTION_KIND', 'STAGE_CHANGE'),
     occurredAt: new Date(),
     summaryAr: input.summaryAr,
     recordedById: input.actorId,
@@ -442,7 +439,16 @@ export async function createContact(
 
   if (email) await assertEmailFree(email, null)
 
-  await assertChannelsExist(input.channelIds)
+  await assertLookupValues([
+    { list: 'CONTACT_PRIORITY', field: 'priorityId', ids: [input.priorityId] },
+    { list: 'ENGAGEMENT_HORIZON', field: 'horizonId', ids: [input.horizonId] },
+    {
+      list: 'RELATIONSHIP_TYPE',
+      field: 'relationshipTypeId',
+      ids: [input.relationshipTypeId],
+    },
+    { list: 'MEDIA_CHANNEL', field: 'channelIds', ids: input.channelIds },
+  ])
 
   const contactId = await db.transaction(async (tx) => {
     const [created] = await tx
@@ -450,7 +456,8 @@ export async function createContact(
       .values({
         fullNameAr,
         stage: input.stage,
-        priority: input.priority,
+        priorityId:
+          input.priorityId ?? lookupValueIdSql('CONTACT_PRIORITY', 'MEDIUM'),
         ...(email ? { email } : {}),
         ...(input.nameEn ? { nameEn: normalizeText(input.nameEn) } : {}),
         ...(input.jobTitleAr ? { jobTitleAr: normalizeText(input.jobTitleAr) } : {}),
@@ -460,7 +467,7 @@ export async function createContact(
           ? { outletNameAr: normalizeText(input.outletNameAr) }
           : {}),
         ...(input.partnerId ? { partnerId: input.partnerId } : {}),
-        ...(input.horizon ? { horizon: input.horizon } : {}),
+        ...(input.horizonId ? { horizonId: input.horizonId } : {}),
         ...(input.relationshipTypeId
           ? { relationshipTypeId: input.relationshipTypeId }
           : {}),
@@ -522,7 +529,37 @@ export async function updateContact(
 
   if (email) await assertEmailFree(email, contactId)
 
-  if (input.channelIds) await assertChannelsExist(input.channelIds)
+  const currentChannels = await db
+    .select({ id: mediaContactChannels.channelId })
+    .from(mediaContactChannels)
+    .where(eq(mediaContactChannels.contactId, contactId))
+
+  await assertLookupValues([
+    {
+      list: 'CONTACT_PRIORITY',
+      field: 'priorityId',
+      ids: [input.priorityId],
+      current: [current.priorityId],
+    },
+    {
+      list: 'ENGAGEMENT_HORIZON',
+      field: 'horizonId',
+      ids: [input.horizonId],
+      current: [current.horizonId],
+    },
+    {
+      list: 'RELATIONSHIP_TYPE',
+      field: 'relationshipTypeId',
+      ids: [input.relationshipTypeId],
+      current: [current.relationshipTypeId],
+    },
+    {
+      list: 'MEDIA_CHANNEL',
+      field: 'channelIds',
+      ids: input.channelIds ?? [],
+      current: currentChannels.map((row) => row.id),
+    },
+  ])
 
   const changes = {
     ...(input.fullNameAr ? { fullNameAr: normalizeText(input.fullNameAr) } : {}),
@@ -539,8 +576,8 @@ export async function updateContact(
       ? { outletNameAr: input.outletNameAr || null }
       : {}),
     ...(input.partnerId !== undefined ? { partnerId: input.partnerId } : {}),
-    ...(input.priority ? { priority: input.priority } : {}),
-    ...(input.horizon !== undefined ? { horizon: input.horizon } : {}),
+    ...(input.priorityId ? { priorityId: input.priorityId } : {}),
+    ...(input.horizonId !== undefined ? { horizonId: input.horizonId } : {}),
     ...(input.relationshipTypeId !== undefined
       ? { relationshipTypeId: input.relationshipTypeId }
       : {}),
@@ -664,11 +701,15 @@ export async function recordInteraction(
 ) {
   const current = await requireContact(contactId)
   const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
+  const kinds = await assertLookupValues([
+    { list: 'INTERACTION_KIND', field: 'kindId', ids: [input.kindId] },
+  ])
+  const kind = requireRef(kinds, input.kindId)
 
   await db.transaction(async (tx) => {
     await tx.insert(mediaContactInteractions).values({
       contactId,
-      kind: input.kind,
+      kindId: input.kindId,
       occurredAt,
       summaryAr: normalizeText(input.summaryAr),
       recordedById: actor.userId,
@@ -696,7 +737,8 @@ export async function recordInteraction(
         entityType: 'media_contact',
         entityId: contactId,
         entityLabel: current.fullNameAr,
-        summaryAr: `تسجيل ${KIND_LABELS[input.kind]}`,
+        summaryAr: `تسجيل ${kind.nameAr}`,
+        metadata: { kind: kind.code },
         ...trace,
       },
       tx,

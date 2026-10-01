@@ -1,21 +1,13 @@
 import { env } from '../../config/env.js'
 import { bearerAuth, problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
+import {
+  lookupRefSchema,
+  optionalLookupRefSchema,
+} from '../lookups/lookup-ref.schema.js'
 
 const security = [{ [bearerAuth.name]: [] }]
 const path = (suffix: string) => `${env.API_PREFIX}/admin/partners${suffix}`
-
-export const organizationKindEnum = z.enum([
-  'COMPANY',
-  'NGO',
-  'GOVERNMENT',
-  'ACADEMIC',
-  'VOLUNTEER_TEAM',
-  'COMMUNITY_INITIATIVE',
-  'DONOR',
-  'INDIVIDUAL',
-  'OTHER',
-])
 
 export const partnerStageEnum = z.enum([
   'NEW',
@@ -37,25 +29,6 @@ export const partnershipTypeEnum = z.enum([
   'EVENT',
 ])
 
-export const supportFormEnum = z.enum([
-  'MORAL_MEDIA',
-  'COMMUNITY_VOLUNTEERING',
-  'SPONSORSHIP_LOGISTICS',
-  'TECHNICAL_ACADEMIC_EXPERTISE',
-  'ENVIRONMENTAL_AWARENESS',
-  'INTERNAL_SUSTAINABILITY',
-  'SPACES_AND_RESOURCES',
-])
-
-/** محاور تصنيف العلاقة — القيم نفسها المستعملة في الشبكة الإعلامية. */
-export const contactPriorityEnum = z.enum(['HIGH', 'MEDIUM', 'LOW'])
-
-export const engagementHorizonEnum = z.enum([
-  'LONG_TERM',
-  'SHORT_TERM',
-  'ONE_OFF',
-])
-
 // ── التمثيلات ──────────────────────────────────────────────────────────
 
 export const partnerSummarySchema = registry.register(
@@ -64,7 +37,7 @@ export const partnerSummarySchema = registry.register(
     id: z.uuid(),
     displayNameAr: z.string(),
     legalNameAr: z.string(),
-    organizationKind: organizationKindEnum,
+    organizationKind: lookupRefSchema,
     stage: partnerStageEnum,
     isSuspended: z.boolean(),
     partnershipTypes: z.array(partnershipTypeEnum),
@@ -72,10 +45,11 @@ export const partnerSummarySchema = registry.register(
     primaryContactNameAr: z.string().nullable(),
     publicNameConsent: z.boolean(),
     publicLogoConsent: z.boolean(),
-    contactPriority: contactPriorityEnum,
-    engagementHorizon: engagementHorizonEnum.nullable(),
-    relationshipTypeNameAr: z.string().nullable(),
-    mediaChannels: z.array(z.object({ id: z.uuid(), nameAr: z.string() })),
+    // محاور تصنيف العلاقة — من التعريفات نفسها التي على الإعلاميين.
+    contactPriority: lookupRefSchema,
+    engagementHorizon: optionalLookupRefSchema,
+    relationshipType: optionalLookupRefSchema,
+    mediaChannels: z.array(lookupRefSchema),
     lastContactAt: z.iso.datetime().nullable(),
     activatedAt: z.iso.datetime().nullable(),
     createdAt: z.iso.datetime(),
@@ -130,7 +104,7 @@ export const acknowledgementSchema = registry.register(
     charterVersionId: z.uuid(),
     charterVersion: z.string(),
     acknowledgedAt: z.iso.datetime(),
-    method: z.enum(['IN_PERSON', 'EMAIL', 'PORTAL', 'DOCUMENT']),
+    method: lookupRefSchema,
     acknowledgedByNameAr: z.string(),
     acknowledgedByTitleAr: z.string().nullable(),
     noteAr: z.string().nullable(),
@@ -141,15 +115,8 @@ export const interactionSchema = registry.register(
   'PartnerInteraction',
   z.object({
     id: z.uuid(),
-    kind: z.enum([
-      'NOTE',
-      'CALL',
-      'EMAIL',
-      'MEETING',
-      'MESSAGE',
-      'DOCUMENT_REQUEST',
-      'STAGE_CHANGE',
-    ]),
+    /** رمز `STAGE_CHANGE` سجلٌّ تركه نقل المرحلة، لا تواصل سجّله أحد. */
+    kind: lookupRefSchema,
     occurredAt: z.iso.datetime(),
     summaryAr: z.string(),
     bodyAr: z.string().nullable(),
@@ -186,9 +153,8 @@ export const partnerDetailSchema = registry.register(
     slug: z.string().nullable(),
     websiteUrl: z.string().nullable(),
     summaryAr: z.string().nullable(),
-    supportForms: z.array(supportFormEnum),
+    supportForms: z.array(lookupRefSchema),
     accountManagerId: z.uuid().nullable(),
-    relationshipTypeId: z.uuid().nullable(),
     /** لا يظهر إلا لمن يملك `partners.notes.view`؛ غيره يراه null. */
     internalNotesAr: z.string().nullable(),
     rejectionReasonAr: z.string().nullable(),
@@ -209,8 +175,8 @@ export const listPartnersQuerySchema = z.object({
   stage: partnerStageEnum.optional(),
   type: partnershipTypeEnum.optional(),
   q: z.string().max(120).optional(),
-  priority: contactPriorityEnum.optional(),
-  horizon: engagementHorizonEnum.optional(),
+  contactPriorityId: z.uuid().optional(),
+  engagementHorizonId: z.uuid().optional(),
   relationshipTypeId: z.uuid().optional(),
   channelId: z.uuid().optional(),
   /** من لم يُسجَّل له تواصل قط داخل في النتيجة: غيابه أشد دلالة من قِدَمه. */
@@ -241,17 +207,18 @@ export const createPartnerBodySchema = z.object({
   legalNameAr: z.string().min(2).max(200),
   displayNameAr: z.string().min(2).max(200).optional(),
   nameEn: z.string().max(200).optional(),
-  organizationKind: organizationKindEnum,
+  // القيم من تعريفات النظام بمعرّفاتها؛ الخدمة تتحقق أن كلًّا من تعريفه.
+  organizationKindId: z.uuid(),
   websiteUrl: z.url().max(500).optional(),
   summaryAr: z.string().max(2000).optional(),
-  supportForms: z.array(supportFormEnum).max(7).default([]),
+  supportFormIds: z.array(z.uuid()).max(30).default([]),
   accountManagerId: z.uuid().optional(),
   internalNotesAr: z.string().max(4000).optional(),
 
   // محاور تصنيف العلاقة — اختيارية كلها، فالجهة تُسجَّل أولًا وتُصنَّف بعد
-  // أول مكالمة لا قبلها.
-  contactPriority: contactPriorityEnum.default('MEDIUM'),
-  engagementHorizon: engagementHorizonEnum.optional(),
+  // أول مكالمة لا قبلها. الأولوية الغائبة تصير `MEDIUM`.
+  contactPriorityId: z.uuid().optional(),
+  engagementHorizonId: z.uuid().optional(),
   relationshipTypeId: z.uuid().optional(),
   mediaChannelIds: z.array(z.uuid()).max(20).default([]),
   lastContactAt: z.iso.datetime().optional(),
@@ -296,13 +263,13 @@ registry.registerPath({
 
 export const updatePartnerBodySchema = createPartnerBodySchema
   .partial()
-  .omit({ supportForms: true, mediaChannelIds: true })
+  .omit({ supportFormIds: true, mediaChannelIds: true })
   .extend({
-    supportForms: z.array(supportFormEnum).max(7).optional(),
+    supportFormIds: z.array(z.uuid()).max(30).optional(),
     mediaChannelIds: z.array(z.uuid()).max(20).optional(),
-    // `nullable` على المراجع وحدها: مسح نوع العلاقة قرار مشروع، بخلاف
+    // `nullable` على الاختيارية وحدها: مسح نوع العلاقة قرار مشروع، بخلاف
     // الأولوية التي لها دائمًا قيمة.
-    engagementHorizon: engagementHorizonEnum.nullable().optional(),
+    engagementHorizonId: z.uuid().nullable().optional(),
     relationshipTypeId: z.uuid().nullable().optional(),
     lastContactAt: z.iso.datetime().nullable().optional(),
   })
@@ -481,7 +448,7 @@ registry.registerPath({
 export const acknowledgementBodySchema = z.object({
   charterVersionId: z.uuid().optional(),
   acknowledgedAt: z.iso.datetime().optional(),
-  method: z.enum(['IN_PERSON', 'EMAIL', 'PORTAL', 'DOCUMENT']),
+  methodId: z.uuid(),
   acknowledgedByContactId: z.uuid().optional(),
   acknowledgedByNameAr: z.string().min(3).max(160),
   acknowledgedByTitleAr: z.string().max(160).optional(),
@@ -512,7 +479,9 @@ registry.registerPath({
 })
 
 export const interactionBodySchema = z.object({
-  kind: z.enum(['NOTE', 'CALL', 'EMAIL', 'MEETING', 'MESSAGE', 'DOCUMENT_REQUEST']),
+  kindId: z.uuid().openapi({
+    description: 'من `INTERACTION_KIND`. `STAGE_CHANGE` يكتبه النظام وحده فيُرفض هنا.',
+  }),
   occurredAt: z.iso.datetime().optional(),
   summaryAr: z.string().min(3).max(300),
   bodyAr: z.string().max(4000).optional(),

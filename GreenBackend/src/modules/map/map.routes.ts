@@ -19,6 +19,7 @@ import {
   programs,
 } from '../../db/schema/programs.js'
 import { recordAudit, requestTrace } from '../audit/audit.service.js'
+import { assertLookupValues } from '../lookups/lookups.service.js'
 import {
   type CreateGreenPointBody,
   type GreenPointParams,
@@ -171,6 +172,14 @@ const postGreenPoint: RequestHandler = async (request, response) => {
     throw errors.unprocessable('اختيار المؤشر يلزمه قيمة.')
   }
 
+  await assertLookupValues([
+    {
+      list: 'CONTRIBUTOR_KIND',
+      field: 'contributorKindId',
+      ids: [body.contributorKindId],
+    },
+  ])
+
   const occurredAt = body.occurredAt ? new Date(body.occurredAt) : new Date()
 
   const siteId = await db.transaction(async (tx) => {
@@ -186,7 +195,9 @@ const postGreenPoint: RequestHandler = async (request, response) => {
         targetRollup: 'NONE',
         completedAt: occurredAt,
         startsAt: occurredAt,
-        ...(body.contributorKind ? { contributorKind: body.contributorKind } : {}),
+        ...(body.contributorKindId
+          ? { contributorKindId: body.contributorKindId }
+          : {}),
         ...(body.storyAr ? { storyAr: body.storyAr } : {}),
         ...(body.coverImageUrl ? { coverImageUrl: body.coverImageUrl } : {}),
       })

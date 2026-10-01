@@ -1,5 +1,5 @@
 import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm'
-import { alias } from 'drizzle-orm/pg-core'
+import { type AnyPgColumn, type PgTable, alias } from 'drizzle-orm/pg-core'
 
 import { errors } from '../../common/errors/app-error.js'
 import { normalizeEmail, normalizeText } from '../../common/utils/text.js'
@@ -9,18 +9,27 @@ import {
   charterVersions,
 } from '../../db/schema/charter.js'
 import { users } from '../../db/schema/identity.js'
+import { lookupValues } from '../../db/schema/lookups.js'
 import {
   partnerConsentEvents,
   partnerContacts,
   partnerInteractions,
   partnerMediaChannels,
   partnerPartnerships,
+  partnerSupportForms,
   partners,
 } from '../../db/schema/partners.js'
-import { mediaChannels, relationshipTypes } from '../../db/schema/relations.js'
 import type { AuthContext } from '../access/access.service.js'
 import { type RequestTrace, recordAudit } from '../audit/audit.service.js'
 import { findCurrentVersion } from '../charter/charter.service.js'
+import type { LookupRef } from '../lookups/lookup-ref.schema.js'
+import {
+  assertLookupValues,
+  lookupRefs,
+  lookupValueIdSql,
+  optionalRef,
+  requireRef,
+} from '../lookups/lookups.service.js'
 import type * as dto from './partners.schemas.js'
 
 type Executor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]
@@ -29,50 +38,56 @@ const accountManager = alias(users, 'account_manager')
 const partnershipApprover = alias(users, 'partnership_approver')
 const interactionRecorder = alias(users, 'interaction_recorder')
 
-/** أشكال العمل الإعلامي لمجموعة جهات، بالشكل الذي تعرضه القائمة والتفصيل. */
-async function mediaChannelsFor(partnerIds: string[], tx: Executor = db) {
-  const grouped = new Map<string, { id: string; nameAr: string }[]>()
+/** جدول ربط بين الجهة وقيم تعريف متعدد الاختيار. */
+type ValueLink = { table: PgTable; partner: AnyPgColumn; value: AnyPgColumn }
+
+const MEDIA_CHANNEL_LINK: ValueLink = {
+  table: partnerMediaChannels,
+  partner: partnerMediaChannels.partnerId,
+  value: partnerMediaChannels.channelId,
+}
+
+const SUPPORT_FORM_LINK: ValueLink = {
+  table: partnerSupportForms,
+  partner: partnerSupportForms.partnerId,
+  value: partnerSupportForms.valueId,
+}
+
+/**
+ * القيم المتعددة لمجموعة جهات — أشكال العمل الإعلامي وأشكال الدعم — بترتيب
+ * التعريف لا بترتيب الإدخال، فتظهر بالترتيب نفسه على كل جهة.
+ */
+async function linkedValuesFor(
+  link: ValueLink,
+  partnerIds: string[],
+  tx: Executor = db,
+) {
+  const grouped = new Map<string, LookupRef[]>()
 
   if (partnerIds.length === 0) return grouped
 
   const rows = await tx
     .select({
-      partnerId: partnerMediaChannels.partnerId,
-      id: mediaChannels.id,
-      nameAr: mediaChannels.nameAr,
+      partnerId: link.partner,
+      id: lookupValues.id,
+      code: lookupValues.code,
+      nameAr: lookupValues.nameAr,
+      isActive: lookupValues.isActive,
     })
-    .from(partnerMediaChannels)
-    .innerJoin(
-      mediaChannels,
-      eq(partnerMediaChannels.channelId, mediaChannels.id),
-    )
-    .where(inArray(partnerMediaChannels.partnerId, partnerIds))
-    .orderBy(asc(mediaChannels.displayOrder))
+    .from(link.table)
+    .innerJoin(lookupValues, eq(link.value, lookupValues.id))
+    .where(inArray(link.partner, partnerIds))
+    .orderBy(asc(lookupValues.displayOrder))
 
-  for (const row of rows) {
-    const list = grouped.get(row.partnerId) ?? []
+  for (const { partnerId, ...ref } of rows) {
+    const key = partnerId as string
+    const list = grouped.get(key) ?? []
 
-    list.push({ id: row.id, nameAr: row.nameAr })
-    grouped.set(row.partnerId, list)
+    list.push(ref)
+    grouped.set(key, list)
   }
 
   return grouped
-}
-
-/** يمنع ربط الجهة بشكل معطّل قبل أن يرفضه المفتاح الأجنبي بلا رسالة مفهومة. */
-async function assertChannelsExist(channelIds: string[], tx: Executor = db) {
-  if (channelIds.length === 0) return
-
-  const rows = await tx
-    .select({ id: mediaChannels.id })
-    .from(mediaChannels)
-    .where(
-      and(inArray(mediaChannels.id, channelIds), eq(mediaChannels.isActive, true)),
-    )
-
-  if (rows.length !== new Set(channelIds).size) {
-    throw errors.unprocessable('أحد أشكال العمل الإعلامي غير موجود أو معطّل.')
-  }
 }
 
 async function replaceMediaChannels(
@@ -91,6 +106,22 @@ async function replaceMediaChannels(
     .values(
       [...new Set(channelIds)].map((channelId) => ({ partnerId, channelId })),
     )
+}
+
+async function replaceSupportForms(
+  tx: Executor,
+  partnerId: string,
+  valueIds: string[],
+) {
+  await tx
+    .delete(partnerSupportForms)
+    .where(eq(partnerSupportForms.partnerId, partnerId))
+
+  if (valueIds.length === 0) return
+
+  await tx
+    .insert(partnerSupportForms)
+    .values([...new Set(valueIds)].map((valueId) => ({ partnerId, valueId })))
 }
 
 const REQUIREMENT_LABELS = {
@@ -191,9 +222,11 @@ export async function listPartners(
             and ${partnerPartnerships.status} <> 'ENDED'
         )`
       : undefined,
-    filters.priority ? eq(partners.contactPriority, filters.priority) : undefined,
-    filters.horizon
-      ? eq(partners.engagementHorizon, filters.horizon)
+    filters.contactPriorityId
+      ? eq(partners.contactPriorityId, filters.contactPriorityId)
+      : undefined,
+    filters.engagementHorizonId
+      ? eq(partners.engagementHorizonId, filters.engagementHorizonId)
       : undefined,
     filters.relationshipTypeId
       ? eq(partners.relationshipTypeId, filters.relationshipTypeId)
@@ -217,25 +250,21 @@ export async function listPartners(
       id: partners.id,
       displayNameAr: partners.displayNameAr,
       legalNameAr: partners.legalNameAr,
-      organizationKind: partners.organizationKind,
+      organizationKindId: partners.organizationKindId,
       stage: partners.stage,
       suspendedAt: partners.suspendedAt,
       publicNameConsent: partners.publicNameConsent,
       publicLogoConsent: partners.publicLogoConsent,
-      contactPriority: partners.contactPriority,
-      engagementHorizon: partners.engagementHorizon,
+      contactPriorityId: partners.contactPriorityId,
+      engagementHorizonId: partners.engagementHorizonId,
+      relationshipTypeId: partners.relationshipTypeId,
       lastContactAt: partners.lastContactAt,
-      relationshipTypeNameAr: relationshipTypes.nameAr,
       activatedAt: partners.activatedAt,
       createdAt: partners.createdAt,
       accountManagerNameAr: accountManager.fullNameAr,
     })
     .from(partners)
     .leftJoin(accountManager, eq(partners.accountManagerId, accountManager.id))
-    .leftJoin(
-      relationshipTypes,
-      eq(partners.relationshipTypeId, relationshipTypes.id),
-    )
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(partners.createdAt))
     .limit(300)
@@ -288,13 +317,21 @@ export async function listPartners(
     contactRows.map((row) => [row.partnerId, row.fullNameAr]),
   )
 
-  const channelsByPartner = await mediaChannelsFor(ids)
+  const channelsByPartner = await linkedValuesFor(MEDIA_CHANNEL_LINK, ids)
+  const refs = await lookupRefs(
+    rows.flatMap((row) => [
+      row.organizationKindId,
+      row.contactPriorityId,
+      row.engagementHorizonId,
+      row.relationshipTypeId,
+    ]),
+  )
 
   return rows.map((row) => ({
     id: row.id,
     displayNameAr: row.displayNameAr,
     legalNameAr: row.legalNameAr,
-    organizationKind: row.organizationKind,
+    organizationKind: requireRef(refs, row.organizationKindId),
     stage: row.stage,
     isSuspended: row.suspendedAt !== null,
     partnershipTypes: typesByPartner.get(row.id) ?? [],
@@ -302,9 +339,9 @@ export async function listPartners(
     primaryContactNameAr: contactByPartner.get(row.id) ?? null,
     publicNameConsent: row.publicNameConsent,
     publicLogoConsent: row.publicLogoConsent,
-    contactPriority: row.contactPriority,
-    engagementHorizon: row.engagementHorizon,
-    relationshipTypeNameAr: row.relationshipTypeNameAr,
+    contactPriority: requireRef(refs, row.contactPriorityId),
+    engagementHorizon: optionalRef(refs, row.engagementHorizonId),
+    relationshipType: optionalRef(refs, row.relationshipTypeId),
     mediaChannels: channelsByPartner.get(row.id) ?? [],
     lastContactAt: row.lastContactAt?.toISOString() ?? null,
     activatedAt: row.activatedAt?.toISOString() ?? null,
@@ -321,14 +358,9 @@ export async function loadPartnerDetail(
     .select({
       partner: partners,
       accountManagerNameAr: accountManager.fullNameAr,
-      relationshipTypeNameAr: relationshipTypes.nameAr,
     })
     .from(partners)
     .leftJoin(accountManager, eq(partners.accountManagerId, accountManager.id))
-    .leftJoin(
-      relationshipTypes,
-      eq(partners.relationshipTypeId, relationshipTypes.id),
-    )
     .where(eq(partners.id, partnerId))
     .limit(1)
 
@@ -400,7 +432,16 @@ export async function loadPartnerDetail(
     ])
 
   const activation = await activationRequirements(partnerId)
-  const channelsByPartner = await mediaChannelsFor([partnerId])
+  const channelsByPartner = await linkedValuesFor(MEDIA_CHANNEL_LINK, [partnerId])
+  const formsByPartner = await linkedValuesFor(SUPPORT_FORM_LINK, [partnerId])
+  const refs = await lookupRefs([
+    row.organizationKindId,
+    row.contactPriorityId,
+    row.engagementHorizonId,
+    row.relationshipTypeId,
+    ...acknowledgements.map((item) => item.row.methodId),
+    ...interactions.map((item) => item.row.kindId),
+  ])
 
   /** الملاحظات الداخلية لا تخرج إلا لمن يملك القدرة صراحةً. */
   const canSeeNotes = viewer.capabilities.includes('partners.notes.view')
@@ -411,20 +452,19 @@ export async function loadPartnerDetail(
     legalNameAr: row.legalNameAr,
     nameEn: row.nameEn,
     slug: row.slug,
-    organizationKind: row.organizationKind,
+    organizationKind: requireRef(refs, row.organizationKindId),
     stage: row.stage,
     isSuspended: row.suspendedAt !== null,
     suspendedAt: row.suspendedAt?.toISOString() ?? null,
     suspensionReasonAr: row.suspensionReasonAr,
     websiteUrl: row.websiteUrl,
     summaryAr: row.summaryAr,
-    supportForms: row.supportForms,
+    supportForms: formsByPartner.get(partnerId) ?? [],
     accountManagerId: row.accountManagerId,
     accountManagerNameAr: partner.accountManagerNameAr,
-    contactPriority: row.contactPriority,
-    engagementHorizon: row.engagementHorizon,
-    relationshipTypeId: row.relationshipTypeId,
-    relationshipTypeNameAr: partner.relationshipTypeNameAr,
+    contactPriority: requireRef(refs, row.contactPriorityId),
+    engagementHorizon: optionalRef(refs, row.engagementHorizonId),
+    relationshipType: optionalRef(refs, row.relationshipTypeId),
     mediaChannels: channelsByPartner.get(partnerId) ?? [],
     lastContactAt: row.lastContactAt?.toISOString() ?? null,
     internalNotesAr: canSeeNotes ? row.internalNotesAr : null,
@@ -475,7 +515,7 @@ export async function loadPartnerDetail(
       charterVersionId: item.row.charterVersionId,
       charterVersion: item.charterVersion,
       acknowledgedAt: item.row.acknowledgedAt.toISOString(),
-      method: item.row.method,
+      method: requireRef(refs, item.row.methodId),
       acknowledgedByNameAr: item.row.acknowledgedByNameAr,
       acknowledgedByTitleAr: item.row.acknowledgedByTitleAr,
       noteAr: item.row.noteAr,
@@ -483,7 +523,7 @@ export async function loadPartnerDetail(
 
     interactions: interactions.map((item) => ({
       id: item.row.id,
-      kind: item.row.kind,
+      kind: requireRef(refs, item.row.kindId),
       occurredAt: item.row.occurredAt.toISOString(),
       summaryAr: item.row.summaryAr,
       bodyAr: item.row.bodyAr,
@@ -510,12 +550,14 @@ async function requirePartner(partnerId: string, tx: Executor = db) {
   return row
 }
 
-/** كل تغيير جوهري يترك أثرًا في سجل المتابعة، لا في التدقيق وحده. */
-async function logInteraction(
+/**
+ * كل تغيير مرحلة يترك أثرًا في سجل المتابعة، لا في التدقيق وحده. نوعه
+ * `STAGE_CHANGE` قيمة نظام مقفلة: لا يسجّلها أحد بيده ولا تُعطَّل.
+ */
+async function logStageChange(
   tx: Executor,
   input: {
     partnerId: string
-    kind: 'STAGE_CHANGE' | 'NOTE'
     summaryAr: string
     bodyAr?: string | undefined
     actorId: string
@@ -523,7 +565,7 @@ async function logInteraction(
 ) {
   await tx.insert(partnerInteractions).values({
     partnerId: input.partnerId,
-    kind: input.kind,
+    kindId: lookupValueIdSql('INTERACTION_KIND', 'STAGE_CHANGE'),
     occurredAt: new Date(),
     summaryAr: input.summaryAr,
     recordedById: input.actorId,
@@ -541,7 +583,30 @@ export async function createPartner(
   const legalNameAr = normalizeText(input.legalNameAr)
   const displayNameAr = normalizeText(input.displayNameAr ?? input.legalNameAr)
 
-  await assertChannelsExist(input.mediaChannelIds)
+  await assertLookupValues([
+    {
+      list: 'ORGANIZATION_KIND',
+      field: 'organizationKindId',
+      ids: [input.organizationKindId],
+    },
+    { list: 'SUPPORT_FORM', field: 'supportFormIds', ids: input.supportFormIds },
+    {
+      list: 'CONTACT_PRIORITY',
+      field: 'contactPriorityId',
+      ids: [input.contactPriorityId],
+    },
+    {
+      list: 'ENGAGEMENT_HORIZON',
+      field: 'engagementHorizonId',
+      ids: [input.engagementHorizonId],
+    },
+    {
+      list: 'RELATIONSHIP_TYPE',
+      field: 'relationshipTypeId',
+      ids: [input.relationshipTypeId],
+    },
+    { list: 'MEDIA_CHANNEL', field: 'mediaChannelIds', ids: input.mediaChannelIds },
+  ])
 
   const partnerId = await db.transaction(async (tx) => {
     const [created] = await tx
@@ -549,9 +614,10 @@ export async function createPartner(
       .values({
         legalNameAr,
         displayNameAr,
-        organizationKind: input.organizationKind,
-        supportForms: input.supportForms,
-        contactPriority: input.contactPriority,
+        organizationKindId: input.organizationKindId,
+        contactPriorityId:
+          input.contactPriorityId ??
+          lookupValueIdSql('CONTACT_PRIORITY', 'MEDIUM'),
         ...(input.nameEn ? { nameEn: normalizeText(input.nameEn) } : {}),
         ...(input.websiteUrl ? { websiteUrl: input.websiteUrl } : {}),
         ...(input.summaryAr ? { summaryAr: input.summaryAr } : {}),
@@ -561,8 +627,8 @@ export async function createPartner(
         ...(input.internalNotesAr
           ? { internalNotesAr: input.internalNotesAr }
           : {}),
-        ...(input.engagementHorizon
-          ? { engagementHorizon: input.engagementHorizon }
+        ...(input.engagementHorizonId
+          ? { engagementHorizonId: input.engagementHorizonId }
           : {}),
         ...(input.relationshipTypeId
           ? { relationshipTypeId: input.relationshipTypeId }
@@ -576,10 +642,10 @@ export async function createPartner(
     if (!created) throw new Error('Failed to create partner.')
 
     await replaceMediaChannels(tx, created.id, input.mediaChannelIds)
+    await replaceSupportForms(tx, created.id, input.supportFormIds)
 
-    await logInteraction(tx, {
+    await logStageChange(tx, {
       partnerId: created.id,
-      kind: 'STAGE_CHANGE',
       summaryAr: 'تسجيل الجهة كشراكة محتملة',
       actorId: actor.userId,
     })
@@ -610,9 +676,50 @@ export async function updatePartner(
   actor: AuthContext,
   trace: RequestTrace,
 ) {
-  await requirePartner(partnerId)
+  const current = await requirePartner(partnerId)
+  const [currentChannels, currentForms] = await Promise.all([
+    linkedValuesFor(MEDIA_CHANNEL_LINK, [partnerId]),
+    linkedValuesFor(SUPPORT_FORM_LINK, [partnerId]),
+  ])
 
-  if (input.mediaChannelIds) await assertChannelsExist(input.mediaChannelIds)
+  await assertLookupValues([
+    {
+      list: 'ORGANIZATION_KIND',
+      field: 'organizationKindId',
+      ids: [input.organizationKindId],
+      current: [current.organizationKindId],
+    },
+    {
+      list: 'SUPPORT_FORM',
+      field: 'supportFormIds',
+      ids: input.supportFormIds ?? [],
+      current: (currentForms.get(partnerId) ?? []).map((ref) => ref.id),
+    },
+    {
+      list: 'CONTACT_PRIORITY',
+      field: 'contactPriorityId',
+      ids: [input.contactPriorityId],
+      current: [current.contactPriorityId],
+    },
+    {
+      list: 'ENGAGEMENT_HORIZON',
+      field: 'engagementHorizonId',
+      ids: [input.engagementHorizonId],
+      current: [current.engagementHorizonId],
+    },
+    {
+      list: 'RELATIONSHIP_TYPE',
+      field: 'relationshipTypeId',
+      ids: [input.relationshipTypeId],
+      current: [current.relationshipTypeId],
+    },
+    {
+      list: 'MEDIA_CHANNEL',
+      field: 'mediaChannelIds',
+      ids: input.mediaChannelIds ?? [],
+      current: (currentChannels.get(partnerId) ?? []).map((ref) => ref.id),
+    },
+  ])
 
   const changes = {
     ...(input.legalNameAr ? { legalNameAr: normalizeText(input.legalNameAr) } : {}),
@@ -620,23 +727,24 @@ export async function updatePartner(
       ? { displayNameAr: normalizeText(input.displayNameAr) }
       : {}),
     ...(input.nameEn !== undefined ? { nameEn: input.nameEn || null } : {}),
-    ...(input.organizationKind
-      ? { organizationKind: input.organizationKind }
+    ...(input.organizationKindId
+      ? { organizationKindId: input.organizationKindId }
       : {}),
     ...(input.websiteUrl !== undefined
       ? { websiteUrl: input.websiteUrl || null }
       : {}),
     ...(input.summaryAr !== undefined ? { summaryAr: input.summaryAr || null } : {}),
-    ...(input.supportForms ? { supportForms: input.supportForms } : {}),
     ...(input.accountManagerId !== undefined
       ? { accountManagerId: input.accountManagerId || null }
       : {}),
     ...(input.internalNotesAr !== undefined
       ? { internalNotesAr: input.internalNotesAr || null }
       : {}),
-    ...(input.contactPriority ? { contactPriority: input.contactPriority } : {}),
-    ...(input.engagementHorizon !== undefined
-      ? { engagementHorizon: input.engagementHorizon }
+    ...(input.contactPriorityId
+      ? { contactPriorityId: input.contactPriorityId }
+      : {}),
+    ...(input.engagementHorizonId !== undefined
+      ? { engagementHorizonId: input.engagementHorizonId }
       : {}),
     ...(input.relationshipTypeId !== undefined
       ? { relationshipTypeId: input.relationshipTypeId }
@@ -650,7 +758,11 @@ export async function updatePartner(
       : {}),
   }
 
-  if (Object.keys(changes).length > 0 || input.mediaChannelIds) {
+  if (
+    Object.keys(changes).length > 0 ||
+    input.mediaChannelIds ||
+    input.supportFormIds
+  ) {
     await db.transaction(async (tx) => {
       if (Object.keys(changes).length > 0) {
         await tx.update(partners).set(changes).where(eq(partners.id, partnerId))
@@ -658,6 +770,10 @@ export async function updatePartner(
 
       if (input.mediaChannelIds) {
         await replaceMediaChannels(tx, partnerId, input.mediaChannelIds)
+      }
+
+      if (input.supportFormIds) {
+        await replaceSupportForms(tx, partnerId, input.supportFormIds)
       }
 
       await recordAudit(
@@ -671,6 +787,7 @@ export async function updatePartner(
             fields: [
               ...Object.keys(changes),
               ...(input.mediaChannelIds ? ['mediaChannelIds'] : []),
+              ...(input.supportFormIds ? ['supportFormIds'] : []),
             ],
           },
           ...trace,
@@ -707,9 +824,8 @@ export async function changeStage(
       .set({ stage: input.stage })
       .where(eq(partners.id, partnerId))
 
-    await logInteraction(tx, {
+    await logStageChange(tx, {
       partnerId,
-      kind: 'STAGE_CHANGE',
       summaryAr: `نقل المرحلة من ${partner.stage} إلى ${input.stage}`,
       bodyAr: input.noteAr,
       actorId: actor.userId,
@@ -1005,6 +1121,11 @@ export async function recordAcknowledgement(
 ) {
   await requirePartner(partnerId)
 
+  const methods = await assertLookupValues([
+    { list: 'ACKNOWLEDGEMENT_METHOD', field: 'methodId', ids: [input.methodId] },
+  ])
+  const method = requireRef(methods, input.methodId)
+
   let versionId = input.charterVersionId
 
   if (!versionId) {
@@ -1028,7 +1149,7 @@ export async function recordAcknowledgement(
         acknowledgedAt: input.acknowledgedAt
           ? new Date(input.acknowledgedAt)
           : new Date(),
-        method: input.method,
+        methodId: input.methodId,
         acknowledgedByNameAr: normalizeText(input.acknowledgedByNameAr),
         recordedById: actor.userId,
         ...(input.acknowledgedByContactId
@@ -1051,7 +1172,7 @@ export async function recordAcknowledgement(
         entityType: 'charter_acknowledgement',
         entityId: created.id,
         summaryAr: 'تسجيل إقرار الجهة بالميثاق',
-        metadata: { partnerId, charterVersionId: versionId, method: input.method },
+        metadata: { partnerId, charterVersionId: versionId, method: method.code },
         partnerVisible: true,
         ...trace,
       },
@@ -1070,11 +1191,15 @@ export async function recordInteraction(
 ) {
   const partner = await requirePartner(partnerId)
   const occurredAt = input.occurredAt ? new Date(input.occurredAt) : new Date()
+  const kinds = await assertLookupValues([
+    { list: 'INTERACTION_KIND', field: 'kindId', ids: [input.kindId] },
+  ])
+  const kind = requireRef(kinds, input.kindId)
 
   await db.transaction(async (tx) => {
     await tx.insert(partnerInteractions).values({
       partnerId,
-      kind: input.kind,
+      kindId: input.kindId,
       occurredAt,
       summaryAr: normalizeText(input.summaryAr),
       recordedById: actor.userId,
@@ -1099,7 +1224,8 @@ export async function recordInteraction(
         actorUserId: actor.userId,
         entityType: 'partner',
         entityId: partnerId,
-        summaryAr: `تسجيل ${input.kind}`,
+        summaryAr: `تسجيل ${kind.nameAr}`,
+        metadata: { kind: kind.code },
         ...trace,
       },
       tx,
@@ -1148,9 +1274,8 @@ export async function activatePartner(
       .set({ stage: 'ACTIVE', activatedAt: now, approvedById: actor.userId })
       .where(eq(partners.id, partnerId))
 
-    await logInteraction(tx, {
+    await logStageChange(tx, {
       partnerId,
-      kind: 'STAGE_CHANGE',
       summaryAr: 'اعتماد الشراكة وتفعيل الجهة',
       actorId: actor.userId,
     })
@@ -1196,9 +1321,8 @@ export async function rejectPartner(
       })
       .where(eq(partners.id, partnerId))
 
-    await logInteraction(tx, {
+    await logStageChange(tx, {
       partnerId,
-      kind: 'STAGE_CHANGE',
       summaryAr: 'رفض الشراكة',
       bodyAr: input.rejectionReasonAr,
       actorId: actor.userId,

@@ -1,6 +1,10 @@
 import { env } from '../../config/env.js'
 import { bearerAuth, problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
+import {
+  lookupRefSchema,
+  optionalLookupRefSchema,
+} from '../lookups/lookup-ref.schema.js'
 
 const security = [{ [bearerAuth.name]: [] }]
 const path = (suffix: string) => `${env.API_PREFIX}/admin/media${suffix}`
@@ -13,30 +17,6 @@ export const mediaContactStageEnum = z.enum([
   'DORMANT',
   'DECLINED',
 ])
-
-export const contactPriorityEnum = z.enum(['HIGH', 'MEDIUM', 'LOW'])
-
-export const engagementHorizonEnum = z.enum([
-  'LONG_TERM',
-  'SHORT_TERM',
-  'ONE_OFF',
-])
-
-export const interactionKindEnum = z.enum([
-  'NOTE',
-  'CALL',
-  'EMAIL',
-  'MEETING',
-  'MESSAGE',
-  'DOCUMENT_REQUEST',
-  'STAGE_CHANGE',
-])
-
-/** المفردة كما تُعرض ملحقةً بالشخص: الاسم يكفي، والتفاصيل في المرجعيات. */
-export const catalogRefSchema = registry.register(
-  'CatalogRef',
-  z.object({ id: z.uuid(), nameAr: z.string() }),
-)
 
 // ── التمثيلات ──────────────────────────────────────────────────────────
 
@@ -52,10 +32,11 @@ export const mediaContactSummarySchema = registry.register(
     email: z.email().nullable(),
     phone: z.string().nullable(),
     stage: mediaContactStageEnum,
-    priority: contactPriorityEnum,
-    horizon: engagementHorizonEnum.nullable(),
-    relationshipTypeNameAr: z.string().nullable(),
-    channels: z.array(catalogRefSchema),
+    // محاور التصنيف من تعريفات النظام نفسها التي على الشركاء.
+    priority: lookupRefSchema,
+    horizon: optionalLookupRefSchema,
+    relationshipType: optionalLookupRefSchema,
+    channels: z.array(lookupRefSchema),
     accountManagerNameAr: z.string().nullable(),
     lastContactAt: z.iso.datetime().nullable(),
     /** عدد المتابعات المستحقة غير المنجزة — شارة حمراء في القائمة. */
@@ -68,7 +49,7 @@ export const mediaInteractionSchema = registry.register(
   'MediaContactInteraction',
   z.object({
     id: z.uuid(),
-    kind: interactionKindEnum,
+    kind: lookupRefSchema,
     occurredAt: z.iso.datetime(),
     summaryAr: z.string(),
     bodyAr: z.string().nullable(),
@@ -85,7 +66,6 @@ export const mediaContactDetailSchema = registry.register(
   mediaContactSummarySchema.extend({
     nameEn: z.string().nullable(),
     profileUrl: z.string().nullable(),
-    relationshipTypeId: z.uuid().nullable(),
     accountManagerId: z.uuid().nullable(),
     internalNotesAr: z.string().nullable().openapi({
       description: 'لا تخرج إلا لمن يملك `media.notes.view`؛ غيره يقرأ null.',
@@ -100,8 +80,8 @@ export const followUpSchema = registry.register(
     id: z.uuid(),
     contactId: z.uuid(),
     contactNameAr: z.string(),
-    priority: contactPriorityEnum,
-    kind: interactionKindEnum,
+    priority: lookupRefSchema,
+    kind: lookupRefSchema,
     summaryAr: z.string(),
     dueAt: z.iso.datetime(),
     isOverdue: z.boolean(),
@@ -113,8 +93,8 @@ export const followUpSchema = registry.register(
 
 export const listContactsQuerySchema = z.object({
   stage: mediaContactStageEnum.optional(),
-  priority: contactPriorityEnum.optional(),
-  horizon: engagementHorizonEnum.optional(),
+  priorityId: z.uuid().optional(),
+  horizonId: z.uuid().optional(),
   channelId: z.uuid().optional(),
   relationshipTypeId: z.uuid().optional(),
   accountManagerId: z.uuid().optional(),
@@ -216,8 +196,9 @@ export const createContactBodySchema = z
     partnerId: z.uuid().optional(),
 
     stage: mediaContactStageEnum.default('NEW'),
-    priority: contactPriorityEnum.default('MEDIUM'),
-    horizon: engagementHorizonEnum.optional(),
+    // القيم من تعريفات النظام بمعرّفاتها. الأولوية الغائبة تصير `MEDIUM`.
+    priorityId: z.uuid().optional(),
+    horizonId: z.uuid().optional(),
     relationshipTypeId: z.uuid().optional(),
     channelIds: z.array(z.uuid()).max(20).default([]),
 
@@ -267,8 +248,8 @@ export const updateContactBodySchema = z.object({
   outletNameAr: z.string().max(200).nullable().optional(),
   partnerId: z.uuid().nullable().optional(),
 
-  priority: contactPriorityEnum.optional(),
-  horizon: engagementHorizonEnum.nullable().optional(),
+  priorityId: z.uuid().optional(),
+  horizonId: z.uuid().nullable().optional(),
   relationshipTypeId: z.uuid().nullable().optional(),
   channelIds: z.array(z.uuid()).max(20).optional(),
 
@@ -328,8 +309,9 @@ registry.registerPath({
 })
 
 export const interactionBodySchema = z.object({
-  kind: interactionKindEnum.exclude(['STAGE_CHANGE']).openapi({
-    description: '`STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة.',
+  kindId: z.uuid().openapi({
+    description:
+      'من `INTERACTION_KIND`. `STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة فيُرفض هنا.',
   }),
   occurredAt: z.iso.datetime().optional(),
   summaryAr: z.string().min(2).max(300),

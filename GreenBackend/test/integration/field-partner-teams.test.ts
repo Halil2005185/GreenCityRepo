@@ -123,7 +123,7 @@ describe.runIf(ready)('partner teams in the field', () => {
     expect(names.sort()).toEqual(['جمعية الندى', 'شركة الشام للاتصالات'].sort())
     // اسم الجهة ونوعها وحدهما: لا ملاحظات ولا مسؤول علاقة.
     expect(Object.keys(response.body.data[0]).sort()).toEqual(
-      ['displayNameAr', 'id', 'organizationKind'].sort(),
+      ['displayNameAr', 'id', 'organizationKindNameAr'].sort(),
     )
   })
 
