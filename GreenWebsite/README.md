@@ -258,3 +258,23 @@ msedge --app=http://localhost:3001/app/home
   الموقع برمز عام (`pk.`) مقيَّد بعنوان الموقع من حساب Mapbox (Tokens → URL
   restrictions). رمز سرّي (`sk.`) لا يوضع في متغيّر `NEXT_PUBLIC_` أبدًا:
   كل ما يبدأ بهذه البادئة يُكتب في ملفات المتصفح.
+
+### تطبيق Android
+
+التطبيق على Google Play غلافٌ (Trusted Web Activity) يفتح `/app/` في Chrome
+بلا شريط عنوان؛ لا كود فيه، وما يُنشر على الموقع يصله فورًا. يُولَّد بـ
+Bubblewrap من `/app/manifest.webmanifest` في مشروع مستقل خارج هذا المستودع،
+ومفتاح توقيعه خارج Git دائمًا.
+
+`public/.well-known/assetlinks.json` هو ما يثبت لـ Android أن الموقع يملك
+التطبيق (`com.evavolunteer.greencities.twa`)، وبدونه يُفتح بشريط Chrome في
+أعلاه. يحمل بصمة SHA-256 لمفتاح التوقيع، وتُقرأ من الحزمة الموقَّعة بلا كلمة
+مرور:
+
+```bash
+apksigner verify --print-certs app-release-signed.apk
+```
+
+إن رُفع التطبيق إلى Google Play بخدمة Play App Signing أعادت Google توقيعه
+بمفتاحها، فتُضاف بصمة ذلك المفتاح أيضًا (Play Console → App integrity →
+App signing key certificate) إلى القائمة نفسها.

@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.evavolunteer.greencities.twa",
+      "sha256_cert_fingerprints": [
+        "90:67:61:26:AB:3E:98:CE:1E:C0:E7:F1:2C:BF:78:44:ED:96:A7:32:84:E7:EC:D3:0C:B5:FD:CB:6E:7A:5F:6E"
+      ]
+    }
+  }
+]
