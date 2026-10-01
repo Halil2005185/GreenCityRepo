@@ -39,3 +39,12 @@ export function violatedConstraint(error: unknown): string | null {
 
   return null
 }
+
+/**
+ * 23503: صف يشير إليه مفتاح أجنبي `restrict` — حذف قيمة صُنّف بها سجل بين
+ * عدّ الاستعمال والحذف. العدّ المسبق يعطي الرسالة المفهومة، وهذا يمنع أن
+ * يصير السباق النادر بينهما خطأ خادم 500.
+ */
+export function isForeignKeyViolation(error: unknown): boolean {
+  return hasSqlState(error, '23503')
+}

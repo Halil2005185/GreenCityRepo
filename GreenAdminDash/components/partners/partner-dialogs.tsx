@@ -6,11 +6,11 @@ import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 
+import { LookupSelectField, useLookupDefault } from "@/components/lookups/lookup-select";
 import { ClassificationFormFields } from "@/components/relations/classification";
 import { FormDialog, FormSection } from "@/components/ui/form-dialog";
 import {
   CheckboxField,
-  CheckboxGroupField,
   SelectField,
   TextField,
   TextareaField,
@@ -18,24 +18,18 @@ import {
 import { OneTimeLink } from "@/components/ui/one-time-link";
 import { createInvitation, listPartnerRoles } from "@/lib/api/invitations";
 import {
-  ACKNOWLEDGEMENT_METHOD_LABELS,
-  ORGANIZATION_KIND_LABELS,
   PARTNERSHIP_TYPE_LABELS,
   PIPELINE_STAGES,
-  SUPPORT_FORM_LABELS,
   addContact,
   addPartnership,
   changeStage,
   createPartner,
   recordAcknowledgement,
   updatePartner,
-  type OrganizationKind,
   type PartnerDetail,
   type PartnerSummary,
   type PartnershipType,
-  type SupportForm,
 } from "@/lib/api/partners";
-import type { ContactPriority, EngagementHorizon } from "@/lib/api/media";
 import { statusLabel } from "@/lib/status";
 import { phoneSchema } from "@/lib/validation/rules";
 
@@ -55,9 +49,6 @@ export function usePartnerCache() {
   };
 }
 
-const toOptions = <K extends string>(labels: Record<K, string>) =>
-  (Object.entries(labels) as Array<[K, string]>).map(([value, label]) => ({ value, label }));
-
 // ── تسجيل جهة ───────────────────────────────────────────────────────────
 
 const createSchema = z.object({
@@ -67,11 +58,11 @@ const createSchema = z.object({
     .min(2, "الاسم القانوني مطلوب.")
     .max(200, "الاسم القانوني طويل جدًا."),
   displayNameAr: z.string().trim().max(200, "اسم العرض طويل جدًا."),
-  organizationKind: z.string().min(1, "اختر نوع الجهة."),
+  organizationKindId: z.string().min(1, "اختر نوع الجهة."),
   websiteUrl: z.union([z.url("رابط غير صالح."), z.literal("")]),
-  supportForms: z.array(z.string()),
-  contactPriority: z.string(),
-  engagementHorizon: z.string(),
+  supportFormIds: z.array(z.string()),
+  contactPriorityId: z.string(),
+  engagementHorizonId: z.string(),
   relationshipTypeId: z.string(),
   mediaChannelIds: z.array(z.string()),
   summaryAr: z.string().trim().max(2000, "النبذة طويلة جدًا."),
@@ -83,11 +74,11 @@ type CreateValues = z.infer<typeof createSchema>;
 const CREATE_DEFAULTS: CreateValues = {
   legalNameAr: "",
   displayNameAr: "",
-  organizationKind: "",
+  organizationKindId: "",
   websiteUrl: "",
-  supportForms: [],
-  contactPriority: "MEDIUM",
-  engagementHorizon: "",
+  supportFormIds: [],
+  contactPriorityId: "",
+  engagementHorizonId: "",
   relationshipTypeId: "",
   mediaChannelIds: [],
   summaryAr: "",
@@ -105,6 +96,7 @@ export function PartnerCreateDialog({ open, onOpenChange }: DialogProps) {
     resolver: zodResolver(createSchema),
     defaultValues: CREATE_DEFAULTS,
   });
+  useLookupDefault(form, "contactPriorityId", "CONTACT_PRIORITY", "MEDIUM", open);
 
   return (
     <FormDialog
@@ -119,16 +111,16 @@ export function PartnerCreateDialog({ open, onOpenChange }: DialogProps) {
       onSubmit={(values) =>
         createPartner({
           legalNameAr: values.legalNameAr,
-          organizationKind: values.organizationKind as OrganizationKind,
-          supportForms: values.supportForms as SupportForm[],
-          contactPriority: values.contactPriority as ContactPriority,
+          organizationKindId: values.organizationKindId,
+          supportFormIds: values.supportFormIds,
           mediaChannelIds: values.mediaChannelIds,
+          ...(values.contactPriorityId ? { contactPriorityId: values.contactPriorityId } : {}),
           ...(values.displayNameAr ? { displayNameAr: values.displayNameAr } : {}),
           ...(values.websiteUrl ? { websiteUrl: values.websiteUrl } : {}),
           ...(values.summaryAr ? { summaryAr: values.summaryAr } : {}),
           ...(values.internalNotesAr ? { internalNotesAr: values.internalNotesAr } : {}),
-          ...(values.engagementHorizon
-            ? { engagementHorizon: values.engagementHorizon as EngagementHorizon }
+          ...(values.engagementHorizonId
+            ? { engagementHorizonId: values.engagementHorizonId }
             : {}),
           ...(values.relationshipTypeId
             ? { relationshipTypeId: values.relationshipTypeId }
@@ -155,12 +147,12 @@ export function PartnerCreateDialog({ open, onOpenChange }: DialogProps) {
           />
         </div>
         <div className="grid gap-4 sm:grid-cols-2">
-          <SelectField
+          <LookupSelectField
             control={form.control}
-            name="organizationKind"
+            name="organizationKindId"
+            code="ORGANIZATION_KIND"
             label="نوع الجهة"
             placeholder="اختر النوع…"
-            options={toOptions(ORGANIZATION_KIND_LABELS)}
           />
           <TextField
             control={form.control}
@@ -171,12 +163,15 @@ export function PartnerCreateDialog({ open, onOpenChange }: DialogProps) {
             placeholder="https://example.org"
           />
         </div>
-        <CheckboxGroupField
+        <LookupSelectField
           control={form.control}
-          name="supportForms"
+          name="supportFormIds"
+          code="SUPPORT_FORM"
           label="أشكال المشاركة والدعم"
-          hint="كما وردت في الميثاق. يمكن اختيار أكثر من شكل."
-          options={toOptions(SUPPORT_FORM_LABELS)}
+          hint="يمكن اختيار أكثر من شكل."
+          placeholder="اختر شكلًا أو أكثر"
+          multiple
+          clearable
         />
       </FormSection>
 
@@ -184,8 +179,8 @@ export function PartnerCreateDialog({ open, onOpenChange }: DialogProps) {
         <ClassificationFormFields
           control={form.control}
           names={{
-            priority: "contactPriority",
-            horizon: "engagementHorizon",
+            priority: "contactPriorityId",
+            horizon: "engagementHorizonId",
             relationshipTypeId: "relationshipTypeId",
             channelIds: "mediaChannelIds",
           }}
@@ -261,15 +256,15 @@ export function PartnerStageDialog({
 // ── تعديل التصنيف ───────────────────────────────────────────────────────
 
 const classificationSchema = z.object({
-  contactPriority: z.string(),
-  engagementHorizon: z.string(),
+  contactPriorityId: z.string().min(1, "اختر الأولوية."),
+  engagementHorizonId: z.string(),
   relationshipTypeId: z.string(),
   mediaChannelIds: z.array(z.string()),
 });
 
 type ClassificationValues = z.infer<typeof classificationSchema>;
 
-/** يحتاج ملف الجهة كاملًا: معرّف نوع العلاقة لا يأتي في صف القائمة. */
+/** يحتاج ملف الجهة كاملًا، كما تفتحه صفحتها. */
 export function PartnerClassificationDialog({
   partner,
   ...props
@@ -278,8 +273,8 @@ export function PartnerClassificationDialog({
   const form = useForm<ClassificationValues>({
     resolver: zodResolver(classificationSchema),
     defaultValues: {
-      contactPriority: "MEDIUM",
-      engagementHorizon: "",
+      contactPriorityId: "",
+      engagementHorizonId: "",
       relationshipTypeId: "",
       mediaChannelIds: [],
     },
@@ -292,16 +287,16 @@ export function PartnerClassificationDialog({
       title={`تصنيف «${partner.displayNameAr}»`}
       form={form}
       values={{
-        contactPriority: partner.contactPriority,
-        engagementHorizon: partner.engagementHorizon ?? "",
-        relationshipTypeId: partner.relationshipTypeId ?? "",
+        contactPriorityId: partner.contactPriority.id,
+        engagementHorizonId: partner.engagementHorizon?.id ?? "",
+        relationshipTypeId: partner.relationshipType?.id ?? "",
         mediaChannelIds: partner.mediaChannels.map((channel) => channel.id),
       }}
       submitLabel="حفظ التصنيف"
       onSubmit={(values) =>
         updatePartner(partner.id, {
-          contactPriority: values.contactPriority,
-          engagementHorizon: values.engagementHorizon || null,
+          contactPriorityId: values.contactPriorityId,
+          engagementHorizonId: values.engagementHorizonId || null,
           relationshipTypeId: values.relationshipTypeId || null,
           mediaChannelIds: values.mediaChannelIds,
         })
@@ -312,20 +307,17 @@ export function PartnerClassificationDialog({
       <ClassificationFormFields
         control={form.control}
         names={{
-          priority: "contactPriority",
-          horizon: "engagementHorizon",
+          priority: "contactPriorityId",
+          horizon: "engagementHorizonId",
           relationshipTypeId: "relationshipTypeId",
           channelIds: "mediaChannelIds",
         }}
-        selectedRelationshipType={
-          partner.relationshipTypeId
-            ? { value: partner.relationshipTypeId, label: partner.relationshipTypeNameAr ?? "…" }
-            : null
-        }
-        selectedChannels={partner.mediaChannels.map((channel) => ({
-          value: channel.id,
-          label: channel.nameAr,
-        }))}
+        selected={{
+          priority: partner.contactPriority,
+          horizon: partner.engagementHorizon,
+          relationshipType: partner.relationshipType,
+          channels: partner.mediaChannels,
+        }}
       />
     </FormDialog>
   );
@@ -577,7 +569,7 @@ const acknowledgementSchema = z.object({
     .min(3, "اسم المُقِرّ يجب ألا يقل عن 3 أحرف.")
     .max(160, "اسم المُقِرّ طويل جدًا."),
   acknowledgedByTitleAr: z.string().trim().max(160, "الصفة طويلة جدًا."),
-  method: z.string().min(1, "اختر طريقة الإقرار."),
+  methodId: z.string().min(1, "اختر طريقة الإقرار."),
 });
 
 type AcknowledgementValues = z.infer<typeof acknowledgementSchema>;
@@ -585,7 +577,7 @@ type AcknowledgementValues = z.infer<typeof acknowledgementSchema>;
 const ACKNOWLEDGEMENT_DEFAULTS: AcknowledgementValues = {
   acknowledgedByNameAr: "",
   acknowledgedByTitleAr: "",
-  method: "IN_PERSON",
+  methodId: "",
 };
 
 export function AcknowledgementDialog({
@@ -609,7 +601,7 @@ export function AcknowledgementDialog({
       submitLabel="تسجيل الإقرار"
       onSubmit={(values) =>
         recordAcknowledgement(partner.id, {
-          method: values.method as keyof typeof ACKNOWLEDGEMENT_METHOD_LABELS,
+          methodId: values.methodId,
           acknowledgedByNameAr: values.acknowledgedByNameAr,
           ...(values.acknowledgedByTitleAr
             ? { acknowledgedByTitleAr: values.acknowledgedByTitleAr }
@@ -626,11 +618,11 @@ export function AcknowledgementDialog({
         label="صفته (اختيارية)"
         placeholder="المدير التنفيذي"
       />
-      <SelectField
+      <LookupSelectField
         control={form.control}
-        name="method"
+        name="methodId"
+        code="ACKNOWLEDGEMENT_METHOD"
         label="طريقة الإقرار"
-        options={toOptions(ACKNOWLEDGEMENT_METHOD_LABELS)}
       />
     </FormDialog>
   );

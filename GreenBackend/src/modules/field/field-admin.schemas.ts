@@ -160,7 +160,7 @@ export const fieldPartnerOptionSchema = registry.register(
     .object({
       id: z.uuid(),
       displayNameAr: z.string(),
-      organizationKind: z.string(),
+      organizationKindNameAr: z.string(),
     })
     .openapi({
       description:

@@ -27,9 +27,9 @@ import {
   supportForm,
 } from './enums.js'
 import { users } from './identity.js'
+import { lookupValues } from './lookups.js'
 import { roles } from './org.js'
 import { initiatives } from './programs.js'
-import { mediaChannels, relationshipTypes } from './relations.js'
 
 /**
  * الجهة الشريكة — سجل CRM كامل من «محتملة» إلى «نشطة».
@@ -51,13 +51,12 @@ export const partners = pgTable(
     legalNameAr: varchar('legal_name_ar', { length: 200 }).notNull(),
     displayNameAr: varchar('display_name_ar', { length: 200 }).notNull(),
     nameEn: varchar('name_en', { length: 200 }),
-    organizationKind: organizationKind('organization_kind').notNull(),
+    /** من تعريف `ORGANIZATION_KIND`. أشكال الدعم في `partner_support_forms`. */
+    organizationKindId: uuidColumn('organization_kind_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
 
     stage: partnerStage('stage').default('NEW').notNull(),
-    supportForms: supportForm('support_forms')
-      .array()
-      .notNull()
-      .default(sql`'{}'::support_form[]`),
 
     websiteUrl: varchar('website_url', { length: 500 }),
     summaryAr: text('summary_ar'),
@@ -78,15 +77,22 @@ export const partners = pgTable(
      *
      * `stage` يبقى محورًا مستقلًا: مرحلة الشراكة أين وصل الملف، والأولوية
      * كم يهمّنا أن يصل.
+     *
+     * الثلاثة قيم من تعريفات النظام: `RELATIONSHIP_TYPE` و`CONTACT_PRIORITY`
+     * و`ENGAGEMENT_HORIZON`. الأولوية إلزامية، وحين لا تُرسل تأخذ الخدمة
+     * القيمة `MEDIUM` المقفلة.
      */
     relationshipTypeId: uuidColumn('relationship_type_id').references(
-      () => relationshipTypes.id,
-      { onDelete: 'set null' },
+      () => lookupValues.id,
+      { onDelete: 'restrict' },
     ),
-    contactPriority: contactPriorityEnum('contact_priority')
-      .default('MEDIUM')
-      .notNull(),
-    engagementHorizon: engagementHorizonEnum('engagement_horizon'),
+    contactPriorityId: uuidColumn('contact_priority_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
+    engagementHorizonId: uuidColumn('engagement_horizon_id').references(
+      () => lookupValues.id,
+      { onDelete: 'restrict' },
+    ),
 
     /** يُحدَّث عند تسجيل متابعة، ويقبل الإدخال اليدوي لتاريخ سابق للنظام. */
     lastContactAt: tsColumn('last_contact_at'),
@@ -117,6 +123,16 @@ export const partners = pgTable(
     endedAt: tsColumn('ended_at'),
     endReasonAr: text('end_reason_ar'),
 
+    /**
+     * أعمدة ما قبل «تعريفات النظام»: لقطة من قيم الـenums ساعة الترحيل، لا
+     * يكتبها الكود ولا يقرؤها. تبقى إصدارًا واحدًا شاهدًا على الترحيل، ثم
+     * تُحذف مع أنواعها بعد التحقق منه في الإنتاج.
+     */
+    legacyOrganizationKind: organizationKind('organization_kind'),
+    legacySupportForms: supportForm('support_forms').array(),
+    legacyContactPriority: contactPriorityEnum('contact_priority'),
+    legacyEngagementHorizon: engagementHorizonEnum('engagement_horizon'),
+
     ...timestamps,
   },
   (table) => [
@@ -126,6 +142,11 @@ export const partners = pgTable(
     index('partners_stage_idx').on(table.stage),
     index('partners_manager_idx').on(table.accountManagerId),
     index('partners_display_name_idx').on(table.displayNameAr),
+    // المرشحات تسأل عن هذه الثلاثة، وفهرس المفتاح الأجنبي يجعل عدّ
+    // الاستعمال قبل حذف قيمة فحص فهرس لا مسحًا للجدول.
+    index('partners_organization_kind_idx').on(table.organizationKindId),
+    index('partners_contact_priority_idx').on(table.contactPriorityId),
+    index('partners_relationship_type_idx').on(table.relationshipTypeId),
     // الاعتماد يترك أثره: جهة نشطة بلا معتمِد ولا تاريخ تفعيل تعني تجاوزًا للبوابة.
     check(
       'partners_activation_consistency',
@@ -339,7 +360,15 @@ export const partnerInteractions = pgTable(
       .notNull()
       .references(() => partners.id, { onDelete: 'cascade' }),
 
-    kind: interactionKind('kind').notNull(),
+    /**
+     * من تعريف `INTERACTION_KIND`. قيمته `STAGE_CHANGE` يكتبها النظام وحده
+     * عند نقل المرحلة، ولا تُقبل من المستخدم.
+     */
+    kindId: uuidColumn('kind_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
+    /** لقطة ما قبل «تعريفات النظام» — راجع `partners.legacyOrganizationKind`. */
+    legacyKind: interactionKind('kind'),
     occurredAt: tsColumn('occurred_at').notNull(),
     summaryAr: varchar('summary_ar', { length: 300 }).notNull(),
     bodyAr: text('body_ar'),
@@ -357,6 +386,7 @@ export const partnerInteractions = pgTable(
       table.partnerId,
       table.occurredAt,
     ),
+    index('partner_interactions_kind_idx').on(table.kindId),
   ],
 )
 
@@ -401,7 +431,7 @@ export const partnerMemberships = pgTable(
 )
 
 /**
- * أشكال العمل الإعلامي التي تعمل بها الجهة.
+ * أشكال العمل الإعلامي التي تعمل بها الجهة — قيم من تعريف `MEDIA_CHANNEL`.
  *
  * جدول ربط خاص بالشركاء لا جدول متعدد الأشكال مشترك مع الأشخاص: المفتاح
  * الأجنبي هنا حقيقي يحرسه المحرّك، وعمود `owner_type` نصّي كان سيحوّل
@@ -415,11 +445,34 @@ export const partnerMediaChannels = pgTable(
       .references(() => partners.id, { onDelete: 'cascade' }),
     channelId: uuidColumn('channel_id')
       .notNull()
-      .references(() => mediaChannels.id, { onDelete: 'restrict' }),
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
   },
   (table) => [
     primaryKey({ columns: [table.partnerId, table.channelId] }),
     index('partner_media_channels_channel_idx').on(table.channelId),
+  ],
+)
+
+/**
+ * أشكال المشاركة والدعم — قيم من تعريف `SUPPORT_FORM`.
+ *
+ * كانت مصفوفة enum على `partners`. المصفوفة لا تحمل مفتاحًا أجنبيًا، فقيمة
+ * تُحذف من التعريف كانت ستبقى في الصفوف رمزًا بلا معنى؛ جدول الربط يجعل
+ * القاعدة ترفض الحذف كما ترفضه لأشكال العمل الإعلامي.
+ */
+export const partnerSupportForms = pgTable(
+  'partner_support_forms',
+  {
+    partnerId: uuidColumn('partner_id')
+      .notNull()
+      .references(() => partners.id, { onDelete: 'cascade' }),
+    valueId: uuidColumn('value_id')
+      .notNull()
+      .references(() => lookupValues.id, { onDelete: 'restrict' }),
+  },
+  (table) => [
+    primaryKey({ columns: [table.partnerId, table.valueId] }),
+    index('partner_support_forms_value_idx').on(table.valueId),
   ],
 )
 

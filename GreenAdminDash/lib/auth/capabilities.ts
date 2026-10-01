@@ -59,6 +59,7 @@ export const CAPABILITIES = {
 
   reportsView: "reports.view",
   auditView: "audit.view",
+  lookupsManage: "lookups.manage",
 } as const;
 
 export type Capability = (typeof CAPABILITIES)[keyof typeof CAPABILITIES];

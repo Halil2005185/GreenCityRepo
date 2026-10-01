@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo } from "react";
 
+import { lookupLabel } from "@/components/lookups/lookup-select";
 import { useMediaCache } from "@/components/media/media-dialogs";
 import { useMediaActions } from "@/components/media/use-media-actions";
 import { classificationItems } from "@/components/relations/classification";
@@ -24,7 +25,6 @@ import { DetailSkeleton, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ApiError } from "@/lib/api/client";
 import {
-  INTERACTION_KIND_LABELS,
   getMediaContact,
   setFollowUpCompletion,
   type MediaInteraction,
@@ -111,7 +111,7 @@ export default function MediaContactPage() {
         col.accessor("kind", {
           header: "النوع",
           enableSorting: false,
-          cell: (info) => <Badge tone="accent">{INTERACTION_KIND_LABELS[info.getValue()]}</Badge>,
+          cell: (info) => <Badge tone="accent">{lookupLabel(info.getValue())}</Badge>,
         }),
         col.display({
           id: "followUp",
@@ -226,7 +226,7 @@ export default function MediaContactPage() {
           ...classificationItems({
             priority: person.priority,
             horizon: person.horizon,
-            relationshipTypeNameAr: person.relationshipTypeNameAr,
+            relationshipType: person.relationshipType,
             channels: person.channels,
             lastContactAt: person.lastContactAt,
           }),

@@ -18,6 +18,7 @@ import {
   ensureTestDatabase,
   resetDatabase,
 } from '../helpers/database.js'
+import { lookupValueId } from '../helpers/lookups.js'
 import {
   createPartner,
   onboardPartnerRepresentative,
@@ -69,7 +70,7 @@ describe.runIf(ready)('partner lifecycle', () => {
     const partner = await createPartner(relations, {
       legalNameAr: 'شركة الشام للمقاولات',
       displayNameAr: 'الشام للمقاولات',
-      organizationKind: 'COMPANY',
+      organizationKindId: await lookupValueId('ORGANIZATION_KIND', 'COMPANY'),
     })
 
     expect(partner).toMatchObject({
@@ -85,7 +86,10 @@ describe.runIf(ready)('partner lifecycle', () => {
   it('falls back to the legal name when no display name is given', async () => {
     const partner = await createPartner(relations, {
       legalNameAr: 'مبادرة شباب حلب',
-      organizationKind: 'COMMUNITY_INITIATIVE',
+      organizationKindId: await lookupValueId(
+        'ORGANIZATION_KIND',
+        'COMMUNITY_INITIATIVE',
+      ),
     })
 
     expect(partner['displayNameAr']).toBe('مبادرة شباب حلب')

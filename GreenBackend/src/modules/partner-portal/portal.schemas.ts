@@ -1,6 +1,7 @@
 import { env } from '../../config/env.js'
 import { bearerAuth, problemResponse, registry } from '../../openapi/registry.js'
 import { z } from '../../openapi/zod.js'
+import { lookupRefSchema } from '../lookups/lookup-ref.schema.js'
 
 const security = [{ [bearerAuth.name]: [] }]
 const path = (suffix: string) => `${env.API_PREFIX}/partner/me${suffix}`
@@ -20,13 +21,13 @@ export const partnerSelfSchema = registry.register(
     displayNameAr: z.string(),
     legalNameAr: z.string(),
     nameEn: z.string().nullable(),
-    organizationKind: z.string(),
+    organizationKind: lookupRefSchema,
     stage: z.string(),
     isSuspended: z.boolean(),
     suspensionReasonAr: z.string().nullable(),
     websiteUrl: z.string().nullable(),
     summaryAr: z.string().nullable(),
-    supportForms: z.array(z.string()),
+    supportForms: z.array(lookupRefSchema),
     publicNameConsent: z.boolean(),
     publicLogoConsent: z.boolean(),
     activatedAt: z.iso.datetime().nullable(),

@@ -4,6 +4,7 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { Plus } from "lucide-react";
 import { useMemo } from "react";
 
+import { LookupBadge, LookupSelect, lookupLabel } from "@/components/lookups/lookup-select";
 import { PartnerCreateDialog } from "@/components/partners/partner-dialogs";
 import { usePartnerActions } from "@/components/partners/use-partner-actions";
 import { sinceLabel } from "@/components/relations/classification";
@@ -21,7 +22,6 @@ import { Select } from "@/components/ui/select";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { SearchInput, Toolbar } from "@/components/ui/toolbar";
 import {
-  ORGANIZATION_KIND_LABELS,
   PARTNERSHIP_TYPE_LABELS,
   PIPELINE_STAGES,
   listPartners,
@@ -69,7 +69,7 @@ export default function PartnersPage() {
       listPartners({
         q: filters.q,
         stage: serverStage,
-        priority: filters.priority,
+        contactPriorityId: filters.priority,
         ...(filters.stale ? { staleDays: Number(filters.stale) } : {}),
       }),
     // المرشح الجديد لا يمسح الجدول حتى تصل نتائجه.
@@ -99,7 +99,7 @@ export default function PartnersPage() {
             <PrimaryCell
               label={info.getValue()}
               href={`/dashboard/partners/${info.row.original.id}`}
-              description={ORGANIZATION_KIND_LABELS[info.row.original.organizationKind]}
+              description={lookupLabel(info.row.original.organizationKind)}
               badge={
                 info.row.original.isSuspended ? <Badge tone="danger">معلّقة</Badge> : null
               }
@@ -117,10 +117,10 @@ export default function PartnersPage() {
           enableSorting: false,
           cell: (info) => (
             <div className="min-w-24 space-y-1">
-              <StatusBadge kind="contactPriority" value={info.getValue()} />
-              {info.row.original.relationshipTypeNameAr ? (
+              <LookupBadge code="CONTACT_PRIORITY" value={info.getValue()} />
+              {info.row.original.relationshipType ? (
                 <p className="text-xs text-muted-foreground">
-                  {info.row.original.relationshipTypeNameAr}
+                  {lookupLabel(info.row.original.relationshipType)}
                 </p>
               ) : null}
             </div>
@@ -228,15 +228,16 @@ export default function PartnersPage() {
             value={filters.stage || null}
             onChange={(stage) => setFilters({ stage })}
           />
-          <Select
+          <LookupSelect
+            code="CONTACT_PRIORITY"
             size="sm"
             label="الأولوية"
             placeholder="الكل"
             className="w-44"
             clearable
-            options={statusOptions("contactPriority")}
+            creatable={false}
             value={filters.priority || null}
-            onChange={(priority) => setFilters({ priority })}
+            onChange={(priority) => setFilters({ priority: priority ?? "" })}
           />
           <Select
             size="sm"

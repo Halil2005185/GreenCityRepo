@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "next/navigation";
 
+import { lookupLabel } from "@/components/lookups/lookup-select";
 import {
   CharterSection,
   ContactsSection,
@@ -22,11 +23,7 @@ import { DetailSkeleton, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { UrlTabs } from "@/components/ui/url-tabs";
 import { ApiError } from "@/lib/api/client";
-import {
-  ORGANIZATION_KIND_LABELS,
-  SUPPORT_FORM_LABELS,
-  getPartner,
-} from "@/lib/api/partners";
+import { getPartner } from "@/lib/api/partners";
 import { useAuth } from "@/lib/auth/auth-context";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { formatDate } from "@/lib/utils";
@@ -113,11 +110,11 @@ export default function PartnerDetailPage() {
 
       <DescriptionList
         items={[
-          { label: "نوع الجهة", value: ORGANIZATION_KIND_LABELS[data.organizationKind] },
+          { label: "نوع الجهة", value: lookupLabel(data.organizationKind) },
           ...classificationItems({
             priority: data.contactPriority,
             horizon: data.engagementHorizon,
-            relationshipTypeNameAr: data.relationshipTypeNameAr,
+            relationshipType: data.relationshipType,
             channels: data.mediaChannels,
             lastContactAt: data.lastContactAt,
           }),
@@ -141,7 +138,7 @@ export default function PartnerDetailPage() {
             wide: true,
             value:
               data.supportForms.length > 0
-                ? data.supportForms.map((form) => SUPPORT_FORM_LABELS[form]).join("، ")
+                ? data.supportForms.map(lookupLabel).join("، ")
                 : null,
           },
           { label: "نبذة", wide: true, value: data.summaryAr },

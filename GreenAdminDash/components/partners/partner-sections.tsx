@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Plus, UserPlus, X } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { lookupLabel } from "@/components/lookups/lookup-select";
 import {
   AcknowledgementDialog,
   AddContactDialog,
@@ -26,9 +27,7 @@ import {
   revokeInvitation,
   type Invitation,
 } from "@/lib/api/invitations";
-import { INTERACTION_KIND_LABELS } from "@/lib/api/media";
 import {
-  ACKNOWLEDGEMENT_METHOD_LABELS,
   PARTNERSHIP_TYPE_LABELS,
   recordConsent,
   updatePartnership,
@@ -269,7 +268,7 @@ export function CharterSection({ partner }: { partner: PartnerDetail }) {
         acknowledgementCol.accessor("method", {
           header: "الطريقة",
           enableSorting: false,
-          cell: (info) => ACKNOWLEDGEMENT_METHOD_LABELS[info.getValue()],
+          cell: (info) => lookupLabel(info.getValue()),
         }),
         acknowledgementCol.accessor("acknowledgedAt", {
           header: "التاريخ",
@@ -327,7 +326,7 @@ export function FollowUpSection({ partner }: { partner: PartnerDetail }) {
         interactionCol.accessor("kind", {
           header: "النوع",
           enableSorting: false,
-          cell: (info) => <Badge tone="accent">{INTERACTION_KIND_LABELS[info.getValue()]}</Badge>,
+          cell: (info) => <Badge tone="accent">{lookupLabel(info.getValue())}</Badge>,
         }),
         interactionCol.accessor("recordedByNameAr", {
           header: "سجّلها",

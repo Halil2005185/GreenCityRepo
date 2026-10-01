@@ -10,8 +10,6 @@ export type PartnerSelf = components["schemas"]["PartnerSelf"];
 
 export type PartnerStage = PartnerSummary["stage"];
 export type PartnershipType = Partnership["type"];
-export type OrganizationKind = PartnerSummary["organizationKind"];
-export type SupportForm = PartnerDetail["supportForms"][number];
 
 /** المراحل التي ينقلها مكتب العلاقات؛ الباقي قرارات لها مساراتها. */
 export const PIPELINE_STAGES = [
@@ -27,21 +25,9 @@ export const PIPELINE_STAGES = [
  * التسميات العربية للقيم المجمّدة تعيش في الواجهة لا في القاعدة، والحالات
  * منها (المرحلة، حالة الشراكة) في `lib/status.ts` مع ألوانها.
  *
- * إضافة قيمة إلى enum في الخادم تعني تعديل هذه القوائم أيضًا — وهو
- * مقصود: القيمة عقد برمجي، ونصها العربي قرار تحريري.
+ * أنواع الشراكة وحدها هنا: نص الميثاق، والخادم يتفرّع عليها. نوع الجهة
+ * وأشكال الدعم وطريقة الإقرار صارت تعريفات نظام تأتي بأسمائها من القاعدة.
  */
-export const ORGANIZATION_KIND_LABELS: Record<OrganizationKind, string> = {
-  COMPANY: "شركة",
-  NGO: "جمعية أو منظمة أهلية",
-  GOVERNMENT: "جهة حكومية أو بلدية",
-  ACADEMIC: "جهة أكاديمية",
-  VOLUNTEER_TEAM: "فريق تطوعي",
-  COMMUNITY_INITIATIVE: "مبادرة مجتمعية",
-  DONOR: "جهة مانحة",
-  INDIVIDUAL: "فرد",
-  OTHER: "أخرى",
-};
-
 export const PARTNERSHIP_TYPE_LABELS: Record<PartnershipType, string> = {
   STRATEGIC: "شريك استراتيجي",
   EXECUTIVE: "شريك تنفيذي",
@@ -50,31 +36,13 @@ export const PARTNERSHIP_TYPE_LABELS: Record<PartnershipType, string> = {
   EVENT: "شريك فعالية ونشاط",
 };
 
-/** أشكال المشاركة والدعم السبعة كما وردت في الميثاق. */
-export const SUPPORT_FORM_LABELS: Record<SupportForm, string> = {
-  MORAL_MEDIA: "الدعم المعنوي والإعلامي",
-  COMMUNITY_VOLUNTEERING: "المشاركة المجتمعية والتطوعية",
-  SPONSORSHIP_LOGISTICS: "الرعاية أو الدعم اللوجستي",
-  TECHNICAL_ACADEMIC_EXPERTISE: "تقديم الخبرات الفنية أو الأكاديمية",
-  ENVIRONMENTAL_AWARENESS: "دعم الأنشطة البيئية والتوعوية",
-  INTERNAL_SUSTAINABILITY: "تبني مبادرات استدامة داخل المؤسسة",
-  SPACES_AND_RESOURCES: "توفير مساحات أو موارد",
-};
-
-export const ACKNOWLEDGEMENT_METHOD_LABELS = {
-  IN_PERSON: "حضوريًا",
-  EMAIL: "بالبريد الإلكتروني",
-  PORTAL: "عبر البوابة",
-  DOCUMENT: "بمستند موقّع",
-} as const;
-
 // ── نداءات الإدارة ─────────────────────────────────────────────────────
 
 export type PartnerFilters = {
   stage?: string;
   q?: string;
-  priority?: string;
-  horizon?: string;
+  contactPriorityId?: string;
+  engagementHorizonId?: string;
   relationshipTypeId?: string;
   channelId?: string;
   staleDays?: number;
@@ -103,13 +71,13 @@ export function getPartner(id: string) {
 export function createPartner(body: {
   legalNameAr: string;
   displayNameAr?: string;
-  organizationKind: OrganizationKind;
+  organizationKindId: string;
   websiteUrl?: string;
   summaryAr?: string;
-  supportForms: SupportForm[];
+  supportFormIds: string[];
   internalNotesAr?: string;
-  contactPriority?: PartnerSummary["contactPriority"];
-  engagementHorizon?: NonNullable<PartnerSummary["engagementHorizon"]>;
+  contactPriorityId?: string;
+  engagementHorizonId?: string;
   relationshipTypeId?: string;
   mediaChannelIds?: string[];
 }) {
@@ -182,7 +150,7 @@ export function recordConsent(
 export function recordAcknowledgement(
   id: string,
   body: {
-    method: keyof typeof ACKNOWLEDGEMENT_METHOD_LABELS;
+    methodId: string;
     acknowledgedByNameAr: string;
     acknowledgedByTitleAr?: string;
     noteAr?: string;

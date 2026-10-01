@@ -90,9 +90,8 @@ registry.registerPath({
 export const createGreenPointBodySchema = z.object({
   nameAr: z.string().min(3).max(200).openapi({ example: 'تشجير مدخل الحي' }),
   contributorNameAr: z.string().min(2).max(200),
-  contributorKind: z
-    .enum(['INDIVIDUAL', 'COMPANY', 'INSTITUTION', 'SCHOOL', 'VOLUNTEER_TEAM', 'OTHER'])
-    .optional(),
+  /** من تعريف `CONTRIBUTOR_KIND`. */
+  contributorKindId: z.uuid().optional(),
   areaId: z.uuid().optional(),
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),

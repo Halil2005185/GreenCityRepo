@@ -5,11 +5,12 @@ import { STAFF_CAPABILITIES } from '../../src/modules/access/capabilities.js'
 import { db } from '../../src/db/client.js'
 import { auditLogs } from '../../src/db/schema/audit.js'
 import { users } from '../../src/db/schema/identity.js'
+import { lookupLists, lookupValues } from '../../src/db/schema/lookups.js'
 import { metrics } from '../../src/db/schema/metrics.js'
 import { roles } from '../../src/db/schema/org.js'
 import { programs } from '../../src/db/schema/programs.js'
-import { mediaChannels } from '../../src/db/schema/relations.js'
 import { syncSystemData } from '../../src/db/seed.js'
+import { CONTRIBUTOR_KIND_SEEDS } from '../../src/db/seed-lookups.js'
 import {
   closeTestDatabase,
   ensureTestDatabase,
@@ -58,9 +59,9 @@ describe.runIf(ready)('deploy-time sync', () => {
     const second = await syncSystemData()
 
     expect([...second.roleIds]).toEqual([...first.roleIds])
-    expect([...second.reference.mediaChannelIds]).toEqual([
-      ...first.reference.mediaChannelIds,
-    ])
+    expect([...second.reference.lookupValueIds].sort()).toEqual(
+      [...first.reference.lookupValueIds].sort(),
+    )
 
     const drift = await db
       .select({ id: auditLogs.id })
@@ -75,7 +76,7 @@ describe.runIf(ready)('deploy-time sync', () => {
 
     const metricId = reference.metricIds.values().next().value!
     const programId = reference.programIds.values().next().value!
-    const channelId = reference.mediaChannelIds.get('street-interview')!
+    const channelId = reference.lookupValueIds.get('MEDIA_CHANNEL.STREET_INTERVIEW')!
 
     await db
       .update(metrics)
@@ -86,9 +87,9 @@ describe.runIf(ready)('deploy-time sync', () => {
       .set({ nameAr: 'برنامج بصياغة الفريق' })
       .where(eq(programs.id, programId))
     await db
-      .update(mediaChannels)
+      .update(lookupValues)
       .set({ nameAr: 'سؤال الشارع', isActive: false })
-      .where(eq(mediaChannels.id, channelId))
+      .where(eq(lookupValues.id, channelId))
 
     await syncSystemData()
 
@@ -102,27 +103,53 @@ describe.runIf(ready)('deploy-time sync', () => {
       .where(eq(programs.id, programId))
     const [channel] = await db
       .select()
-      .from(mediaChannels)
-      .where(eq(mediaChannels.id, channelId))
+      .from(lookupValues)
+      .where(eq(lookupValues.id, channelId))
 
     expect(metric).toMatchObject({ nameAr: 'اسم عدّله الفريق', displayOrder: 999 })
     expect(program?.nameAr).toBe('برنامج بصياغة الفريق')
     expect(channel).toMatchObject({ nameAr: 'سؤال الشارع', isActive: false })
   })
 
-  it('restores a missing reference row without duplicating the rest', async () => {
+  /**
+   * قيم التعريف تُبذر مع التعريف لا بعده: قيمة حذفها الفريق من الإعدادات
+   * لا تعود في النشر التالي. الاستثناء ما يكتبه الكود برمزه — غيابه يُسقط
+   * الإدراج الذي يعتمد عليه، فيعود.
+   */
+  it('seeds lookup values with their list only, except the locked ones', async () => {
     const { reference } = await syncSystemData()
-    const before = await db.select({ id: mediaChannels.id }).from(mediaChannels)
 
     await db
-      .delete(mediaChannels)
-      .where(eq(mediaChannels.id, reference.mediaChannelIds.get('podcast')!))
+      .delete(lookupValues)
+      .where(eq(lookupValues.id, reference.lookupValueIds.get('MEDIA_CHANNEL.PODCAST')!))
+    await db
+      .delete(lookupValues)
+      .where(eq(lookupValues.id, reference.lookupValueIds.get('CONTACT_PRIORITY.MEDIUM')!))
 
     const again = await syncSystemData()
-    const after = await db.select({ id: mediaChannels.id }).from(mediaChannels)
 
-    expect(after).toHaveLength(before.length)
-    expect(again.reference.mediaChannelIds.get('podcast')).toBeDefined()
+    expect(again.reference.lookupValueIds.has('MEDIA_CHANNEL.PODCAST')).toBe(false)
+    expect(again.reference.lookupValueIds.has('CONTACT_PRIORITY.MEDIUM')).toBe(true)
+  })
+
+  it('creates a missing list together with its seed values', async () => {
+    await syncSystemData()
+
+    const [list] = await db
+      .select({ id: lookupLists.id })
+      .from(lookupLists)
+      .where(eq(lookupLists.code, 'CONTRIBUTOR_KIND'))
+
+    await db.delete(lookupValues).where(eq(lookupValues.listId, list!.id))
+    await db.delete(lookupLists).where(eq(lookupLists.id, list!.id))
+
+    const { reference } = await syncSystemData()
+
+    const restored = [...reference.lookupValueIds.keys()].filter((key) =>
+      key.startsWith('CONTRIBUTOR_KIND.'),
+    )
+
+    expect(restored).toHaveLength(CONTRIBUTOR_KIND_SEEDS.length)
   })
 
   it('brings role capabilities back to the code and audits the grant', async () => {

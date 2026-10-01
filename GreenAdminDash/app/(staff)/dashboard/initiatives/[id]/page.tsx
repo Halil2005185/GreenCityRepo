@@ -6,13 +6,13 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 
 import { StoryDialog } from "@/components/initiatives/initiative-dialogs";
+import { lookupLabel } from "@/components/lookups/lookup-select";
 import { PageHeader } from "@/components/ui/page-header";
 import { Section } from "@/components/ui/section";
 import { DetailSkeleton, EmptyState, ErrorState } from "@/components/ui/states";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { ApiError } from "@/lib/api/client";
 import { getInitiative } from "@/lib/api/initiatives";
-import { CONTRIBUTOR_KIND_LABELS } from "@/lib/api/map";
 import { CAPABILITIES } from "@/lib/auth/capabilities";
 import { formatDate } from "@/lib/utils";
 
@@ -63,7 +63,7 @@ export default function InitiativeStoryPage() {
   const counted = data.progress.filter((row) => row.actual > 0);
   const place = data.areas[0]?.areaNameAr ?? data.sites[0]?.areaNameAr ?? data.sites[0]?.nameAr;
   const contributor = data.contributorNameAr
-    ? `${data.contributorNameAr}${data.contributorKind ? ` (${CONTRIBUTOR_KIND_LABELS[data.contributorKind]})` : ""}`
+    ? `${data.contributorNameAr}${data.contributorKind ? ` (${lookupLabel(data.contributorKind)})` : ""}`
     : null;
 
   const editStory = {

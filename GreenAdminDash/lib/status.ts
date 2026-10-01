@@ -6,7 +6,7 @@ import type {
   SiteStatus,
 } from "@/lib/api/initiatives";
 import type { Invitation } from "@/lib/api/invitations";
-import type { ContactPriority, MediaStage } from "@/lib/api/media";
+import type { MediaStage } from "@/lib/api/media";
 import type { PartnerStage, Partnership } from "@/lib/api/partners";
 import type { TeamMember } from "@/lib/api/people";
 import type { AuditEntry, WorkPriority, WorkStatus } from "@/lib/api/work";
@@ -84,13 +84,6 @@ const workPriority = {
   HIGH: { label: "عالية", tone: "warning" },
   URGENT: { label: "عاجلة", tone: "danger" },
 } satisfies StatusMap<WorkPriority>;
-
-/** أولوية التواصل مع شريك أو جهة إعلامية — تعداد مختلف عن أولوية المهمة. */
-const contactPriority = {
-  HIGH: { label: "عالية", tone: "danger" },
-  MEDIUM: { label: "متوسطة", tone: "warning" },
-  LOW: { label: "منخفضة", tone: "neutral" },
-} satisfies StatusMap<ContactPriority>;
 
 const mediaStage = {
   NEW: { label: "جديد", tone: "neutral" },
@@ -173,7 +166,6 @@ export const STATUS = {
   milestoneStatus,
   workStatus,
   workPriority,
-  contactPriority,
   mediaStage,
   userStatus,
   membershipStatus,

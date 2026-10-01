@@ -32,6 +32,7 @@ import {
 } from '../../db/schema/field.js'
 import { formSubmissions, formVersions, forms } from '../../db/schema/forms.js'
 import { users } from '../../db/schema/identity.js'
+import { lookupValues } from '../../db/schema/lookups.js'
 import { impactEntries } from '../../db/schema/metrics.js'
 import { offices, roles } from '../../db/schema/org.js'
 import { partners } from '../../db/schema/partners.js'
@@ -475,9 +476,10 @@ export async function listPartnerOptions() {
     .select({
       id: partners.id,
       displayNameAr: partners.displayNameAr,
-      organizationKind: partners.organizationKind,
+      organizationKindNameAr: lookupValues.nameAr,
     })
     .from(partners)
+    .innerJoin(lookupValues, eq(partners.organizationKindId, lookupValues.id))
     .where(activePartner)
     .orderBy(asc(partners.displayNameAr))
 }

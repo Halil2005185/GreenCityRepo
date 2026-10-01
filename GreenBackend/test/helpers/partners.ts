@@ -2,6 +2,7 @@ import request from 'supertest'
 
 import { app } from '../../src/app.js'
 import { bearer } from './auth.js'
+import { lookupValueId } from './lookups.js'
 
 /** ينشئ إصدار ميثاق وينشره، فيصير المرجع الساري للإقرارات. */
 export async function publishCharter(adminToken: string, version = '1.0') {
@@ -40,8 +41,10 @@ export async function createPartner(
     .set('authorization', bearer(adminToken))
     .send({
       legalNameAr: 'جمعية أصدقاء البيئة',
-      organizationKind: 'NGO',
-      supportForms: ['COMMUNITY_VOLUNTEERING'],
+      organizationKindId: await lookupValueId('ORGANIZATION_KIND', 'NGO'),
+      supportFormIds: [
+        await lookupValueId('SUPPORT_FORM', 'COMMUNITY_VOLUNTEERING'),
+      ],
       ...overrides,
     })
     .expect(201)
@@ -87,7 +90,7 @@ export async function satisfyActivationRequirements(
     .post(`/api/admin/partners/${partnerId}/charter-acknowledgements`)
     .set('authorization', bearer(adminToken))
     .send({
-      method: 'IN_PERSON',
+      methodId: await lookupValueId('ACKNOWLEDGEMENT_METHOD', 'IN_PERSON'),
       acknowledgedByNameAr: 'سامي المدير',
       acknowledgedByTitleAr: 'المدير التنفيذي',
     })

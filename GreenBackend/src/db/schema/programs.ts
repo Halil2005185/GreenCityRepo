@@ -22,6 +22,7 @@ import {
 } from './enums.js'
 import { areas } from './geo.js'
 import { users } from './identity.js'
+import { lookupValues } from './lookups.js'
 
 /**
  * البرامج — صفوف لا قيم في enum.
@@ -96,7 +97,13 @@ export const initiatives = pgTable(
      * (ولا يمكن: `partners` يستورد هذا الملف، فالمفتاح المعاكس دورة).
      */
     contributorNameAr: varchar('contributor_name_ar', { length: 200 }),
-    contributorKind: contributorKind('contributor_kind'),
+    /** من تعريف `CONTRIBUTOR_KIND`؛ اختياري كما كان. */
+    contributorKindId: uuidColumn('contributor_kind_id').references(
+      () => lookupValues.id,
+      { onDelete: 'restrict' },
+    ),
+    /** لقطة ما قبل «تعريفات النظام» — راجع `partners.legacyOrganizationKind`. */
+    legacyContributorKind: contributorKind('contributor_kind'),
 
     /** موسم التنفيذ كنص حر: «خريف 2026» أو «موسم التشجير 2026». */
     season: varchar('season', { length: 80 }),
@@ -124,6 +131,7 @@ export const initiatives = pgTable(
       .where(sql`${table.slug} is not null`),
     index('initiatives_program_idx').on(table.programId),
     index('initiatives_status_idx').on(table.status),
+    index('initiatives_contributor_kind_idx').on(table.contributorKindId),
     check(
       'initiatives_launch_consistency',
       sql`${table.status} <> 'ACTIVE' or ${table.launchedAt} is not null`,

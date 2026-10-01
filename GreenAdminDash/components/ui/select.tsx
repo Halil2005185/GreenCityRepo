@@ -1,7 +1,7 @@
 "use client";
 
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { CheckIcon, ChevronsUpDown, Loader2, XIcon } from "lucide-react";
+import { CheckIcon, ChevronsUpDown, Loader2, PlusIcon, XIcon } from "lucide-react";
 import { useId, useMemo, useRef, useState } from "react";
 
 import {
@@ -37,6 +37,16 @@ export type SelectSource = {
   load: (query: string, signal: AbortSignal) => Promise<SelectOption[]>;
 };
 
+/**
+ * فعل في ذيل القائمة لا خيار منها: «＋ إضافة قيمة جديدة». يبقى ظاهرًا مهما
+ * صُفّيت القائمة، ويُبلَّغ بنص البحث، فحين لا تجد القائمة ما كُتب يصير
+ * «إضافة «صيدلية»» ويصل الاسم إلى نافذة الإضافة جاهزًا.
+ */
+export type SelectAction = {
+  label: (search: string) => string;
+  onSelect: (search: string) => void;
+};
+
 type CommonProps = {
   id?: string;
   options?: readonly SelectOption[];
@@ -53,6 +63,7 @@ type CommonProps = {
   size?: "default" | "sm";
   /** بادئة ظاهرة في الزر لمرشحات شريط الأدوات: «المرحلة: الكل». */
   label?: string;
+  action?: SelectAction;
   className?: string;
   "aria-invalid"?: boolean;
   "aria-describedby"?: string;
@@ -132,6 +143,7 @@ export function Select(props: SelectProps) {
     loading = false,
     size = "default",
     label,
+    action,
     className,
   } = props;
 
@@ -344,6 +356,26 @@ export function Select(props: SelectProps) {
                   })}
                 </CommandGroup>
               ))}
+
+              {action ? (
+                <CommandGroup forceMount className="border-t border-border pt-1">
+                  <CommandItem
+                    forceMount
+                    value="__select-action__"
+                    onSelect={() => {
+                      const term = search.trim();
+
+                      setOpen(false);
+                      setSearch("");
+                      action.onSelect(term);
+                    }}
+                    className="text-primary"
+                  >
+                    <PlusIcon aria-hidden className="size-4" />
+                    <span className="min-w-0 flex-1 truncate">{action.label(search.trim())}</span>
+                  </CommandItem>
+                </CommandGroup>
+              ) : null}
             </CommandList>
           </Command>
         </PopoverContent>

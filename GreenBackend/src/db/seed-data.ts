@@ -303,6 +303,7 @@ export const ROLE_SEEDS: readonly RoleSeed[] = [
       'audit.view',
       'metrics.manage',
       'geo.manage',
+      'lookups.manage',
       'files.upload',
       'files.manage',
       'initiatives.view',

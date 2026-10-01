@@ -2435,6 +2435,30 @@
           "metrics"
         ]
       },
+      "LookupRef": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "nameAr",
+          "isActive"
+        ]
+      },
       "Program": {
         "type": "object",
         "properties": {
@@ -3513,17 +3537,29 @@
               },
               "contributorKind": {
                 "type": [
-                  "string",
+                  "object",
                   "null"
                 ],
-                "enum": [
-                  "INDIVIDUAL",
-                  "COMPANY",
-                  "INSTITUTION",
-                  "SCHOOL",
-                  "VOLUNTEER_TEAM",
-                  "OTHER",
-                  null
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "code": {
+                    "type": "string"
+                  },
+                  "nameAr": {
+                    "type": "string"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "id",
+                  "code",
+                  "nameAr",
+                  "isActive"
                 ]
               },
               "internalNotesAr": {
@@ -3747,6 +3783,157 @@
           "inviteUrl"
         ]
       },
+      "LookupCode": {
+        "type": "string",
+        "enum": [
+          "ORGANIZATION_KIND",
+          "SUPPORT_FORM",
+          "CONTACT_PRIORITY",
+          "ENGAGEMENT_HORIZON",
+          "RELATIONSHIP_TYPE",
+          "MEDIA_CHANNEL",
+          "INTERACTION_KIND",
+          "ACKNOWLEDGEMENT_METHOD",
+          "CONTRIBUTOR_KIND"
+        ]
+      },
+      "LookupValue": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "nameEn": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "displayOrder": {
+            "type": "integer"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "isLocked": {
+            "type": "boolean",
+            "description": "يشير إليها الكود برمزها: لا تُعطَّل ولا تُحذف، وتُعاد تسميتها."
+          },
+          "isSystem": {
+            "type": "boolean",
+            "description": "يكتبها النظام وحده: لا تظهر في قوائم الاختيار ولا يقبلها الخادم من المستخدم."
+          },
+          "usageCount": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "عدد السجلات المصنّفة بها، حين يُطلب `includeUsage`. الحذف لما عدده صفر وحده."
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "nameAr",
+          "nameEn",
+          "descriptionAr",
+          "displayOrder",
+          "isActive",
+          "isLocked",
+          "isSystem",
+          "usageCount"
+        ]
+      },
+      "LookupListSummary": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/LookupCode"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupAr": {
+            "type": "string"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "هل يحرّر المستخدم الحالي قيم التعريف. الواجهة تُظهر زر «+» عليه، والخادم يفحصه مستقلًا."
+          },
+          "valueCount": {
+            "type": "integer"
+          },
+          "activeCount": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "code",
+          "nameAr",
+          "descriptionAr",
+          "groupAr",
+          "canEdit",
+          "valueCount",
+          "activeCount"
+        ]
+      },
+      "LookupList": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/LookupCode"
+          },
+          "nameAr": {
+            "type": "string"
+          },
+          "descriptionAr": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "groupAr": {
+            "type": "string"
+          },
+          "canEdit": {
+            "type": "boolean",
+            "description": "هل يحرّر المستخدم الحالي قيم التعريف. الواجهة تُظهر زر «+» عليه، والخادم يفحصه مستقلًا."
+          },
+          "values": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/LookupValue"
+            }
+          }
+        },
+        "required": [
+          "code",
+          "nameAr",
+          "descriptionAr",
+          "groupAr",
+          "canEdit",
+          "values"
+        ]
+      },
       "MapArea": {
         "type": "object",
         "properties": {
@@ -3855,22 +4042,6 @@
           "lng"
         ]
       },
-      "CatalogRef": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "nameAr": {
-            "type": "string"
-          }
-        },
-        "required": [
-          "id",
-          "nameAr"
-        ]
-      },
       "MediaContactSummary": {
         "type": "object",
         "properties": {
@@ -3931,35 +4102,66 @@
             ]
           },
           "priority": {
-            "type": "string",
-            "enum": [
-              "HIGH",
-              "MEDIUM",
-              "LOW"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "horizon": {
             "type": [
-              "string",
+              "object",
               "null"
             ],
-            "enum": [
-              "LONG_TERM",
-              "SHORT_TERM",
-              "ONE_OFF",
-              null
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "code": {
+                "type": "string"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "isActive": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "nameAr",
+              "isActive"
             ]
           },
-          "relationshipTypeNameAr": {
+          "relationshipType": {
             "type": [
-              "string",
+              "object",
               "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "code": {
+                "type": "string"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "isActive": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "nameAr",
+              "isActive"
             ]
           },
           "channels": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/CatalogRef"
+              "$ref": "#/components/schemas/LookupRef"
             }
           },
           "accountManagerNameAr": {
@@ -3995,7 +4197,7 @@
           "stage",
           "priority",
           "horizon",
-          "relationshipTypeNameAr",
+          "relationshipType",
           "channels",
           "accountManagerNameAr",
           "lastContactAt",
@@ -4011,16 +4213,7 @@
             "format": "uuid"
           },
           "kind": {
-            "type": "string",
-            "enum": [
-              "NOTE",
-              "CALL",
-              "EMAIL",
-              "MEETING",
-              "MESSAGE",
-              "DOCUMENT_REQUEST",
-              "STAGE_CHANGE"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "occurredAt": {
             "type": "string",
@@ -4091,13 +4284,6 @@
                   "null"
                 ]
               },
-              "relationshipTypeId": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "format": "uuid"
-              },
               "accountManagerId": {
                 "type": [
                   "string",
@@ -4122,7 +4308,6 @@
             "required": [
               "nameEn",
               "profileUrl",
-              "relationshipTypeId",
               "accountManagerId",
               "internalNotesAr",
               "interactions"
@@ -4145,24 +4330,10 @@
             "type": "string"
           },
           "priority": {
-            "type": "string",
-            "enum": [
-              "HIGH",
-              "MEDIUM",
-              "LOW"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "kind": {
-            "type": "string",
-            "enum": [
-              "NOTE",
-              "CALL",
-              "EMAIL",
-              "MEETING",
-              "MESSAGE",
-              "DOCUMENT_REQUEST",
-              "STAGE_CHANGE"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "summaryAr": {
             "type": "string"
@@ -4405,7 +4576,7 @@
             ]
           },
           "organizationKind": {
-            "type": "string"
+            "$ref": "#/components/schemas/LookupRef"
           },
           "stage": {
             "type": "string"
@@ -4434,7 +4605,7 @@
           "supportForms": {
             "type": "array",
             "items": {
-              "type": "string"
+              "$ref": "#/components/schemas/LookupRef"
             }
           },
           "publicNameConsent": {
@@ -4650,18 +4821,7 @@
             "type": "string"
           },
           "organizationKind": {
-            "type": "string",
-            "enum": [
-              "COMPANY",
-              "NGO",
-              "GOVERNMENT",
-              "ACADEMIC",
-              "VOLUNTEER_TEAM",
-              "COMMUNITY_INITIATIVE",
-              "DONOR",
-              "INDIVIDUAL",
-              "OTHER"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "stage": {
             "type": "string",
@@ -4712,48 +4872,66 @@
             "type": "boolean"
           },
           "contactPriority": {
-            "type": "string",
-            "enum": [
-              "HIGH",
-              "MEDIUM",
-              "LOW"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "engagementHorizon": {
             "type": [
-              "string",
+              "object",
               "null"
             ],
-            "enum": [
-              "LONG_TERM",
-              "SHORT_TERM",
-              "ONE_OFF",
-              null
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "code": {
+                "type": "string"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "isActive": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "nameAr",
+              "isActive"
             ]
           },
-          "relationshipTypeNameAr": {
+          "relationshipType": {
             "type": [
-              "string",
+              "object",
               "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "code": {
+                "type": "string"
+              },
+              "nameAr": {
+                "type": "string"
+              },
+              "isActive": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "id",
+              "code",
+              "nameAr",
+              "isActive"
             ]
           },
           "mediaChannels": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "id": {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                "nameAr": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "id",
-                "nameAr"
-              ]
+              "$ref": "#/components/schemas/LookupRef"
             }
           },
           "lastContactAt": {
@@ -4789,7 +4967,7 @@
           "publicLogoConsent",
           "contactPriority",
           "engagementHorizon",
-          "relationshipTypeNameAr",
+          "relationshipType",
           "mediaChannels",
           "lastContactAt",
           "activatedAt",
@@ -4980,13 +5158,7 @@
             "format": "date-time"
           },
           "method": {
-            "type": "string",
-            "enum": [
-              "IN_PERSON",
-              "EMAIL",
-              "PORTAL",
-              "DOCUMENT"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "acknowledgedByNameAr": {
             "type": "string"
@@ -5023,16 +5195,7 @@
             "format": "uuid"
           },
           "kind": {
-            "type": "string",
-            "enum": [
-              "NOTE",
-              "CALL",
-              "EMAIL",
-              "MEETING",
-              "MESSAGE",
-              "DOCUMENT_REQUEST",
-              "STAGE_CHANGE"
-            ]
+            "$ref": "#/components/schemas/LookupRef"
           },
           "occurredAt": {
             "type": "string",
@@ -5141,26 +5304,10 @@
               "supportForms": {
                 "type": "array",
                 "items": {
-                  "type": "string",
-                  "enum": [
-                    "MORAL_MEDIA",
-                    "COMMUNITY_VOLUNTEERING",
-                    "SPONSORSHIP_LOGISTICS",
-                    "TECHNICAL_ACADEMIC_EXPERTISE",
-                    "ENVIRONMENTAL_AWARENESS",
-                    "INTERNAL_SUSTAINABILITY",
-                    "SPACES_AND_RESOURCES"
-                  ]
+                  "$ref": "#/components/schemas/LookupRef"
                 }
               },
               "accountManagerId": {
-                "type": [
-                  "string",
-                  "null"
-                ],
-                "format": "uuid"
-              },
-              "relationshipTypeId": {
                 "type": [
                   "string",
                   "null"
@@ -5233,7 +5380,6 @@
               "summaryAr",
               "supportForms",
               "accountManagerId",
-              "relationshipTypeId",
               "internalNotesAr",
               "rejectionReasonAr",
               "suspensionReasonAr",
@@ -5484,90 +5630,6 @@
         },
         "required": [
           "data"
-        ]
-      },
-      "MediaChannel": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "slug": {
-            "type": "string"
-          },
-          "nameAr": {
-            "type": "string"
-          },
-          "nameEn": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "descriptionAr": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "displayOrder": {
-            "type": "integer"
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "slug",
-          "nameAr",
-          "nameEn",
-          "descriptionAr",
-          "displayOrder",
-          "isActive"
-        ]
-      },
-      "RelationshipType": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid"
-          },
-          "slug": {
-            "type": "string"
-          },
-          "nameAr": {
-            "type": "string"
-          },
-          "nameEn": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "descriptionAr": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
-          "displayOrder": {
-            "type": "integer"
-          },
-          "isActive": {
-            "type": "boolean"
-          }
-        },
-        "required": [
-          "id",
-          "slug",
-          "nameAr",
-          "nameEn",
-          "descriptionAr",
-          "displayOrder",
-          "isActive"
         ]
       },
       "SignedUpload": {
@@ -7385,14 +7447,14 @@
           "displayNameAr": {
             "type": "string"
           },
-          "organizationKind": {
+          "organizationKindNameAr": {
             "type": "string"
           }
         },
         "required": [
           "id",
           "displayNameAr",
-          "organizationKind"
+          "organizationKindNameAr"
         ],
         "description": "جهة شريكة نشطة تُنسب إليها مجموعة. اسمها ونوعها وحدهما: سجل الشركاء لمن يحمل صلاحيته."
       },
@@ -14290,6 +14352,471 @@
         }
       }
     },
+    "/api/admin/lookups": {
+      "get": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "تعريفات النظام",
+        "description": "كل التعريفات مع عدد قيمها. القراءة لكل الفريق.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "التعريفات",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/LookupListSummary"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/lookups/{code}": {
+      "get": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "تعريف وقيمه",
+        "description": "ما تقرؤه كل قائمة منسدلة برمزها. المعطّلة خارجها إلا بـ`includeInactive`، وعدد الاستعمال لا يُحسب إلا بـ`includeUsage`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "default": false
+            },
+            "required": false,
+            "name": "includeInactive",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "default": false
+            },
+            "required": false,
+            "name": "includeUsage",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "التعريف",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupList"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "التعريف غير موجود",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "تعديل اسم التعريف ووصفه",
+        "description": "الرمز لا يتغير: الشاشات والأعمدة تشير إليه.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّل",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupList"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "يحتاج `lookups.manage`",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/lookups/{code}/values": {
+      "post": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "إضافة قيمة",
+        "description": "يستعمله زر «+» في القائمة المنسدلة وشاشة الإعدادات معًا. تُضاف القيمة في آخر الترتيب.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "code": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 64,
+                    "pattern": "^[A-Z][A-Z0-9_]*$"
+                  },
+                  "nameEn": {
+                    "type": "string",
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                },
+                "required": [
+                  "nameAr"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "أُضيفت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupValue"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "لا تملك تحرير هذا التعريف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "الاسم أو الرمز مستخدم في التعريف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/lookups/{code}/values/{id}": {
+      "patch": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "تعديل قيمة أو تعطيلها",
+        "description": "التعطيل يخفي القيمة من القوائم ولا يمسّ ما صُنّف بها. القيم المقفلة لا تُعطَّل.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nameAr": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "nameEn": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 160
+                  },
+                  "descriptionAr": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 1000
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "عُدِّلت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupValue"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "القيمة مقفلة أو الاسم مستخدم",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "حذف قيمة لم تُستعمل",
+        "description": "لقيمة لم يُصنَّف بها سجل قط. المستعملة تُعطَّل بدل حذفها، والمفتاح الأجنبي يرفض حذفها ولو أخطأ العدّ.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "حُذفت"
+          },
+          "409": {
+            "description": "القيمة مستعملة أو مقفلة",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/admin/lookups/{code}/values/reorder": {
+      "post": {
+        "tags": [
+          "Lookups"
+        ],
+        "summary": "ترتيب القيم",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "maxLength": 64
+            },
+            "required": true,
+            "name": "code",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    },
+                    "minItems": 1,
+                    "maxItems": 500
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "رُتِّبت",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LookupList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "الترتيب لا يشمل كل قيم التعريف",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Problem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/admin/map/areas": {
       "get": {
         "tags": [
@@ -14420,16 +14947,9 @@
                     "minLength": 2,
                     "maxLength": 200
                   },
-                  "contributorKind": {
+                  "contributorKindId": {
                     "type": "string",
-                    "enum": [
-                      "INDIVIDUAL",
-                      "COMPANY",
-                      "INSTITUTION",
-                      "SCHOOL",
-                      "VOLUNTEER_TEAM",
-                      "OTHER"
-                    ]
+                    "format": "uuid"
                   },
                   "areaId": {
                     "type": "string",
@@ -14584,27 +15104,19 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "HIGH",
-                "MEDIUM",
-                "LOW"
-              ]
+              "format": "uuid"
             },
             "required": false,
-            "name": "priority",
+            "name": "priorityId",
             "in": "query"
           },
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "LONG_TERM",
-                "SHORT_TERM",
-                "ONE_OFF"
-              ]
+              "format": "uuid"
             },
             "required": false,
-            "name": "horizon",
+            "name": "horizonId",
             "in": "query"
           },
           {
@@ -14751,22 +15263,13 @@
                     ],
                     "default": "NEW"
                   },
-                  "priority": {
+                  "priorityId": {
                     "type": "string",
-                    "enum": [
-                      "HIGH",
-                      "MEDIUM",
-                      "LOW"
-                    ],
-                    "default": "MEDIUM"
+                    "format": "uuid"
                   },
-                  "horizon": {
+                  "horizonId": {
                     "type": "string",
-                    "enum": [
-                      "LONG_TERM",
-                      "SHORT_TERM",
-                      "ONE_OFF"
-                    ]
+                    "format": "uuid"
                   },
                   "relationshipTypeId": {
                     "type": "string",
@@ -14965,25 +15468,16 @@
                     ],
                     "format": "uuid"
                   },
-                  "priority": {
+                  "priorityId": {
                     "type": "string",
-                    "enum": [
-                      "HIGH",
-                      "MEDIUM",
-                      "LOW"
-                    ]
+                    "format": "uuid"
                   },
-                  "horizon": {
+                  "horizonId": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "enum": [
-                      "LONG_TERM",
-                      "SHORT_TERM",
-                      "ONE_OFF",
-                      null
-                    ]
+                    "format": "uuid"
                   },
                   "relationshipTypeId": {
                     "type": [
@@ -15227,17 +15721,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "kind": {
+                  "kindId": {
                     "type": "string",
-                    "enum": [
-                      "NOTE",
-                      "CALL",
-                      "EMAIL",
-                      "MEETING",
-                      "MESSAGE",
-                      "DOCUMENT_REQUEST"
-                    ],
-                    "description": "`STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة."
+                    "format": "uuid",
+                    "description": "من `INTERACTION_KIND`. `STAGE_CHANGE` يكتبه النظام وحده عند نقل المرحلة فيُرفض هنا."
                   },
                   "occurredAt": {
                     "type": "string",
@@ -15258,7 +15745,7 @@
                   }
                 },
                 "required": [
-                  "kind",
+                  "kindId",
                   "summaryAr"
                 ]
               }
@@ -15563,7 +16050,8 @@
                         "forms.publish",
                         "reports.view",
                         "reports.manage",
-                        "audit.view"
+                        "audit.view",
+                        "lookups.manage"
                       ]
                     },
                     "maxItems": 100
@@ -15766,7 +16254,8 @@
                         "forms.publish",
                         "reports.view",
                         "reports.manage",
-                        "audit.view"
+                        "audit.view",
+                        "lookups.manage"
                       ]
                     },
                     "maxItems": 100
@@ -16155,27 +16644,19 @@
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "HIGH",
-                "MEDIUM",
-                "LOW"
-              ]
+              "format": "uuid"
             },
             "required": false,
-            "name": "priority",
+            "name": "contactPriorityId",
             "in": "query"
           },
           {
             "schema": {
               "type": "string",
-              "enum": [
-                "LONG_TERM",
-                "SHORT_TERM",
-                "ONE_OFF"
-              ]
+              "format": "uuid"
             },
             "required": false,
-            "name": "horizon",
+            "name": "engagementHorizonId",
             "in": "query"
           },
           {
@@ -16272,19 +16753,9 @@
                     "type": "string",
                     "maxLength": 200
                   },
-                  "organizationKind": {
+                  "organizationKindId": {
                     "type": "string",
-                    "enum": [
-                      "COMPANY",
-                      "NGO",
-                      "GOVERNMENT",
-                      "ACADEMIC",
-                      "VOLUNTEER_TEAM",
-                      "COMMUNITY_INITIATIVE",
-                      "DONOR",
-                      "INDIVIDUAL",
-                      "OTHER"
-                    ]
+                    "format": "uuid"
                   },
                   "websiteUrl": {
                     "type": "string",
@@ -16295,21 +16766,13 @@
                     "type": "string",
                     "maxLength": 2000
                   },
-                  "supportForms": {
+                  "supportFormIds": {
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": [
-                        "MORAL_MEDIA",
-                        "COMMUNITY_VOLUNTEERING",
-                        "SPONSORSHIP_LOGISTICS",
-                        "TECHNICAL_ACADEMIC_EXPERTISE",
-                        "ENVIRONMENTAL_AWARENESS",
-                        "INTERNAL_SUSTAINABILITY",
-                        "SPACES_AND_RESOURCES"
-                      ]
+                      "format": "uuid"
                     },
-                    "maxItems": 7,
+                    "maxItems": 30,
                     "default": []
                   },
                   "accountManagerId": {
@@ -16320,22 +16783,13 @@
                     "type": "string",
                     "maxLength": 4000
                   },
-                  "contactPriority": {
+                  "contactPriorityId": {
                     "type": "string",
-                    "enum": [
-                      "HIGH",
-                      "MEDIUM",
-                      "LOW"
-                    ],
-                    "default": "MEDIUM"
+                    "format": "uuid"
                   },
-                  "engagementHorizon": {
+                  "engagementHorizonId": {
                     "type": "string",
-                    "enum": [
-                      "LONG_TERM",
-                      "SHORT_TERM",
-                      "ONE_OFF"
-                    ]
+                    "format": "uuid"
                   },
                   "relationshipTypeId": {
                     "type": "string",
@@ -16357,7 +16811,7 @@
                 },
                 "required": [
                   "legalNameAr",
-                  "organizationKind"
+                  "organizationKindId"
                 ]
               }
             }
@@ -16473,19 +16927,9 @@
                     "type": "string",
                     "maxLength": 200
                   },
-                  "organizationKind": {
+                  "organizationKindId": {
                     "type": "string",
-                    "enum": [
-                      "COMPANY",
-                      "NGO",
-                      "GOVERNMENT",
-                      "ACADEMIC",
-                      "VOLUNTEER_TEAM",
-                      "COMMUNITY_INITIATIVE",
-                      "DONOR",
-                      "INDIVIDUAL",
-                      "OTHER"
-                    ]
+                    "format": "uuid"
                   },
                   "websiteUrl": {
                     "type": "string",
@@ -16504,26 +16948,16 @@
                     "type": "string",
                     "maxLength": 4000
                   },
-                  "contactPriority": {
+                  "contactPriorityId": {
                     "type": "string",
-                    "enum": [
-                      "HIGH",
-                      "MEDIUM",
-                      "LOW"
-                    ],
-                    "default": "MEDIUM"
+                    "format": "uuid"
                   },
-                  "engagementHorizon": {
+                  "engagementHorizonId": {
                     "type": [
                       "string",
                       "null"
                     ],
-                    "enum": [
-                      "LONG_TERM",
-                      "SHORT_TERM",
-                      "ONE_OFF",
-                      null
-                    ]
+                    "format": "uuid"
                   },
                   "relationshipTypeId": {
                     "type": [
@@ -16539,21 +16973,13 @@
                     ],
                     "format": "date-time"
                   },
-                  "supportForms": {
+                  "supportFormIds": {
                     "type": "array",
                     "items": {
                       "type": "string",
-                      "enum": [
-                        "MORAL_MEDIA",
-                        "COMMUNITY_VOLUNTEERING",
-                        "SPONSORSHIP_LOGISTICS",
-                        "TECHNICAL_ACADEMIC_EXPERTISE",
-                        "ENVIRONMENTAL_AWARENESS",
-                        "INTERNAL_SUSTAINABILITY",
-                        "SPACES_AND_RESOURCES"
-                      ]
+                      "format": "uuid"
                     },
-                    "maxItems": 7
+                    "maxItems": 30
                   },
                   "mediaChannelIds": {
                     "type": "array",
@@ -17002,14 +17428,9 @@
                     "type": "string",
                     "format": "date-time"
                   },
-                  "method": {
+                  "methodId": {
                     "type": "string",
-                    "enum": [
-                      "IN_PERSON",
-                      "EMAIL",
-                      "PORTAL",
-                      "DOCUMENT"
-                    ]
+                    "format": "uuid"
                   },
                   "acknowledgedByContactId": {
                     "type": "string",
@@ -17030,7 +17451,7 @@
                   }
                 },
                 "required": [
-                  "method",
+                  "methodId",
                   "acknowledgedByNameAr"
                 ]
               }
@@ -17089,16 +17510,10 @@
               "schema": {
                 "type": "object",
                 "properties": {
-                  "kind": {
+                  "kindId": {
                     "type": "string",
-                    "enum": [
-                      "NOTE",
-                      "CALL",
-                      "EMAIL",
-                      "MEETING",
-                      "MESSAGE",
-                      "DOCUMENT_REQUEST"
-                    ]
+                    "format": "uuid",
+                    "description": "من `INTERACTION_KIND`. `STAGE_CHANGE` يكتبه النظام وحده فيُرفض هنا."
                   },
                   "occurredAt": {
                     "type": "string",
@@ -17119,7 +17534,7 @@
                   }
                 },
                 "required": [
-                  "kind",
+                  "kindId",
                   "summaryAr"
                 ]
               }
@@ -17672,7 +18087,8 @@
                         "forms.publish",
                         "reports.view",
                         "reports.manage",
-                        "audit.view"
+                        "audit.view",
+                        "lookups.manage"
                       ]
                     },
                     "maxItems": 100
@@ -17727,7 +18143,8 @@
                         "forms.publish",
                         "reports.view",
                         "reports.manage",
-                        "audit.view"
+                        "audit.view",
+                        "lookups.manage"
                       ]
                     },
                     "maxItems": 100
@@ -18107,408 +18524,6 @@
           },
           "422": {
             "description": "العضوية منتهية بالفعل",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/relations/media-channels": {
-      "get": {
-        "tags": [
-          "Relations"
-        ],
-        "summary": "أشكال العمل الإعلامي",
-        "description": "بأي شكل يعمل الإعلامي أو الجهة: سؤال شارع، ريبورتاج، بودكاست، تصوير. مفردات يحرّرها مكتب العلاقات دون migration.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "default": false
-            },
-            "required": false,
-            "name": "includeInactive",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "أشكال العمل الإعلامي",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/MediaChannel"
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Relations"
-        ],
-        "summary": "إضافة شكل عمل إعلامي",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "slug": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 64,
-                    "pattern": "^[a-z0-9-]+$"
-                  },
-                  "nameAr": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 160
-                  },
-                  "nameEn": {
-                    "type": "string",
-                    "maxLength": 160
-                  },
-                  "descriptionAr": {
-                    "type": "string",
-                    "maxLength": 1000
-                  },
-                  "displayOrder": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9999,
-                    "default": 0
-                  }
-                },
-                "required": [
-                  "slug",
-                  "nameAr"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "أُضيف",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MediaChannel"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "الـslug مستخدم",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/relations/media-channels/{id}": {
-      "patch": {
-        "tags": [
-          "Relations"
-        ],
-        "summary": "تعديل شكل عمل إعلامي",
-        "description": "التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "nameAr": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 160
-                  },
-                  "nameEn": {
-                    "type": "string",
-                    "maxLength": 160
-                  },
-                  "descriptionAr": {
-                    "type": "string",
-                    "maxLength": 1000
-                  },
-                  "displayOrder": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9999,
-                    "default": 0
-                  },
-                  "isActive": {
-                    "type": "boolean"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "عُدِّل",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MediaChannel"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "المفردة غير موجودة",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/relations/relationship-types": {
-      "get": {
-        "tags": [
-          "Relations"
-        ],
-        "summary": "أنواع العلاقة",
-        "description": "طبيعة العلاقة عمليًا — تعاون تطوعي، تغطية، تبادل منفعة. غير نوع الشراكة الذي يحدده الميثاق.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "default": false
-            },
-            "required": false,
-            "name": "includeInactive",
-            "in": "query"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "أنواع العلاقة",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "data": {
-                      "type": "array",
-                      "items": {
-                        "$ref": "#/components/schemas/RelationshipType"
-                      }
-                    }
-                  },
-                  "required": [
-                    "data"
-                  ]
-                }
-              }
-            }
-          }
-        }
-      },
-      "post": {
-        "tags": [
-          "Relations"
-        ],
-        "summary": "إضافة نوع علاقة",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "slug": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 64,
-                    "pattern": "^[a-z0-9-]+$"
-                  },
-                  "nameAr": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 160
-                  },
-                  "nameEn": {
-                    "type": "string",
-                    "maxLength": 160
-                  },
-                  "descriptionAr": {
-                    "type": "string",
-                    "maxLength": 1000
-                  },
-                  "displayOrder": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9999,
-                    "default": 0
-                  }
-                },
-                "required": [
-                  "slug",
-                  "nameAr"
-                ]
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "أُضيف",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RelationshipType"
-                }
-              }
-            }
-          },
-          "409": {
-            "description": "الـslug مستخدم",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Problem"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/admin/relations/relationship-types/{id}": {
-      "patch": {
-        "tags": [
-          "Relations"
-        ],
-        "summary": "تعديل نوع علاقة",
-        "description": "التعطيل يخفي المفردة من قوائم الاختيار ولا يمحو من صُنّف بها سابقًا.",
-        "security": [
-          {
-            "bearerAuth": []
-          }
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "required": true,
-            "name": "id",
-            "in": "path"
-          }
-        ],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "nameAr": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 160
-                  },
-                  "nameEn": {
-                    "type": "string",
-                    "maxLength": 160
-                  },
-                  "descriptionAr": {
-                    "type": "string",
-                    "maxLength": 1000
-                  },
-                  "displayOrder": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 9999,
-                    "default": 0
-                  },
-                  "isActive": {
-                    "type": "boolean"
-                  }
-                }
-              }
-            }
-          }
-        },
-        "responses": {
-          "200": {
-            "description": "عُدِّل",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/RelationshipType"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "المفردة غير موجودة",
             "content": {
               "application/problem+json": {
                 "schema": {
